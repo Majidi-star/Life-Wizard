@@ -1,15 +1,4 @@
 import 'package:flutter/material.dart';
-import '../features/ai_chat/ai_chat_screen.dart';
-import '../features/schedule/schedule_screen.dart';
-import '../features/goals/goals_screen.dart';
-import '../features/skills/skills_screen.dart';
-import '../features/habits/habits_screen.dart';
-import '../features/todo/todo_screen.dart';
-import '../features/progress_dashboard/progress_dashboard_screen.dart';
-import '../features/pro_clock/pro_clock_screen.dart';
-import '../features/fitness_tracker/fitness_tracker_screen.dart';
-import '../features/mood_data/mood_data_screen.dart';
-import '../features/settings/settings_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -32,57 +21,57 @@ class AppDrawer extends StatelessWidget {
           _createDrawerItem(
             icon: Icons.chat,
             text: 'AI Chat',
-            onTap: () => _navigateTo(context, const AIChatScreen()),
+            onTap: () => _navigateToNamed(context, '/'),
           ),
           _createDrawerItem(
             icon: Icons.calendar_today,
             text: 'Schedule',
-            onTap: () => _navigateTo(context, const ScheduleScreen()),
+            onTap: () => _navigateToNamed(context, '/schedule'),
           ),
           _createDrawerItem(
             icon: Icons.flag,
             text: 'Goals',
-            onTap: () => _navigateTo(context, const GoalsScreen()),
+            onTap: () => _navigateToNamed(context, '/goals'),
           ),
           _createDrawerItem(
             icon: Icons.psychology,
             text: 'Skills',
-            onTap: () => _navigateTo(context, const SkillsScreen()),
+            onTap: () => _navigateToNamed(context, '/skills'),
           ),
           _createDrawerItem(
             icon: Icons.repeat,
             text: 'Habits',
-            onTap: () => _navigateTo(context, const HabitsScreen()),
+            onTap: () => _navigateToNamed(context, '/habits'),
           ),
           _createDrawerItem(
             icon: Icons.check_box,
             text: 'Todo',
-            onTap: () => _navigateTo(context, const TodoScreen()),
+            onTap: () => _navigateToNamed(context, '/todo'),
           ),
           _createDrawerItem(
             icon: Icons.dashboard,
             text: 'Progress Dashboard',
-            onTap: () => _navigateTo(context, const ProgressDashboardScreen()),
+            onTap: () => _navigateToNamed(context, '/progress'),
           ),
           _createDrawerItem(
             icon: Icons.timer,
             text: 'Pro Clock',
-            onTap: () => _navigateTo(context, const ProClockScreen()),
+            onTap: () => _navigateToNamed(context, '/pro_clock'),
           ),
           _createDrawerItem(
             icon: Icons.fitness_center,
             text: 'Fitness Tracker',
-            onTap: () => _navigateTo(context, const FitnessTrackerScreen()),
+            onTap: () => _navigateToNamed(context, '/fitness'),
           ),
           _createDrawerItem(
             icon: Icons.mood,
             text: 'Mood Data',
-            onTap: () => _navigateTo(context, const MoodDataScreen()),
+            onTap: () => _navigateToNamed(context, '/mood'),
           ),
           _createDrawerItem(
             icon: Icons.settings,
             text: 'Settings',
-            onTap: () => _navigateTo(context, const SettingsScreen()),
+            onTap: () => _navigateToNamed(context, '/settings'),
           ),
         ],
       ),
@@ -97,11 +86,10 @@ class AppDrawer extends StatelessWidget {
     return ListTile(leading: Icon(icon), title: Text(text), onTap: onTap);
   }
 
-  void _navigateTo(BuildContext context, Widget screen) {
+  void _navigateToNamed(BuildContext context, String routeName) {
     Navigator.pop(context); // Close the drawer
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
+    if (ModalRoute.of(context)?.settings.name != routeName) {
+      Navigator.pushReplacementNamed(context, routeName);
+    }
   }
 }
