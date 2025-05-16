@@ -6,6 +6,13 @@ import 'features/settings/settings_event.dart';
 import 'features/settings/settings_state.dart';
 import 'features/ai_chat/ai_chat_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/todo/todo_screen.dart';
+import 'features/goals/goals_screen.dart';
+import 'features/habits/habits_screen.dart';
+import 'features/schedule/schedule_screen.dart';
+import 'features/progress_dashboard/progress_dashboard_screen.dart';
+import 'features/pro_clock/pro_clock_screen.dart';
+import 'features/mood_data/mood_data_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +46,13 @@ class MyApp extends StatelessWidget {
             routes: {
               '/': (context) => const AIChatScreen(),
               '/settings': (context) => const SettingsScreen(),
+              '/todo': (context) => const TodoScreen(),
+              '/goals': (context) => const GoalsScreen(),
+              '/habits': (context) => const HabitsScreen(),
+              '/schedule': (context) => const ScheduleScreen(),
+              '/progress': (context) => const ProgressDashboardScreen(),
+              '/pro_clock': (context) => const ProClockScreen(),
+              '/mood': (context) => const MoodDataScreen(),
             },
             initialRoute: '/',
           );

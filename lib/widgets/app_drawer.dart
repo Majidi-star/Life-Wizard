@@ -34,11 +34,6 @@ class AppDrawer extends StatelessWidget {
             onTap: () => _navigateToNamed(context, '/goals'),
           ),
           _createDrawerItem(
-            icon: Icons.psychology,
-            text: 'Skills',
-            onTap: () => _navigateToNamed(context, '/skills'),
-          ),
-          _createDrawerItem(
             icon: Icons.repeat,
             text: 'Habits',
             onTap: () => _navigateToNamed(context, '/habits'),
@@ -57,11 +52,6 @@ class AppDrawer extends StatelessWidget {
             icon: Icons.timer,
             text: 'Pro Clock',
             onTap: () => _navigateToNamed(context, '/pro_clock'),
-          ),
-          _createDrawerItem(
-            icon: Icons.fitness_center,
-            text: 'Fitness Tracker',
-            onTap: () => _navigateToNamed(context, '/fitness'),
           ),
           _createDrawerItem(
             icon: Icons.mood,
