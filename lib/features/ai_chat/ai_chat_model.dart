@@ -125,8 +125,9 @@ class GoalFormula {
 // Define the chart of scores over time
 class ScoreChart {
   final List scores;
+  final List dates;
 
-  ScoreChart({required this.scores});
+  ScoreChart({required this.scores, required this.dates});
 }
 
 // Define the comparison card
