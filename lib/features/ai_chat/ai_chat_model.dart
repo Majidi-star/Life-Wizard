@@ -1,5 +1,4 @@
 // AI Chat model
-import 'dart:ffi';
 
 // Define a list of chat items (text, process, milestone) and the mode (conversation or text)
 class AIChatScreenModel {
@@ -67,11 +66,11 @@ class MilestoneTask {
   final String taskName; // Name of the task
   final String taskDescription; // Description of the task
   final bool isCompleted; // Is the task completed
-  final Int taskTime; // How many hours or minutes the task will take
+  final int taskTime; // How many hours or minutes the task will take
   final String taskTimeFormat; // Format of the timeTask (minutes or hours)
-  final Int
+  final int
   taskStartPercentage; // Compared to other tasks when the task will start
-  final Int taskEndPercentage; // Compared to other tasks when the task will end
+  final int taskEndPercentage; // Compared to other tasks when the task will end
 
   MilestoneTask({
     required this.taskName,
@@ -95,8 +94,8 @@ class OverallPlan {
 // Define task groups for the overall plan
 class TaskGroup {
   final String taskGroupName; // Name of the task group
-  final Int taskGroupProgress; // The progress of task group in percentage
-  final Int
+  final int taskGroupProgress; // The progress of task group in percentage
+  final int
   taskGroupTime; // The amount of time the task group needs (hours or minutes)
   final String
   taskGroupTimeFormat; // The format of taskGroupTime (hours or minutes)
@@ -112,8 +111,8 @@ class TaskGroup {
 // Define the formula for measuring the goal
 class GoalFormula {
   final String goalFormula;
-  final Int currentScore;
-  final Int goalScore;
+  final int currentScore;
+  final int goalScore;
 
   GoalFormula({
     required this.goalFormula,
@@ -141,7 +140,7 @@ class ComparisonCard {
 class ComparisonItem {
   final String name; // Name of the imagenary person to compare
   final String level; // The level of the imagenary person
-  final Int score; // The score of the imagenary person
+  final int score; // The score of the imagenary person
 
   ComparisonItem({
     required this.name,

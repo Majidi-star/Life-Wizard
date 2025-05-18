@@ -20,6 +20,7 @@ class HabitsCard {
   final List
   habitEnd; // Used for showing the progress of the habit on a timeline
   final String habitStatus; // The AI judgement of the habit frequency
+  final int habitPriority; // The priority of the habit
 
   HabitsCard({
     required this.habitName,
@@ -30,5 +31,6 @@ class HabitsCard {
     required this.habitStart,
     required this.habitEnd,
     required this.habitStatus,
+    required this.habitPriority,
   });
 }
