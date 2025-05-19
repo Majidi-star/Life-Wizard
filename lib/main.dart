@@ -21,6 +21,7 @@ void main() async {
   // Initialize the database
   await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
   final db = await DatabaseInitializer.database;
+  print(db);
 
   // When you're done with the database
   await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
