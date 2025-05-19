@@ -13,10 +13,17 @@ import 'features/schedule/schedule_screen.dart';
 import 'features/progress_dashboard/progress_dashboard_screen.dart';
 import 'features/pro_clock/pro_clock_screen.dart';
 import 'features/mood_data/mood_data_screen.dart';
+import 'database_initializer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
+  // Initialize the database
+  await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
+  final db = await DatabaseInitializer.database;
+
+  // When you're done with the database
+  await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
 
   runApp(MyApp(preferences: preferences));
 }
