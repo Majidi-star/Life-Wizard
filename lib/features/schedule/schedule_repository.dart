@@ -179,4 +179,75 @@ class ScheduleRepository {
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
   }
+
+  /// Updates specific fields of a schedule
+  Future<int> updateScheduleFields(int id, Map<String, dynamic> fields) async {
+    return await _db.update(
+      _tableName,
+      fields,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Updates schedule date
+  Future<int> updateScheduleDate(int id, DateTime date) async {
+    return await updateScheduleFields(id, {'date': date.toIso8601String()});
+  }
+
+  /// Updates schedule time
+  Future<int> updateScheduleTime(
+    int id,
+    int startHour,
+    int startMinute,
+    int endHour,
+    int endMinute,
+  ) async {
+    return await updateScheduleFields(id, {
+      'startTimeHour': startHour,
+      'startTimeMinute': startMinute,
+      'endTimeHour': endHour,
+      'endTimeMinute': endMinute,
+    });
+  }
+
+  /// Updates schedule activity
+  Future<int> updateScheduleActivity(int id, String activity) async {
+    return await updateScheduleFields(id, {'activity': activity});
+  }
+
+  /// Updates schedule notes
+  Future<int> updateScheduleNotes(int id, String notes) async {
+    return await updateScheduleFields(id, {'notes': notes});
+  }
+
+  /// Updates schedule todo
+  Future<int> updateScheduleTodo(int id, String todo) async {
+    return await updateScheduleFields(id, {'todo': todo});
+  }
+
+  /// Updates schedule timebox status
+  Future<int> updateScheduleTimeBoxStatus(int id, bool status) async {
+    return await updateScheduleFields(id, {'timeBoxStatus': status ? 1 : 0});
+  }
+
+  /// Updates schedule priority
+  Future<int> updateSchedulePriority(int id, int priority) async {
+    return await updateScheduleFields(id, {'priority': priority});
+  }
+
+  /// Updates schedule heatmap productivity
+  Future<int> updateScheduleHeatmapProductivity(
+    int id,
+    int productivity,
+  ) async {
+    return await updateScheduleFields(id, {
+      'heatmapProductivity': productivity,
+    });
+  }
+
+  /// Updates schedule habits
+  Future<int> updateScheduleHabits(int id, String habits) async {
+    return await updateScheduleFields(id, {'habits': habits});
+  }
 }

@@ -129,4 +129,39 @@ class HabitsRepository {
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Habit.fromMap(maps[i]));
   }
+
+  /// Updates specific fields of a habit
+  Future<int> updateHabitFields(int id, Map<String, dynamic> fields) async {
+    return await _db.update(
+      _tableName,
+      fields,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Updates habit name
+  Future<int> updateHabitName(int id, String name) async {
+    return await updateHabitFields(id, {'name': name});
+  }
+
+  /// Updates habit description
+  Future<int> updateHabitDescription(int id, String description) async {
+    return await updateHabitFields(id, {'description': description});
+  }
+
+  /// Updates habit consecutive progress
+  Future<int> updateHabitConsecutiveProgress(int id, int progress) async {
+    return await updateHabitFields(id, {'consecutiveProgress': progress});
+  }
+
+  /// Updates habit total progress
+  Future<int> updateHabitTotalProgress(int id, int progress) async {
+    return await updateHabitFields(id, {'totalProgress': progress});
+  }
+
+  /// Updates habit time range
+  Future<int> updateHabitTimeRange(int id, String start, String end) async {
+    return await updateHabitFields(id, {'start': start, 'end': end});
+  }
 }

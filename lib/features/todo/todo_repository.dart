@@ -131,4 +131,34 @@ class TodoRepository {
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Todo.fromMap(maps[i]));
   }
+
+  /// Updates specific fields of a todo
+  Future<int> updateTodoFields(int id, Map<String, dynamic> fields) async {
+    return await _db.update(
+      _tableName,
+      fields,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Updates todo status
+  Future<int> updateTodoStatus(int id, bool status) async {
+    return await updateTodoFields(id, {'todoStatus': status ? 1 : 0});
+  }
+
+  /// Updates todo priority
+  Future<int> updateTodoPriority(int id, int priority) async {
+    return await updateTodoFields(id, {'priority': priority});
+  }
+
+  /// Updates todo name
+  Future<int> updateTodoName(int id, String name) async {
+    return await updateTodoFields(id, {'todoName': name});
+  }
+
+  /// Updates todo description
+  Future<int> updateTodoDescription(int id, String description) async {
+    return await updateTodoFields(id, {'todoDescription': description});
+  }
 }

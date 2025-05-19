@@ -99,4 +99,24 @@ class LogsRepository {
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Log.fromMap(maps[i]));
   }
+
+  /// Updates specific fields of a log
+  Future<int> updateLogFields(int id, Map<String, dynamic> fields) async {
+    return await _db.update(
+      _tableName,
+      fields,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Updates log content
+  Future<int> updateLogContent(int id, String content) async {
+    return await updateLogFields(id, {'logs': content});
+  }
+
+  /// Updates log datetime
+  Future<int> updateLogDatetime(int id, DateTime datetime) async {
+    return await updateLogFields(id, {'datetime': datetime.toIso8601String()});
+  }
 }
