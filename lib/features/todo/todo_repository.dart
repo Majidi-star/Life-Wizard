@@ -162,3 +162,118 @@ class TodoRepository {
     return await updateTodoFields(id, {'todoDescription': description});
   }
 }
+
+// Test functions
+Future<void> testTodoRepository() async {
+  final db = await DatabaseInitializer.database;
+  final repository = TodoRepository(db);
+
+  // Create test todo
+  final testTodo = Todo(
+    todoName: 'Complete Project',
+    todoDescription: 'Finish the Flutter project',
+    todoStatus: false,
+    todoCreatedAt: DateTime.now(),
+    priority: 1,
+  );
+
+  // Test create
+  final id = await repository.insertTodo(testTodo);
+  print('Created todo with ID: $id');
+
+  // Test get
+  final retrievedTodo = await repository.getTodoById(id);
+  print('\nRetrieved todo:');
+  print('ID: ${retrievedTodo?.id}');
+  print('Name: ${retrievedTodo?.todoName}');
+  print('Description: ${retrievedTodo?.todoDescription}');
+  print('Status: ${retrievedTodo?.todoStatus}');
+  print('Created At: ${retrievedTodo?.todoCreatedAt}');
+  print('Priority: ${retrievedTodo?.priority}');
+
+  // Test update by field
+  await repository.updateTodoFields(id, {
+    'todoName': 'Updated Project Task',
+    'priority': 2,
+  });
+  print('\nUpdated todo fields');
+
+  // Get and print updated todo
+  final updatedTodo = await repository.getTodoById(id);
+  print('\nUpdated todo values:');
+  print('ID: ${updatedTodo?.id}');
+  print('Name: ${updatedTodo?.todoName}');
+  print('Description: ${updatedTodo?.todoDescription}');
+  print('Status: ${updatedTodo?.todoStatus}');
+  print('Created At: ${updatedTodo?.todoCreatedAt}');
+  print('Priority: ${updatedTodo?.priority}');
+
+  // Test get all todos
+  final allTodos = await repository.getAllTodos();
+  print('\nAll todos in database:');
+  if (allTodos != null) {
+    for (var todo in allTodos) {
+      print('\nTodo:');
+      print('ID: ${todo.id}');
+      print('Name: ${todo.todoName}');
+      print('Description: ${todo.todoDescription}');
+      print('Status: ${todo.todoStatus}');
+      print('Created At: ${todo.todoCreatedAt}');
+      print('Priority: ${todo.priority}');
+    }
+  }
+
+  // Test get todos by status
+  final activeTodos = await repository.getTodosByStatus(false);
+  print('\nActive todos:');
+  if (activeTodos != null) {
+    for (var todo in activeTodos) {
+      print('Found active todo: ${todo.todoName}');
+    }
+  }
+
+  // Test get todos by priority
+  final highPriorityTodos = await repository.getTodosByPriority(2);
+  print('\nHigh priority todos:');
+  if (highPriorityTodos != null) {
+    for (var todo in highPriorityTodos) {
+      print('Found high priority todo: ${todo.todoName}');
+    }
+  }
+
+  // Test search
+  final searchResults = await repository.searchTodos('Project');
+  print('\nSearch results for "Project":');
+  if (searchResults != null) {
+    for (var todo in searchResults) {
+      print('Found todo: ${todo.todoName}');
+    }
+  }
+
+  // Test specific update methods
+  await repository.updateTodoStatus(id, true);
+  await repository.updateTodoPriority(id, 3);
+  await repository.updateTodoName(id, 'Final Project Task');
+  await repository.updateTodoDescription(id, 'Final project description');
+  print('\nUpdated todo using specific methods');
+
+  // Get and print final todo
+  final finalTodo = await repository.getTodoById(id);
+  print('\nFinal todo values:');
+  print('ID: ${finalTodo?.id}');
+  print('Name: ${finalTodo?.todoName}');
+  print('Description: ${finalTodo?.todoDescription}');
+  print('Status: ${finalTodo?.todoStatus}');
+  print('Created At: ${finalTodo?.todoCreatedAt}');
+  print('Priority: ${finalTodo?.priority}');
+
+  // Test delete
+  await repository.deleteTodo(id);
+  print('\nDeleted todo with ID: $id');
+
+  // Verify deletion
+  final deletedTodo = await repository.getTodoById(id);
+  print(
+    'Verification after deletion: ${deletedTodo == null ? "Todo successfully deleted" : "Todo still exists"}',
+  );
+}

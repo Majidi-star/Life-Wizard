@@ -251,3 +251,140 @@ class ScheduleRepository {
     return await updateScheduleFields(id, {'habits': habits});
   }
 }
+
+// Test functions
+Future<void> testScheduleRepository() async {
+  final db = await DatabaseInitializer.database;
+  final repository = ScheduleRepository(db);
+
+  // Create test schedule
+  final testSchedule = Schedule(
+    date: DateTime.now(),
+    challenge: true,
+    startTimeHour: 9,
+    startTimeMinute: 0,
+    endTimeHour: 10,
+    endTimeMinute: 30,
+    activity: 'Morning Meeting',
+    notes: 'Team sync',
+    todo: 'Prepare presentation',
+    timeBoxStatus: true,
+    priority: 1,
+    heatmapProductivity: 8,
+    habits: 'Exercise,Meditation',
+  );
+
+  // Test create
+  final id = await repository.insertSchedule(testSchedule);
+  print('Created schedule with ID: $id');
+
+  // Test get
+  final retrievedSchedule = await repository.getScheduleById(id);
+  print('\nRetrieved schedule:');
+  print('ID: ${retrievedSchedule?.id}');
+  print('Date: ${retrievedSchedule?.date}');
+  print('Challenge: ${retrievedSchedule?.challenge}');
+  print(
+    'Start Time: ${retrievedSchedule?.startTimeHour}:${retrievedSchedule?.startTimeMinute}',
+  );
+  print(
+    'End Time: ${retrievedSchedule?.endTimeHour}:${retrievedSchedule?.endTimeMinute}',
+  );
+  print('Activity: ${retrievedSchedule?.activity}');
+  print('Notes: ${retrievedSchedule?.notes}');
+  print('Todo: ${retrievedSchedule?.todo}');
+  print('Time Box Status: ${retrievedSchedule?.timeBoxStatus}');
+  print('Priority: ${retrievedSchedule?.priority}');
+  print('Heatmap Productivity: ${retrievedSchedule?.heatmapProductivity}');
+  print('Habits: ${retrievedSchedule?.habits}');
+
+  // Test update by field
+  await repository.updateScheduleFields(id, {
+    'activity': 'Updated Meeting',
+    'notes': 'Updated team sync',
+    'heatmapProductivity': 9,
+  });
+  print('\nUpdated schedule fields');
+
+  // Get and print updated schedule
+  final updatedSchedule = await repository.getScheduleById(id);
+  print('\nUpdated schedule values:');
+  print('ID: ${updatedSchedule?.id}');
+  print('Date: ${updatedSchedule?.date}');
+  print('Challenge: ${updatedSchedule?.challenge}');
+  print(
+    'Start Time: ${updatedSchedule?.startTimeHour}:${updatedSchedule?.startTimeMinute}',
+  );
+  print(
+    'End Time: ${updatedSchedule?.endTimeHour}:${updatedSchedule?.endTimeMinute}',
+  );
+  print('Activity: ${updatedSchedule?.activity}');
+  print('Notes: ${updatedSchedule?.notes}');
+  print('Todo: ${updatedSchedule?.todo}');
+  print('Time Box Status: ${updatedSchedule?.timeBoxStatus}');
+  print('Priority: ${updatedSchedule?.priority}');
+  print('Heatmap Productivity: ${updatedSchedule?.heatmapProductivity}');
+  print('Habits: ${updatedSchedule?.habits}');
+
+  // Test get all schedules
+  final allSchedules = await repository.getAllSchedules();
+  print('\nAll schedules in database:');
+  if (allSchedules != null) {
+    for (var schedule in allSchedules) {
+      print('\nSchedule:');
+      print('ID: ${schedule.id}');
+      print('Date: ${schedule.date}');
+      print('Challenge: ${schedule.challenge}');
+      print(
+        'Start Time: ${schedule.startTimeHour}:${schedule.startTimeMinute}',
+      );
+      print('End Time: ${schedule.endTimeHour}:${schedule.endTimeMinute}');
+      print('Activity: ${schedule.activity}');
+      print('Notes: ${schedule.notes}');
+      print('Todo: ${schedule.todo}');
+      print('Time Box Status: ${schedule.timeBoxStatus}');
+      print('Priority: ${schedule.priority}');
+      print('Heatmap Productivity: ${schedule.heatmapProductivity}');
+      print('Habits: ${schedule.habits}');
+    }
+  }
+
+  // Test get schedules by date
+  final todaySchedules = await repository.getSchedulesByDate(DateTime.now());
+  print('\nSchedules for today:');
+  if (todaySchedules != null) {
+    for (var schedule in todaySchedules) {
+      print(
+        'Found schedule: ${schedule.activity} at ${schedule.startTimeHour}:${schedule.startTimeMinute}',
+      );
+    }
+  }
+
+  // Test get schedules by timebox status
+  final timeboxedSchedules = await repository.getSchedulesByTimeBoxStatus(true);
+  print('\nTimeboxed schedules:');
+  if (timeboxedSchedules != null) {
+    for (var schedule in timeboxedSchedules) {
+      print('Found timeboxed schedule: ${schedule.activity}');
+    }
+  }
+
+  // Test search
+  final searchResults = await repository.searchSchedules('Meeting');
+  print('\nSearch results for "Meeting":');
+  if (searchResults != null) {
+    for (var schedule in searchResults) {
+      print('Found schedule: ${schedule.activity}');
+    }
+  }
+
+  // Test delete
+  await repository.deleteSchedule(id);
+  print('\nDeleted schedule with ID: $id');
+
+  // Verify deletion
+  final deletedSchedule = await repository.getScheduleById(id);
+  print(
+    'Verification after deletion: ${deletedSchedule == null ? "Schedule successfully deleted" : "Schedule still exists"}',
+  );
+}

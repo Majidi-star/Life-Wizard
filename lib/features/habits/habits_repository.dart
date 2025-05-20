@@ -165,3 +165,92 @@ class HabitsRepository {
     return await updateHabitFields(id, {'start': start, 'end': end});
   }
 }
+
+// Test functions
+Future<void> testHabitsRepository() async {
+  final db = await DatabaseInitializer.database;
+  final repository = HabitsRepository(db);
+
+  // Create test habit
+  final testHabit = Habit(
+    name: 'Morning Exercise',
+    description: '30 minutes workout',
+    consecutiveProgress: 0,
+    totalProgress: 0,
+    createdAt: DateTime.now(),
+    start: '06:00',
+    end: '07:00',
+  );
+
+  // Test create
+  final id = await repository.insertHabit(testHabit);
+  print('Created habit with ID: $id');
+
+  // Test get
+  final retrievedHabit = await repository.getHabitById(id);
+  print('Retrieved habit:');
+  print('ID: ${retrievedHabit?.id}');
+  print('Name: ${retrievedHabit?.name}');
+  print('Description: ${retrievedHabit?.description}');
+  print('Consecutive Progress: ${retrievedHabit?.consecutiveProgress}');
+  print('Total Progress: ${retrievedHabit?.totalProgress}');
+  print('Created At: ${retrievedHabit?.createdAt}');
+  print('Start Time: ${retrievedHabit?.start}');
+  print('End Time: ${retrievedHabit?.end}');
+
+  // Test update by field
+  await repository.updateHabitFields(id, {
+    'name': 'Updated Exercise',
+    'consecutiveProgress': 5,
+    'totalProgress': 10,
+  });
+  print('\nUpdated habit fields');
+
+  // Get and print updated habit
+  final updatedHabit = await repository.getHabitById(id);
+  print('\nUpdated habit values:');
+  print('ID: ${updatedHabit?.id}');
+  print('Name: ${updatedHabit?.name}');
+  print('Description: ${updatedHabit?.description}');
+  print('Consecutive Progress: ${updatedHabit?.consecutiveProgress}');
+  print('Total Progress: ${updatedHabit?.totalProgress}');
+  print('Created At: ${updatedHabit?.createdAt}');
+  print('Start Time: ${updatedHabit?.start}');
+  print('End Time: ${updatedHabit?.end}');
+
+  // Test get all habits
+  final allHabits = await repository.getAllHabits();
+  print('\nAll habits in database:');
+  if (allHabits != null) {
+    for (var habit in allHabits) {
+      print('\nHabit:');
+      print('ID: ${habit.id}');
+      print('Name: ${habit.name}');
+      print('Description: ${habit.description}');
+      print('Consecutive Progress: ${habit.consecutiveProgress}');
+      print('Total Progress: ${habit.totalProgress}');
+      print('Created At: ${habit.createdAt}');
+      print('Start Time: ${habit.start}');
+      print('End Time: ${habit.end}');
+    }
+  }
+
+  // Test search
+  final searchResults = await repository.searchHabits('Exercise');
+  print('\nSearch results for "Exercise":');
+  if (searchResults != null) {
+    for (var habit in searchResults) {
+      print('Found habit: ${habit.name}');
+    }
+  }
+
+  // Test delete
+  await repository.deleteHabit(id);
+  print('\nDeleted habit with ID: $id');
+
+  // Verify deletion
+  final deletedHabit = await repository.getHabitById(id);
+  print(
+    'Verification after deletion: ${deletedHabit == null ? "Habit successfully deleted" : "Habit still exists"}',
+  );
+}

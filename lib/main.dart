@@ -15,16 +15,26 @@ import 'features/pro_clock/pro_clock_screen.dart';
 import 'features/mood_data/mood_data_screen.dart';
 import 'database_initializer.dart';
 
+// import 'features/settings/settings_repository.dart';
+// import 'features/goals/goals_repository.dart';
+// import 'features/habits/habits_repository.dart';
+// import 'features/logs/logs_repository.dart';
+// import 'features/Mood_data/Mood_data_repository.dart';
+// import 'features/schedule/schedule_repository.dart';
+// import 'features/settings/settings_repository.dart';
+// import 'features/todo/todo_repository.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
   // Initialize the database
-  await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
-  final db = await DatabaseInitializer.database;
-  print(db);
+  // await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
+  // final db = await DatabaseInitializer.database;
+
+  // await testSettingsRepository();
 
   // When you're done with the database
-  await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
+  // await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
 
   runApp(MyApp(preferences: preferences));
 }

@@ -27,12 +27,12 @@ class DatabaseInitializer {
     await db.execute('''
       CREATE TABLE settings(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        isDarkMode BOOLEAN NOT NULL DEFAULT 0,
-        language TEXT NOT NULL DEFAULT 'en',
-        notifications BOOLEAN NOT NULL DEFAULT 1,
-        moodTracking BOOLEAN NOT NULL DEFAULT 1,
-        feedbackFrequency INTEGER NOT NULL DEFAULT 7,
-        AIGuideLines TEXT
+        isDarkMode BOOLEAN NOT NULL,
+        language TEXT NOT NULL,
+        notifications BOOLEAN NOT NULL,
+        moodTracking BOOLEAN NOT NULL,
+        feedbackFrequency INTEGER NOT NULL,
+        AIGuideLines TEXT NOT NULL
       )
     ''');
 
@@ -45,16 +45,16 @@ class DatabaseInitializer {
       'feedbackFrequency': 7,
       'AIGuideLines': '',
     });
-
+    print("creating the database ...");
     // Todo table
     await db.execute('''
       CREATE TABLE todo(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         todoName TEXT NOT NULL,
-        todoDescription TEXT,
-        todoStatus BOOLEAN NOT NULL DEFAULT 0,
+        todoDescription TEXT NOT NULL,
+        todoStatus BOOLEAN NOT NULL,
         todoCreatedAt DATETIME NOT NULL,
-        priority INTEGER NOT NULL DEFAULT 0
+        priority INTEGER NOT NULL
       )
     ''');
 
@@ -63,18 +63,18 @@ class DatabaseInitializer {
       CREATE TABLE schedule(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date DATETIME NOT NULL,
-        challenge BOOLEAN NOT NULL DEFAULT 0,
+        challenge BOOLEAN NOT NULL,
         startTimeHour INTEGER NOT NULL,
         startTimeMinute INTEGER NOT NULL,
         endTimeHour INTEGER NOT NULL,
         endTimeMinute INTEGER NOT NULL,
-        activity TEXT,
-        notes TEXT,
-        todo TEXT,
-        timeBoxStatus BOOLEAN NOT NULL DEFAULT 0,
-        priority INTEGER NOT NULL DEFAULT 0,
-        heatmapProductivity INTEGER NOT NULL DEFAULT 0,
-        habits TEXT
+        activity TEXT NOT NULL,
+        notes TEXT NOT NULL,
+        todo TEXT NOT NULL,
+        timeBoxStatus BOOLEAN NOT NULL,
+        priority INTEGER NOT NULL,
+        heatmapProductivity INTEGER NOT NULL,
+        habits TEXT NOT NULL
       )
     ''');
 
@@ -92,9 +92,9 @@ class DatabaseInitializer {
       CREATE TABLE habits(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        description TEXT,
-        consecutiveProgress INTEGER NOT NULL DEFAULT 0,
-        totalProgress INTEGER NOT NULL DEFAULT 0,
+        description TEXT NOT NULL,
+        consecutiveProgress INTEGER NOT NULL,
+        totalProgress INTEGER NOT NULL,
         createdAt DATETIME NOT NULL,
         start TEXT NOT NULL,
         end TEXT NOT NULL
@@ -106,11 +106,11 @@ class DatabaseInitializer {
       CREATE TABLE goals(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        progressPercentage INTEGER NOT NULL DEFAULT 0,
-        startScore INTEGER NOT NULL DEFAULT 0,
-        currentScore INTEGER NOT NULL DEFAULT 0,
+        progressPercentage INTEGER NOT NULL,
+        startScore INTEGER NOT NULL,
+        currentScore INTEGER NOT NULL,
         targetScore INTEGER NOT NULL,
-        goalsRoadmap TEXT
+        goalsRoadmap TEXT NOT NULL
       )
     ''');
 

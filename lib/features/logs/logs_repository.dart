@@ -120,3 +120,77 @@ class LogsRepository {
     return await updateLogFields(id, {'datetime': datetime.toIso8601String()});
   }
 }
+
+// Test functions
+Future<void> testLogsRepository() async {
+  final db = await DatabaseInitializer.database;
+  final repository = LogsRepository(db);
+
+  // Create test log
+  final testLog = Log(datetime: DateTime.now(), logs: 'Initial test log entry');
+
+  // Test create
+  final id = await repository.insertLog(testLog);
+  print('Created log with ID: $id');
+
+  // Test get
+  final retrievedLog = await repository.getLogById(id);
+  print('\nRetrieved log:');
+  print('ID: ${retrievedLog?.id}');
+  print('Datetime: ${retrievedLog?.datetime}');
+  print('Logs: ${retrievedLog?.logs}');
+
+  // Test update by field
+  await repository.updateLogFields(id, {
+    'logs': 'Updated test log entry',
+    'datetime': DateTime.now().toIso8601String(),
+  });
+  print('\nUpdated log fields');
+
+  // Get and print updated log
+  final updatedLog = await repository.getLogById(id);
+  print('\nUpdated log values:');
+  print('ID: ${updatedLog?.id}');
+  print('Datetime: ${updatedLog?.datetime}');
+  print('Logs: ${updatedLog?.logs}');
+
+  // Test get all logs
+  final allLogs = await repository.getAllLogs();
+  print('\nAll logs in database:');
+  if (allLogs != null) {
+    for (var log in allLogs) {
+      print('\nLog:');
+      print('ID: ${log.id}');
+      print('Datetime: ${log.datetime}');
+      print('Logs: ${log.logs}');
+    }
+  }
+
+  // Test get logs by date
+  final todayLogs = await repository.getLogsByDate(DateTime.now());
+  print('\nLogs for today:');
+  if (todayLogs != null) {
+    for (var log in todayLogs) {
+      print('Found log: ${log.logs} at ${log.datetime}');
+    }
+  }
+
+  // Test search
+  final searchResults = await repository.searchLogs('test');
+  print('\nSearch results for "test":');
+  if (searchResults != null) {
+    for (var log in searchResults) {
+      print('Found log: ${log.logs}');
+    }
+  }
+
+  // Test delete
+  await repository.deleteLog(id);
+  print('\nDeleted log with ID: $id');
+
+  // Verify deletion
+  final deletedLog = await repository.getLogById(id);
+  print(
+    'Verification after deletion: ${deletedLog == null ? "Log successfully deleted" : "Log still exists"}',
+  );
+}

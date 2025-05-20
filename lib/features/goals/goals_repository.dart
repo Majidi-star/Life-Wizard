@@ -64,22 +64,6 @@ class GoalsRepository {
 
   GoalsRepository(this._db);
 
-  /// Initializes the goals table in the database
-  /// Creates the table if it doesn't exist
-  Future<void> initialize() async {
-    await _db.execute('''
-      CREATE TABLE IF NOT EXISTS $_tableName(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,  // Auto-incrementing primary key
-        name TEXT NOT NULL,                    // Goal name
-        progressPercentage INTEGER NOT NULL DEFAULT 0,  // Current progress
-        startScore INTEGER NOT NULL DEFAULT 0,  // Initial score
-        currentScore INTEGER NOT NULL DEFAULT 0,  // Current score
-        targetScore INTEGER NOT NULL,          // Target score
-        goalsRoadmap TEXT NOT NULL             // JSON string containing goal details
-      )
-    ''');
-  }
-
   /// Inserts a new goal into the database
   /// Returns the ID of the newly inserted goal
   Future<int> insertGoal(Goal goal) async {
@@ -120,6 +104,17 @@ class GoalsRepository {
     );
   }
 
+  /// Updates a specific field of a goal in the database
+  /// Returns the number of rows affected
+  Future<int> updateGoalByField(int id, String field, dynamic value) async {
+    return await _db.update(
+      _tableName,
+      {field: value},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   /// Deletes a goal from the database
   /// Returns the number of rows affected
   Future<int> deleteGoal(int id) async {
@@ -142,21 +137,6 @@ class GoalsRepository {
     return List.generate(maps.length, (i) => Goal.fromMap(maps[i]));
   }
 
-  /// Updates the progress and current score of a goal
-  /// Useful for tracking goal completion
-  Future<int> updateGoalProgress(
-    int id,
-    int newProgress,
-    int newCurrentScore,
-  ) async {
-    return await _db.update(
-      _tableName,
-      {'progressPercentage': newProgress, 'currentScore': newCurrentScore},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
   /// Searches for goals by name
   /// Returns null if no goals match the search
   Future<List<Goal>?> searchGoals(String query) async {
@@ -169,4 +149,93 @@ class GoalsRepository {
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Goal.fromMap(maps[i]));
   }
+}
+
+/// Test function to demonstrate the usage of GoalsRepository
+Future<void> testGoalsRepository() async {
+  final db = await DatabaseInitializer.database;
+  final repository = GoalsRepository(db);
+
+  // Create test goals
+  final testGoal1 = Goal(
+    name: 'Learn Flutter',
+    progressPercentage: 0,
+    startScore: 0,
+    currentScore: 0,
+    targetScore: 100,
+    goalsRoadmap: {
+      'milestones': [
+        {'name': 'Complete Flutter basics', 'score': 30},
+        {'name': 'Build first app', 'score': 60},
+        {'name': 'Master state management', 'score': 100},
+      ],
+    },
+  );
+
+  final testGoal2 = Goal(
+    name: 'Exercise Daily',
+    progressPercentage: 25,
+    startScore: 0,
+    currentScore: 25,
+    targetScore: 100,
+    goalsRoadmap: {
+      'milestones': [
+        {'name': 'Start with 10 minutes', 'score': 30},
+        {'name': 'Increase to 30 minutes', 'score': 60},
+        {'name': 'Maintain 1 hour routine', 'score': 100},
+      ],
+    },
+  );
+
+  // Test insert
+  final id1 = await repository.insertGoal(testGoal1);
+  final id2 = await repository.insertGoal(testGoal2);
+  print('Created goals with IDs: $id1, $id2');
+
+  // Test get all
+  final allGoals = await repository.getAllGoals();
+  print('Total goals: ${allGoals?.length}');
+  allGoals?.forEach((goal) {
+    print('Goal: ${goal.name}');
+    print('Progress: ${goal.progressPercentage}%');
+    print('Start Score: ${goal.startScore}');
+    print('Current Score: ${goal.currentScore}');
+    print('Target Score: ${goal.targetScore}');
+    print('Roadmap: ${goal.goalsRoadmap}');
+    print('---');
+  });
+
+  // Test get by ID
+  final retrievedGoal = await repository.getGoalById(id1);
+  print(
+    'Retrieved goal: ${retrievedGoal?.name}, Progress: ${retrievedGoal?.progressPercentage}%, Start Score: ${retrievedGoal?.startScore}, Current Score: ${retrievedGoal?.currentScore}, Target Score: ${retrievedGoal?.targetScore}, Roadmap: ${retrievedGoal?.goalsRoadmap}',
+  );
+
+  // Test update by field
+  await repository.updateGoalByField(id1, 'progressPercentage', 50);
+  await repository.updateGoalByField(id1, 'currentScore', 50);
+  print('Updated goal progress and score');
+
+  // Test get by ID
+  final retrievedGoal1 = await repository.getGoalById(id1);
+  print(
+    'Retrieved goal: ${retrievedGoal1?.name}, Progress: ${retrievedGoal1?.progressPercentage}%, Start Score: ${retrievedGoal1?.startScore}, Current Score: ${retrievedGoal1?.currentScore}, Target Score: ${retrievedGoal1?.targetScore}, Roadmap: ${retrievedGoal1?.goalsRoadmap}',
+  );
+  // Test search
+  final searchResults = await repository.searchGoals('Flutter');
+  print('Search results: ${searchResults?.length}');
+
+  final retrievedGoal2 = await repository.getGoalById(id1);
+  print(
+    'Retrieved updated goal: ${retrievedGoal2?.name}, Progress: ${retrievedGoal2?.progressPercentage}%, Start Score: ${retrievedGoal2?.startScore}, Current Score: ${retrievedGoal2?.currentScore}, Target Score: ${retrievedGoal2?.targetScore}, Roadmap: ${retrievedGoal2?.goalsRoadmap}',
+  );
+
+  // Test progress range
+  final progressGoals = await repository.getGoalsByProgressRange(0, 50);
+  print('Goals in progress range: ${progressGoals?.length}');
+
+  // Test delete
+  await repository.deleteGoal(id1);
+  await repository.deleteGoal(id2);
+  print('Deleted test goals');
 }
