@@ -22,7 +22,7 @@ import 'database_initializer.dart';
 // import 'features/Mood_data/Mood_data_repository.dart';
 // import 'features/schedule/schedule_repository.dart';
 // import 'features/settings/settings_repository.dart';
-// import 'features/todo/todo_repository.dart';
+import 'features/todo/todo_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +30,10 @@ void main() async {
   // Initialize the database
   // await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
   // final db = await DatabaseInitializer.database;
+
+  final db = await DatabaseInitializer.database;
+  final repository = TodoRepository(db);
+  await testTodoRepository();
 
   // await testSettingsRepository();
 

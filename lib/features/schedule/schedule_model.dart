@@ -16,14 +16,9 @@ class DateModel {
 
 class ScheduleModel {
   final List<TimeBox> timeBoxes; // List of time boxes (TimeBox model)
-  final TimeBox currentTimeBox; // Current time box (TimeBox model)
-  final TimeBox challengeTimeBox; // Challenge time box (TimeBox model)
+  final TimeBox? currentTimeBox; // Current time box (TimeBox model)
 
-  ScheduleModel({
-    required this.timeBoxes,
-    required this.currentTimeBox,
-    required this.challengeTimeBox,
-  });
+  ScheduleModel({required this.timeBoxes, this.currentTimeBox});
 }
 
 class TimeBox {
@@ -39,6 +34,7 @@ class TimeBox {
   final int priority; // Priority of the activity
   final int
   heatmapProductivity; // How productive you have been in this time box (1-10)
+  final bool isChallenge; // Whether this is a challenge time box
 
   TimeBox({
     required this.startTimeHour,
@@ -51,6 +47,7 @@ class TimeBox {
     required this.timeBoxStatus,
     required this.priority,
     required this.heatmapProductivity,
+    required this.isChallenge,
   });
 }
 

@@ -1,6 +1,7 @@
 // Mood Data repository
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
+import 'mood_data_model.dart';
 
 class MoodData {
   final int? id;
@@ -90,6 +91,40 @@ class MoodRepository {
       whereArgs: [id],
     );
   }
+
+  /// Transforms database MoodData into MoodDataModel structure
+  MoodDataModel transformToMoodDataModel(List<MoodData> moodDataList) {
+    final List<String> questions = [];
+    final List<String> answers = [];
+
+    for (var moodData in moodDataList) {
+      // Split questions and answers if they contain multiple entries
+      final questionList = moodData.questions.split('|');
+      final answerList = moodData.answers.split('|');
+
+      questions.addAll(questionList);
+      answers.addAll(answerList);
+    }
+
+    return MoodDataModel(moodDataQs: questions, moodDataAns: answers);
+  }
+
+  /// Prints all objects and their nested properties recursively
+  void printMoodDataModelStructure(MoodDataModel model) {
+    print('\n=== Mood Data Model Structure ===');
+
+    print('\nQuestions:');
+    for (var i = 0; i < model.moodDataQs.length; i++) {
+      print('${i + 1}. ${model.moodDataQs[i]}');
+    }
+
+    print('\nAnswers:');
+    for (var i = 0; i < model.moodDataAns.length; i++) {
+      print('${i + 1}. ${model.moodDataAns[i]}');
+    }
+
+    print('\n=== End of Mood Data Model Structure ===\n');
+  }
 }
 
 // Test functions
@@ -97,66 +132,86 @@ Future<void> testMoodDataRepository() async {
   final db = await DatabaseInitializer.database;
   final repository = MoodRepository(db);
 
-  // Create test mood data
-  final testMoodData = MoodData(
-    questions: 'How are you feeling today?',
-    answers: 'I am feeling happy and energetic',
+  // Create first test mood data
+  final testMoodData1 = MoodData(
+    questions:
+        'How are you feeling today?|What activities did you enjoy?|What challenges did you face?',
+    answers:
+        'I am feeling happy and energetic|I enjoyed reading and exercising|I had some trouble focusing at work',
   );
 
-  // Test create
-  final id = await repository.insertMoodData(testMoodData);
-  print('Created mood data with ID: $id');
+  // Create second test mood data
+  final testMoodData2 = MoodData(
+    questions:
+        'Rate your energy level (1-10)|What improved your mood?|What could have been better?',
+    answers: '7|Spending time with friends|I wish I had more time for hobbies',
+  );
 
-  // Test get
-  final retrievedMoodData = await repository.getMoodDataById(id);
-  print('\nRetrieved mood data:');
-  print('ID: ${retrievedMoodData?.id}');
-  print('Questions: ${retrievedMoodData?.questions}');
-  print('Answers: ${retrievedMoodData?.answers}');
+  // Test insert both entries
+  final id1 = await repository.insertMoodData(testMoodData1);
+  final id2 = await repository.insertMoodData(testMoodData2);
+  print('Created mood data entries with IDs: $id1, $id2');
 
-  // Test update by field
-  await repository.updateMoodDataFields(id, {
-    'questions': 'What is your current mood?1',
-  });
-  print('\nUpdated mood data fields');
-
-  // Get and print updated mood data
-  final updatedMoodData = await repository.getMoodDataById(id);
-  print('\nUpdated mood data values:');
-  print('ID: ${updatedMoodData?.id}');
-  print('Questions: ${updatedMoodData?.questions}');
-  print('Answers: ${updatedMoodData?.answers}');
-
-  // Test get all mood data
+  // Test get all and transform to model
   final allMoodData = await repository.getAllMoodData();
-  print('\nAll mood data in database:');
   if (allMoodData != null) {
-    for (var moodData in allMoodData) {
-      print('\nMood Data Entry:');
-      print('ID: ${moodData.id}');
-      print('Questions: ${moodData.questions}');
-      print('Answers: ${moodData.answers}');
-    }
+    final moodDataModel = repository.transformToMoodDataModel(allMoodData);
+    // Print the complete structure
+    repository.printMoodDataModelStructure(moodDataModel);
   }
 
-  // Test search
-  final searchResults = await repository.searchMoodData('feeling');
-  print('\nSearch results for "feeling":');
-  if (searchResults != null) {
-    for (var moodData in searchResults) {
-      print('Found entry:');
-      print('Questions: ${moodData.questions}');
-      print('Answers: ${moodData.answers}');
-    }
+  // Test get by ID for first entry
+  final retrievedMoodData1 = await repository.getMoodDataById(id1);
+  if (retrievedMoodData1 != null) {
+    final singleMoodDataModel = repository.transformToMoodDataModel([
+      retrievedMoodData1,
+    ]);
+    print('\nRetrieved First Mood Data Model:');
+    repository.printMoodDataModelStructure(singleMoodDataModel);
   }
 
-  // Test delete
-  await repository.deleteMoodData(id);
-  print('\nDeleted mood data with ID: $id');
+  // Test get by ID for second entry
+  final retrievedMoodData2 = await repository.getMoodDataById(id2);
+  if (retrievedMoodData2 != null) {
+    final singleMoodDataModel = repository.transformToMoodDataModel([
+      retrievedMoodData2,
+    ]);
+    print('\nRetrieved Second Mood Data Model:');
+    repository.printMoodDataModelStructure(singleMoodDataModel);
+  }
 
-  // Verify deletion
-  final deletedMoodData = await repository.getMoodDataById(id);
-  print(
-    'Verification after deletion: ${deletedMoodData == null ? "Mood data successfully deleted" : "Mood data still exists"}',
-  );
+  // Test update by field for first entry
+  await repository.updateMoodDataFields(id1, {
+    'questions':
+        'How are you feeling today?|What activities did you enjoy?|What challenges did you face?|What are your goals for tomorrow?',
+    'answers':
+        'I am feeling happy and energetic|I enjoyed reading and exercising|I had some trouble focusing at work|I want to complete my project',
+  });
+  print('\nUpdated first mood data fields');
+
+  // Test update by field for second entry
+  await repository.updateMoodDataFields(id2, {
+    'questions':
+        'Rate your energy level (1-10)|What improved your mood?|What could have been better?|What are you looking forward to?',
+    'answers':
+        '8|Spending time with friends|I wish I had more time for hobbies|I am excited about the weekend',
+  });
+  print('\nUpdated second mood data fields');
+
+  // Test get by ID after updates
+  final updatedMoodData1 = await repository.getMoodDataById(id1);
+  final updatedMoodData2 = await repository.getMoodDataById(id2);
+  if (updatedMoodData1 != null && updatedMoodData2 != null) {
+    final updatedMoodDataModel = repository.transformToMoodDataModel([
+      updatedMoodData1,
+      updatedMoodData2,
+    ]);
+    print('\nUpdated Mood Data Model:');
+    repository.printMoodDataModelStructure(updatedMoodDataModel);
+  }
+
+  // Test delete both entries
+  await repository.deleteMoodData(id1);
+  await repository.deleteMoodData(id2);
+  print('\nDeleted test mood data entries');
 }

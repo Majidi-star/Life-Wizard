@@ -2,8 +2,9 @@
 
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
+import 'todo_model.dart';
 
-class Todo {
+class TodoEntity {
   final int? id;
   final String todoName;
   final String? todoDescription;
@@ -11,7 +12,7 @@ class Todo {
   final DateTime todoCreatedAt;
   final int priority;
 
-  Todo({
+  TodoEntity({
     this.id,
     required this.todoName,
     this.todoDescription,
@@ -31,8 +32,8 @@ class Todo {
     };
   }
 
-  factory Todo.fromMap(Map<String, dynamic> map) {
-    return Todo(
+  factory TodoEntity.fromMap(Map<String, dynamic> map) {
+    return TodoEntity(
       id: map['id'],
       todoName: map['todoName'],
       todoDescription: map['todoDescription'],
@@ -51,30 +52,30 @@ class TodoRepository {
 
   /// Gets all todos
   /// Returns null if no todos exist
-  Future<List<Todo>?> getAllTodos() async {
+  Future<List<TodoEntity>?> getAllTodos() async {
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
       orderBy: 'priority DESC, todoCreatedAt DESC',
     );
     if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Todo.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
   }
 
   /// Gets a specific todo by ID
   /// Returns null if todo doesn't exist
-  Future<Todo?> getTodoById(int id) async {
+  Future<TodoEntity?> getTodoById(int id) async {
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
       where: 'id = ?',
       whereArgs: [id],
     );
     if (maps.isEmpty) return null;
-    return Todo.fromMap(maps.first);
+    return TodoEntity.fromMap(maps.first);
   }
 
   /// Gets todos by status
   /// Returns null if no todos match the status
-  Future<List<Todo>?> getTodosByStatus(bool status) async {
+  Future<List<TodoEntity>?> getTodosByStatus(bool status) async {
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
       where: 'todoStatus = ?',
@@ -82,12 +83,12 @@ class TodoRepository {
       orderBy: 'priority DESC, todoCreatedAt DESC',
     );
     if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Todo.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
   }
 
   /// Gets todos by priority
   /// Returns null if no todos match the priority
-  Future<List<Todo>?> getTodosByPriority(int priority) async {
+  Future<List<TodoEntity>?> getTodosByPriority(int priority) async {
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
       where: 'priority = ?',
@@ -95,16 +96,16 @@ class TodoRepository {
       orderBy: 'todoCreatedAt DESC',
     );
     if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Todo.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
   }
 
   /// Inserts a new todo
-  Future<int> insertTodo(Todo todo) async {
+  Future<int> insertTodo(TodoEntity todo) async {
     return await _db.insert(_tableName, todo.toMap());
   }
 
   /// Updates an existing todo
-  Future<int> updateTodo(Todo todo) async {
+  Future<int> updateTodo(TodoEntity todo) async {
     if (todo.id == null) return 0;
     return await _db.update(
       _tableName,
@@ -121,7 +122,7 @@ class TodoRepository {
 
   /// Searches todos by name
   /// Returns null if no todos match the search
-  Future<List<Todo>?> searchTodos(String query) async {
+  Future<List<TodoEntity>?> searchTodos(String query) async {
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
       where: 'todoName LIKE ?',
@@ -129,7 +130,7 @@ class TodoRepository {
       orderBy: 'priority DESC, todoCreatedAt DESC',
     );
     if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Todo.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
   }
 
   /// Updates specific fields of a todo
@@ -161,6 +162,42 @@ class TodoRepository {
   Future<int> updateTodoDescription(int id, String description) async {
     return await updateTodoFields(id, {'todoDescription': description});
   }
+
+  /// Transforms database Todos into TodoModel structure
+  TodoModel transformToTodoModel(List<TodoEntity> todos) {
+    final List<Todo> modelTodos =
+        todos
+            .map(
+              (todo) => Todo(
+                todoName: todo.todoName,
+                todoDescription: todo.todoDescription ?? '',
+                todoStatus: todo.todoStatus,
+                todoCreatedAt: todo.todoCreatedAt,
+                priority: todo.priority,
+              ),
+            )
+            .toList();
+
+    return TodoModel(todos: modelTodos);
+  }
+
+  /// Prints all objects and their nested properties recursively
+  void printTodoModelStructure(TodoModel model) {
+    print('\n=== Todo Model Structure ===');
+
+    print('\nTodos:');
+    for (var i = 0; i < model.todos.length; i++) {
+      final todo = model.todos[i];
+      print('\nTodo ${i + 1}:');
+      print('  Name: ${todo.todoName}');
+      print('  Description: ${todo.todoDescription}');
+      print('  Status: ${todo.todoStatus}');
+      print('  Created At: ${todo.todoCreatedAt}');
+      print('  Priority: ${todo.priority}');
+    }
+
+    print('\n=== End of Todo Model Structure ===\n');
+  }
 }
 
 // Test functions
@@ -168,8 +205,8 @@ Future<void> testTodoRepository() async {
   final db = await DatabaseInitializer.database;
   final repository = TodoRepository(db);
 
-  // Create test todo
-  final testTodo = Todo(
+  // Create first test todo
+  final testTodo1 = TodoEntity(
     todoName: 'Complete Project',
     todoDescription: 'Finish the Flutter project',
     todoStatus: false,
@@ -177,103 +214,92 @@ Future<void> testTodoRepository() async {
     priority: 1,
   );
 
-  // Test create
-  final id = await repository.insertTodo(testTodo);
-  print('Created todo with ID: $id');
+  // Create second test todo
+  final testTodo2 = TodoEntity(
+    todoName: 'Write Documentation',
+    todoDescription: 'Create comprehensive documentation for the project',
+    todoStatus: false,
+    todoCreatedAt: DateTime.now(),
+    priority: 2,
+  );
 
-  // Test get
-  final retrievedTodo = await repository.getTodoById(id);
-  print('\nRetrieved todo:');
-  print('ID: ${retrievedTodo?.id}');
-  print('Name: ${retrievedTodo?.todoName}');
-  print('Description: ${retrievedTodo?.todoDescription}');
-  print('Status: ${retrievedTodo?.todoStatus}');
-  print('Created At: ${retrievedTodo?.todoCreatedAt}');
-  print('Priority: ${retrievedTodo?.priority}');
+  // Test insert both entries
+  final id1 = await repository.insertTodo(testTodo1);
+  final id2 = await repository.insertTodo(testTodo2);
+  print('Created todo entries with IDs: $id1, $id2');
 
-  // Test update by field
-  await repository.updateTodoFields(id, {
-    'todoName': 'Updated Project Task',
-    'priority': 2,
-  });
-  print('\nUpdated todo fields');
-
-  // Get and print updated todo
-  final updatedTodo = await repository.getTodoById(id);
-  print('\nUpdated todo values:');
-  print('ID: ${updatedTodo?.id}');
-  print('Name: ${updatedTodo?.todoName}');
-  print('Description: ${updatedTodo?.todoDescription}');
-  print('Status: ${updatedTodo?.todoStatus}');
-  print('Created At: ${updatedTodo?.todoCreatedAt}');
-  print('Priority: ${updatedTodo?.priority}');
-
-  // Test get all todos
+  // Test get all and transform to model
   final allTodos = await repository.getAllTodos();
-  print('\nAll todos in database:');
   if (allTodos != null) {
-    for (var todo in allTodos) {
-      print('\nTodo:');
-      print('ID: ${todo.id}');
-      print('Name: ${todo.todoName}');
-      print('Description: ${todo.todoDescription}');
-      print('Status: ${todo.todoStatus}');
-      print('Created At: ${todo.todoCreatedAt}');
-      print('Priority: ${todo.priority}');
-    }
+    final todoModel = repository.transformToTodoModel(allTodos);
+    print('\nAll Todos Model:');
+    repository.printTodoModelStructure(todoModel);
+  }
+
+  // Test get by ID for first entry
+  final retrievedTodo1 = await repository.getTodoById(id1);
+  if (retrievedTodo1 != null) {
+    final singleTodoModel = repository.transformToTodoModel([retrievedTodo1]);
+    print('\nRetrieved First Todo Model:');
+    repository.printTodoModelStructure(singleTodoModel);
+  }
+
+  // Test get by ID for second entry
+  final retrievedTodo2 = await repository.getTodoById(id2);
+  if (retrievedTodo2 != null) {
+    final singleTodoModel = repository.transformToTodoModel([retrievedTodo2]);
+    print('\nRetrieved Second Todo Model:');
+    repository.printTodoModelStructure(singleTodoModel);
+  }
+
+  // Test update by field for first entry
+  await repository.updateTodoFields(id1, {
+    'todoName': 'Updated Project Task',
+    'todoDescription': 'Updated project description',
+    'priority': 3,
+  });
+  print('\nUpdated first todo fields');
+
+  // Test update by field for second entry
+  await repository.updateTodoFields(id2, {
+    'todoName': 'Updated Documentation Task',
+    'todoDescription': 'Updated documentation description',
+    'priority': 1,
+  });
+  print('\nUpdated second todo fields');
+
+  // Test get by ID after updates
+  final updatedTodo1 = await repository.getTodoById(id1);
+  final updatedTodo2 = await repository.getTodoById(id2);
+  if (updatedTodo1 != null && updatedTodo2 != null) {
+    final updatedTodoModel = repository.transformToTodoModel([
+      updatedTodo1,
+      updatedTodo2,
+    ]);
+    print('\nUpdated Todo Model:');
+    repository.printTodoModelStructure(updatedTodoModel);
   }
 
   // Test get todos by status
   final activeTodos = await repository.getTodosByStatus(false);
-  print('\nActive todos:');
   if (activeTodos != null) {
-    for (var todo in activeTodos) {
-      print('Found active todo: ${todo.todoName}');
-    }
+    final activeTodoModel = repository.transformToTodoModel(activeTodos);
+    print('\nActive Todos Model:');
+    repository.printTodoModelStructure(activeTodoModel);
   }
 
   // Test get todos by priority
-  final highPriorityTodos = await repository.getTodosByPriority(2);
-  print('\nHigh priority todos:');
+  final highPriorityTodos = await repository.getTodosByPriority(3);
   if (highPriorityTodos != null) {
-    for (var todo in highPriorityTodos) {
-      print('Found high priority todo: ${todo.todoName}');
-    }
+    final priorityTodoModel = repository.transformToTodoModel(
+      highPriorityTodos,
+    );
+    print('\nHigh Priority Todos Model:');
+    repository.printTodoModelStructure(priorityTodoModel);
   }
 
-  // Test search
-  final searchResults = await repository.searchTodos('Project');
-  print('\nSearch results for "Project":');
-  if (searchResults != null) {
-    for (var todo in searchResults) {
-      print('Found todo: ${todo.todoName}');
-    }
-  }
-
-  // Test specific update methods
-  await repository.updateTodoStatus(id, true);
-  await repository.updateTodoPriority(id, 3);
-  await repository.updateTodoName(id, 'Final Project Task');
-  await repository.updateTodoDescription(id, 'Final project description');
-  print('\nUpdated todo using specific methods');
-
-  // Get and print final todo
-  final finalTodo = await repository.getTodoById(id);
-  print('\nFinal todo values:');
-  print('ID: ${finalTodo?.id}');
-  print('Name: ${finalTodo?.todoName}');
-  print('Description: ${finalTodo?.todoDescription}');
-  print('Status: ${finalTodo?.todoStatus}');
-  print('Created At: ${finalTodo?.todoCreatedAt}');
-  print('Priority: ${finalTodo?.priority}');
-
-  // Test delete
-  await repository.deleteTodo(id);
-  print('\nDeleted todo with ID: $id');
-
-  // Verify deletion
-  final deletedTodo = await repository.getTodoById(id);
-  print(
-    'Verification after deletion: ${deletedTodo == null ? "Todo successfully deleted" : "Todo still exists"}',
-  );
+  // Test delete both entries
+  await repository.deleteTodo(id1);
+  await repository.deleteTodo(id2);
+  print('\nDeleted test todo entries');
 }

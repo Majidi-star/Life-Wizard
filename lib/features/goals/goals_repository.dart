@@ -3,6 +3,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'dart:convert';
+import 'goals_model.dart';
 
 /// Represents a goal in the application
 /// Contains all necessary information about a user's goal including progress tracking
@@ -149,6 +150,95 @@ class GoalsRepository {
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Goal.fromMap(maps[i]));
   }
+
+  /// Transforms database Goal into GoalsModel structure
+  GoalsModel transformToGoalsModel(List<Goal> goals) {
+    final List<GoalsCard> goalsCards =
+        goals.map((goal) {
+          // Extract milestones from goalsRoadmap
+          final List<dynamic> roadmapMilestones =
+              goal.goalsRoadmap['milestones'] ?? [];
+
+          // Transform milestones into MilestoneCard structure
+          final List<MilestoneCard> milestoneCards =
+              roadmapMilestones.map((milestone) {
+                return MilestoneCard(
+                  milestoneDate: milestone['date'] ?? '',
+                  milestoneName: milestone['name'] ?? '',
+                  milestoneDescription: milestone['description'] ?? '',
+                  milestoneProgress: '${milestone['progress'] ?? 0}%',
+                  isCompleted: milestone['isCompleted'] ?? false,
+                  milestoneTasks:
+                      (milestone['tasks'] as List<dynamic>?)?.map((task) {
+                        return MilestoneTask(
+                          taskName: task['name'] ?? '',
+                          taskDescription: task['description'] ?? '',
+                          isCompleted: task['isCompleted'] ?? false,
+                          taskTime: task['time'] ?? 0,
+                          taskTimeFormat: task['timeFormat'] ?? 'hours',
+                          taskStartPercentage: task['startPercentage'] ?? [0],
+                          taskEndPercentage: task['endPercentage'] ?? [100],
+                        );
+                      }).toList() ??
+                      [],
+                );
+              }).toList();
+
+          return GoalsCard(
+            goalName: goal.name,
+            goalDescription: goal.goalsRoadmap['description'] ?? '',
+            startingScore: goal.startScore,
+            currentScore: goal.currentScore,
+            futureScore: goal.targetScore,
+            createdAt:
+                goal.goalsRoadmap['createdAt'] ??
+                DateTime.now().toIso8601String(),
+            goalProgress: '${goal.progressPercentage}%',
+            planInfo: milestoneCards,
+            priority: goal.goalsRoadmap['priority'] ?? 1,
+          );
+        }).toList();
+
+    return GoalsModel(goals: goalsCards);
+  }
+
+  /// Prints all objects and their nested properties recursively
+  void printGoalsModelStructure(GoalsModel model) {
+    print('\n=== Goals Model Structure ===');
+    for (var goalCard in model.goals) {
+      print('\n--- Goal Card ---');
+      print('Goal Name: ${goalCard.goalName}');
+      print('Goal Description: ${goalCard.goalDescription}');
+      print('Starting Score: ${goalCard.startingScore}');
+      print('Current Score: ${goalCard.currentScore}');
+      print('Future Score: ${goalCard.futureScore}');
+      print('Created At: ${goalCard.createdAt}');
+      print('Goal Progress: ${goalCard.goalProgress}');
+      print('Priority: ${goalCard.priority}');
+
+      print('\n--- Milestones ---');
+      for (var milestone in goalCard.planInfo) {
+        print('\nMilestone:');
+        print('  Name: ${milestone.milestoneName}');
+        print('  Date: ${milestone.milestoneDate}');
+        print('  Description: ${milestone.milestoneDescription}');
+        print('  Progress: ${milestone.milestoneProgress}');
+        print('  Is Completed: ${milestone.isCompleted}');
+
+        print('\n  --- Tasks ---');
+        for (var task in milestone.milestoneTasks) {
+          print('  Task:');
+          print('    Name: ${task.taskName}');
+          print('    Description: ${task.taskDescription}');
+          print('    Is Completed: ${task.isCompleted}');
+          print('    Time: ${task.taskTime} ${task.taskTimeFormat}');
+          print('    Start Percentage: ${task.taskStartPercentage}');
+          print('    End Percentage: ${task.taskEndPercentage}');
+        }
+      }
+    }
+    print('\n=== End of Goals Model Structure ===\n');
+  }
 }
 
 /// Test function to demonstrate the usage of GoalsRepository
@@ -156,7 +246,7 @@ Future<void> testGoalsRepository() async {
   final db = await DatabaseInitializer.database;
   final repository = GoalsRepository(db);
 
-  // Create test goals
+  // Create first test goal
   final testGoal1 = Goal(
     name: 'Learn Flutter',
     progressPercentage: 0,
@@ -164,78 +254,189 @@ Future<void> testGoalsRepository() async {
     currentScore: 0,
     targetScore: 100,
     goalsRoadmap: {
+      'description': 'Master Flutter development',
+      'createdAt': DateTime.now().toIso8601String(),
+      'priority': 1,
       'milestones': [
-        {'name': 'Complete Flutter basics', 'score': 30},
-        {'name': 'Build first app', 'score': 60},
-        {'name': 'Master state management', 'score': 100},
+        {
+          'name': 'Complete Flutter basics',
+          'description': 'Learn basic widgets and layouts',
+          'date': '2024-03-01',
+          'progress': 0,
+          'isCompleted': false,
+          'tasks': [
+            {
+              'name': 'Study widgets',
+              'description': 'Learn about basic Flutter widgets',
+              'isCompleted': false,
+              'time': 2,
+              'timeFormat': 'hours',
+              'startPercentage': [0],
+              'endPercentage': [50],
+            },
+            {
+              'name': 'Practice layouts',
+              'description': 'Create sample layouts',
+              'isCompleted': false,
+              'time': 3,
+              'timeFormat': 'hours',
+              'startPercentage': [50],
+              'endPercentage': [100],
+            },
+          ],
+        },
+        {
+          'name': 'Build first app',
+          'description': 'Create a simple Flutter application',
+          'date': '2024-03-15',
+          'progress': 0,
+          'isCompleted': false,
+          'tasks': [],
+        },
       ],
     },
   );
 
+  // Create second test goal
   final testGoal2 = Goal(
-    name: 'Exercise Daily',
-    progressPercentage: 25,
+    name: 'Fitness Journey',
+    progressPercentage: 30,
     startScore: 0,
-    currentScore: 25,
+    currentScore: 30,
     targetScore: 100,
     goalsRoadmap: {
+      'description': 'Achieve fitness goals and maintain healthy lifestyle',
+      'createdAt': DateTime.now().toIso8601String(),
+      'priority': 2,
       'milestones': [
-        {'name': 'Start with 10 minutes', 'score': 30},
-        {'name': 'Increase to 30 minutes', 'score': 60},
-        {'name': 'Maintain 1 hour routine', 'score': 100},
+        {
+          'name': 'Initial Fitness Assessment',
+          'description': 'Complete initial fitness evaluation',
+          'date': '2024-03-01',
+          'progress': 100,
+          'isCompleted': true,
+          'tasks': [
+            {
+              'name': 'Body measurements',
+              'description': 'Record initial body measurements',
+              'isCompleted': true,
+              'time': 1,
+              'timeFormat': 'hours',
+              'startPercentage': [0],
+              'endPercentage': [50],
+            },
+            {
+              'name': 'Fitness test',
+              'description': 'Complete basic fitness assessment',
+              'isCompleted': true,
+              'time': 2,
+              'timeFormat': 'hours',
+              'startPercentage': [50],
+              'endPercentage': [100],
+            },
+          ],
+        },
+        {
+          'name': 'Begin Training Program',
+          'description': 'Start structured workout routine',
+          'date': '2024-03-15',
+          'progress': 50,
+          'isCompleted': false,
+          'tasks': [
+            {
+              'name': 'Cardio workout',
+              'description': '30 minutes cardio session',
+              'isCompleted': true,
+              'time': 30,
+              'timeFormat': 'minutes',
+              'startPercentage': [0],
+              'endPercentage': [33],
+            },
+            {
+              'name': 'Strength training',
+              'description': 'Basic strength exercises',
+              'isCompleted': false,
+              'time': 45,
+              'timeFormat': 'minutes',
+              'startPercentage': [33],
+              'endPercentage': [66],
+            },
+            {
+              'name': 'Flexibility session',
+              'description': 'Stretching and mobility work',
+              'isCompleted': false,
+              'time': 20,
+              'timeFormat': 'minutes',
+              'startPercentage': [66],
+              'endPercentage': [100],
+            },
+          ],
+        },
+        {
+          'name': 'Nutrition Plan',
+          'description': 'Develop and follow meal plan',
+          'date': '2024-04-01',
+          'progress': 0,
+          'isCompleted': false,
+          'tasks': [],
+        },
       ],
     },
   );
 
-  // Test insert
+  // Test insert both goals
   final id1 = await repository.insertGoal(testGoal1);
   final id2 = await repository.insertGoal(testGoal2);
   print('Created goals with IDs: $id1, $id2');
 
-  // Test get all
+  // Test get all and transform to model
   final allGoals = await repository.getAllGoals();
-  print('Total goals: ${allGoals?.length}');
-  allGoals?.forEach((goal) {
-    print('Goal: ${goal.name}');
-    print('Progress: ${goal.progressPercentage}%');
-    print('Start Score: ${goal.startScore}');
-    print('Current Score: ${goal.currentScore}');
-    print('Target Score: ${goal.targetScore}');
-    print('Roadmap: ${goal.goalsRoadmap}');
-    print('---');
-  });
+  if (allGoals != null) {
+    final goalsModel = repository.transformToGoalsModel(allGoals);
+    // Print the complete structure
+    repository.printGoalsModelStructure(goalsModel);
+  }
 
-  // Test get by ID
-  final retrievedGoal = await repository.getGoalById(id1);
-  print(
-    'Retrieved goal: ${retrievedGoal?.name}, Progress: ${retrievedGoal?.progressPercentage}%, Start Score: ${retrievedGoal?.startScore}, Current Score: ${retrievedGoal?.currentScore}, Target Score: ${retrievedGoal?.targetScore}, Roadmap: ${retrievedGoal?.goalsRoadmap}',
-  );
+  // Test get by ID for first goal
+  final retrievedGoal1 = await repository.getGoalById(id1);
+  if (retrievedGoal1 != null) {
+    final singleGoalModel = repository.transformToGoalsModel([retrievedGoal1]);
+    print('\nRetrieved First Goal Model:');
+    repository.printGoalsModelStructure(singleGoalModel);
+  }
 
-  // Test update by field
+  // Test get by ID for second goal
+  final retrievedGoal2 = await repository.getGoalById(id2);
+  if (retrievedGoal2 != null) {
+    final singleGoalModel = repository.transformToGoalsModel([retrievedGoal2]);
+    print('\nRetrieved Second Goal Model:');
+    repository.printGoalsModelStructure(singleGoalModel);
+  }
+
+  // Test update by field for first goal
   await repository.updateGoalByField(id1, 'progressPercentage', 50);
   await repository.updateGoalByField(id1, 'currentScore', 50);
-  print('Updated goal progress and score');
+  print('\nUpdated first goal progress and score');
 
-  // Test get by ID
-  final retrievedGoal1 = await repository.getGoalById(id1);
-  print(
-    'Retrieved goal: ${retrievedGoal1?.name}, Progress: ${retrievedGoal1?.progressPercentage}%, Start Score: ${retrievedGoal1?.startScore}, Current Score: ${retrievedGoal1?.currentScore}, Target Score: ${retrievedGoal1?.targetScore}, Roadmap: ${retrievedGoal1?.goalsRoadmap}',
-  );
-  // Test search
-  final searchResults = await repository.searchGoals('Flutter');
-  print('Search results: ${searchResults?.length}');
+  // Test update by field for second goal
+  await repository.updateGoalByField(id2, 'progressPercentage', 60);
+  await repository.updateGoalByField(id2, 'currentScore', 60);
+  print('\nUpdated second goal progress and score');
 
-  final retrievedGoal2 = await repository.getGoalById(id1);
-  print(
-    'Retrieved updated goal: ${retrievedGoal2?.name}, Progress: ${retrievedGoal2?.progressPercentage}%, Start Score: ${retrievedGoal2?.startScore}, Current Score: ${retrievedGoal2?.currentScore}, Target Score: ${retrievedGoal2?.targetScore}, Roadmap: ${retrievedGoal2?.goalsRoadmap}',
-  );
+  // Test get by ID after updates
+  final updatedGoal1 = await repository.getGoalById(id1);
+  final updatedGoal2 = await repository.getGoalById(id2);
+  if (updatedGoal1 != null && updatedGoal2 != null) {
+    final updatedGoalsModel = repository.transformToGoalsModel([
+      updatedGoal1,
+      updatedGoal2,
+    ]);
+    print('\nUpdated Goals Model:');
+    repository.printGoalsModelStructure(updatedGoalsModel);
+  }
 
-  // Test progress range
-  final progressGoals = await repository.getGoalsByProgressRange(0, 50);
-  print('Goals in progress range: ${progressGoals?.length}');
-
-  // Test delete
+  // Test delete both goals
   await repository.deleteGoal(id1);
   await repository.deleteGoal(id2);
-  print('Deleted test goals');
+  print('\nDeleted test goals');
 }

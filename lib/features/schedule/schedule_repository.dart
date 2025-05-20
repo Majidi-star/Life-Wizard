@@ -2,6 +2,7 @@
 
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
+import 'schedule_model.dart';
 
 class Schedule {
   final int? id;
@@ -250,6 +251,59 @@ class ScheduleRepository {
   Future<int> updateScheduleHabits(int id, String habits) async {
     return await updateScheduleFields(id, {'habits': habits});
   }
+
+  /// Transforms database Schedule into ScheduleModel structure
+  ScheduleModel transformToScheduleModel(List<Schedule> schedules) {
+    final List<TimeBox> timeBoxes = [];
+
+    for (var schedule in schedules) {
+      final timeBox = TimeBox(
+        startTimeHour: schedule.startTimeHour,
+        startTimeMinute: schedule.startTimeMinute,
+        endTimeHour: schedule.endTimeHour,
+        endTimeMinute: schedule.endTimeMinute,
+        activity: schedule.activity ?? '',
+        notes: schedule.notes ?? '',
+        todos: schedule.todo?.split(',') ?? [],
+        timeBoxStatus: schedule.timeBoxStatus,
+        priority: schedule.priority,
+        heatmapProductivity: schedule.heatmapProductivity,
+        isChallenge: schedule.challenge,
+      );
+
+      timeBoxes.add(timeBox);
+    }
+
+    return ScheduleModel(timeBoxes: timeBoxes, currentTimeBox: null);
+  }
+
+  /// Prints all objects and their nested properties recursively
+  void printScheduleModelStructure(ScheduleModel model) {
+    print('\n=== Schedule Model Structure ===');
+
+    print('\nTime Boxes:');
+    for (var i = 0; i < model.timeBoxes.length; i++) {
+      final timeBox = model.timeBoxes[i];
+      print('\nTime Box ${i + 1}:');
+      print(
+        '  Start Time: ${timeBox.startTimeHour}:${timeBox.startTimeMinute}',
+      );
+      print('  End Time: ${timeBox.endTimeHour}:${timeBox.endTimeMinute}');
+      print('  Activity: ${timeBox.activity}');
+      print('  Notes: ${timeBox.notes}');
+      print('  Todos: ${timeBox.todos.join(", ")}');
+      print('  Status: ${timeBox.timeBoxStatus}');
+      print('  Priority: ${timeBox.priority}');
+      print('  Heatmap Productivity: ${timeBox.heatmapProductivity}');
+      print('  Is Challenge: ${timeBox.isChallenge}');
+    }
+
+    print(
+      '\nCurrent Time Box: ${model.currentTimeBox == null ? "None" : "Set"}',
+    );
+
+    print('\n=== End of Schedule Model Structure ===\n');
+  }
 }
 
 // Test functions
@@ -257,134 +311,105 @@ Future<void> testScheduleRepository() async {
   final db = await DatabaseInitializer.database;
   final repository = ScheduleRepository(db);
 
-  // Create test schedule
-  final testSchedule = Schedule(
+  // Create first test schedule (regular time box)
+  final testSchedule1 = Schedule(
     date: DateTime.now(),
-    challenge: true,
+    challenge: false,
     startTimeHour: 9,
     startTimeMinute: 0,
     endTimeHour: 10,
     endTimeMinute: 30,
     activity: 'Morning Meeting',
     notes: 'Team sync',
-    todo: 'Prepare presentation',
+    todo: 'Prepare presentation,Review agenda,Take notes',
     timeBoxStatus: true,
     priority: 1,
     heatmapProductivity: 8,
     habits: 'Exercise,Meditation',
   );
 
-  // Test create
-  final id = await repository.insertSchedule(testSchedule);
-  print('Created schedule with ID: $id');
-
-  // Test get
-  final retrievedSchedule = await repository.getScheduleById(id);
-  print('\nRetrieved schedule:');
-  print('ID: ${retrievedSchedule?.id}');
-  print('Date: ${retrievedSchedule?.date}');
-  print('Challenge: ${retrievedSchedule?.challenge}');
-  print(
-    'Start Time: ${retrievedSchedule?.startTimeHour}:${retrievedSchedule?.startTimeMinute}',
+  // Create second test schedule (challenge time box)
+  final testSchedule2 = Schedule(
+    date: DateTime.now(),
+    challenge: true,
+    startTimeHour: 14,
+    startTimeMinute: 0,
+    endTimeHour: 16,
+    endTimeMinute: 0,
+    activity: 'Project Sprint',
+    notes: 'Complete milestone',
+    todo: 'Code review,Write tests,Update documentation',
+    timeBoxStatus: false,
+    priority: 2,
+    heatmapProductivity: 7,
+    habits: 'Focus,Deep work',
   );
-  print(
-    'End Time: ${retrievedSchedule?.endTimeHour}:${retrievedSchedule?.endTimeMinute}',
-  );
-  print('Activity: ${retrievedSchedule?.activity}');
-  print('Notes: ${retrievedSchedule?.notes}');
-  print('Todo: ${retrievedSchedule?.todo}');
-  print('Time Box Status: ${retrievedSchedule?.timeBoxStatus}');
-  print('Priority: ${retrievedSchedule?.priority}');
-  print('Heatmap Productivity: ${retrievedSchedule?.heatmapProductivity}');
-  print('Habits: ${retrievedSchedule?.habits}');
 
-  // Test update by field
-  await repository.updateScheduleFields(id, {
-    'activity': 'Updated Meeting',
+  // Test insert both entries
+  final id1 = await repository.insertSchedule(testSchedule1);
+  final id2 = await repository.insertSchedule(testSchedule2);
+  print('Created schedule entries with IDs: $id1, $id2');
+
+  // Test get all and transform to model
+  final allSchedules = await repository.getAllSchedules();
+  if (allSchedules != null) {
+    final scheduleModel = repository.transformToScheduleModel(allSchedules);
+    // Print the complete structure
+    repository.printScheduleModelStructure(scheduleModel);
+  }
+
+  // Test get by ID for first entry
+  final retrievedSchedule1 = await repository.getScheduleById(id1);
+  if (retrievedSchedule1 != null) {
+    final singleScheduleModel = repository.transformToScheduleModel([
+      retrievedSchedule1,
+    ]);
+    print('\nRetrieved First Schedule Model:');
+    repository.printScheduleModelStructure(singleScheduleModel);
+  }
+
+  // Test get by ID for second entry
+  final retrievedSchedule2 = await repository.getScheduleById(id2);
+  if (retrievedSchedule2 != null) {
+    final singleScheduleModel = repository.transformToScheduleModel([
+      retrievedSchedule2,
+    ]);
+    print('\nRetrieved Second Schedule Model:');
+    repository.printScheduleModelStructure(singleScheduleModel);
+  }
+
+  // Test update by field for first entry
+  await repository.updateScheduleFields(id1, {
+    'activity': 'Updated Morning Meeting',
     'notes': 'Updated team sync',
+    'todo': 'Prepare presentation,Review agenda,Take notes,Follow up',
     'heatmapProductivity': 9,
   });
-  print('\nUpdated schedule fields');
+  print('\nUpdated first schedule fields');
 
-  // Get and print updated schedule
-  final updatedSchedule = await repository.getScheduleById(id);
-  print('\nUpdated schedule values:');
-  print('ID: ${updatedSchedule?.id}');
-  print('Date: ${updatedSchedule?.date}');
-  print('Challenge: ${updatedSchedule?.challenge}');
-  print(
-    'Start Time: ${updatedSchedule?.startTimeHour}:${updatedSchedule?.startTimeMinute}',
-  );
-  print(
-    'End Time: ${updatedSchedule?.endTimeHour}:${updatedSchedule?.endTimeMinute}',
-  );
-  print('Activity: ${updatedSchedule?.activity}');
-  print('Notes: ${updatedSchedule?.notes}');
-  print('Todo: ${updatedSchedule?.todo}');
-  print('Time Box Status: ${updatedSchedule?.timeBoxStatus}');
-  print('Priority: ${updatedSchedule?.priority}');
-  print('Heatmap Productivity: ${updatedSchedule?.heatmapProductivity}');
-  print('Habits: ${updatedSchedule?.habits}');
+  // Test update by field for second entry
+  await repository.updateScheduleFields(id2, {
+    'activity': 'Updated Project Sprint',
+    'notes': 'Updated milestone progress',
+    'todo': 'Code review,Write tests,Update documentation,Deploy changes',
+    'heatmapProductivity': 8,
+  });
+  print('\nUpdated second schedule fields');
 
-  // Test get all schedules
-  final allSchedules = await repository.getAllSchedules();
-  print('\nAll schedules in database:');
-  if (allSchedules != null) {
-    for (var schedule in allSchedules) {
-      print('\nSchedule:');
-      print('ID: ${schedule.id}');
-      print('Date: ${schedule.date}');
-      print('Challenge: ${schedule.challenge}');
-      print(
-        'Start Time: ${schedule.startTimeHour}:${schedule.startTimeMinute}',
-      );
-      print('End Time: ${schedule.endTimeHour}:${schedule.endTimeMinute}');
-      print('Activity: ${schedule.activity}');
-      print('Notes: ${schedule.notes}');
-      print('Todo: ${schedule.todo}');
-      print('Time Box Status: ${schedule.timeBoxStatus}');
-      print('Priority: ${schedule.priority}');
-      print('Heatmap Productivity: ${schedule.heatmapProductivity}');
-      print('Habits: ${schedule.habits}');
-    }
+  // Test get by ID after updates
+  final updatedSchedule1 = await repository.getScheduleById(id1);
+  final updatedSchedule2 = await repository.getScheduleById(id2);
+  if (updatedSchedule1 != null && updatedSchedule2 != null) {
+    final updatedScheduleModel = repository.transformToScheduleModel([
+      updatedSchedule1,
+      updatedSchedule2,
+    ]);
+    print('\nUpdated Schedule Model:');
+    repository.printScheduleModelStructure(updatedScheduleModel);
   }
 
-  // Test get schedules by date
-  final todaySchedules = await repository.getSchedulesByDate(DateTime.now());
-  print('\nSchedules for today:');
-  if (todaySchedules != null) {
-    for (var schedule in todaySchedules) {
-      print(
-        'Found schedule: ${schedule.activity} at ${schedule.startTimeHour}:${schedule.startTimeMinute}',
-      );
-    }
-  }
-
-  // Test get schedules by timebox status
-  final timeboxedSchedules = await repository.getSchedulesByTimeBoxStatus(true);
-  print('\nTimeboxed schedules:');
-  if (timeboxedSchedules != null) {
-    for (var schedule in timeboxedSchedules) {
-      print('Found timeboxed schedule: ${schedule.activity}');
-    }
-  }
-
-  // Test search
-  final searchResults = await repository.searchSchedules('Meeting');
-  print('\nSearch results for "Meeting":');
-  if (searchResults != null) {
-    for (var schedule in searchResults) {
-      print('Found schedule: ${schedule.activity}');
-    }
-  }
-
-  // Test delete
-  await repository.deleteSchedule(id);
-  print('\nDeleted schedule with ID: $id');
-
-  // Verify deletion
-  final deletedSchedule = await repository.getScheduleById(id);
-  print(
-    'Verification after deletion: ${deletedSchedule == null ? "Schedule successfully deleted" : "Schedule still exists"}',
-  );
+  // Test delete both entries
+  await repository.deleteSchedule(id1);
+  await repository.deleteSchedule(id2);
+  print('\nDeleted test schedule entries');
 }
