@@ -45,7 +45,7 @@ class DatabaseInitializer {
       'feedbackFrequency': 7,
       'AIGuideLines': '',
     });
-    print("creating the database ...");
+
     // Todo table
     await db.execute('''
       CREATE TABLE todo(

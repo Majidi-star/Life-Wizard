@@ -11,6 +11,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(title: const Text('Settings')),
       drawer: const AppDrawer(),
       body: BlocBuilder<SettingsBloc, SettingsState>(
@@ -19,15 +20,15 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             children: [
               _buildThemeSection(context, state),
-              const Divider(),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
               _buildLanguageSection(context, state),
-              const Divider(),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
               _buildNotificationsSection(context, state),
-              const Divider(),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
               _buildMoodTrackingSection(context, state),
-              const Divider(),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
               _buildFeedbackSection(context, state),
-              const Divider(),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
               _buildAiGuidelinesSection(context, state),
             ],
           );
@@ -46,7 +47,15 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Card(
+          color: Theme.of(context).colorScheme.primary,
           elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Column(
             children: [
               RadioListTile<String>(
@@ -127,7 +136,15 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Card(
+          color: Theme.of(context).colorScheme.primary,
           elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: DropdownButtonFormField<String>(
@@ -169,7 +186,15 @@ class SettingsScreen extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         Card(
+          color: Theme.of(context).colorScheme.primary,
           elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: SwitchListTile(
             title: const Text('Enable Notifications'),
             subtitle: const Text('Receive reminders and updates'),
@@ -192,7 +217,15 @@ class SettingsScreen extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         Card(
+          color: Theme.of(context).colorScheme.primary,
           elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: SwitchListTile(
             title: const Text('Enable Mood Tracking'),
             subtitle: const Text('Track your daily moods and emotions'),
@@ -216,7 +249,15 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Card(
+          color: Theme.of(context).colorScheme.primary,
           elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -257,7 +298,15 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Card(
+          color: Theme.of(context).colorScheme.primary,
           elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextFormField(

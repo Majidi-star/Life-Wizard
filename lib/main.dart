@@ -22,23 +22,19 @@ import 'database_initializer.dart';
 // import 'features/Mood_data/Mood_data_repository.dart';
 // import 'features/schedule/schedule_repository.dart';
 // import 'features/settings/settings_repository.dart';
-import 'features/todo/todo_repository.dart';
+// import 'features/todo/todo_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
   // Initialize the database
   // await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
-  // final db = await DatabaseInitializer.database;
-
   final db = await DatabaseInitializer.database;
-  final repository = TodoRepository(db);
-  await testTodoRepository();
 
   // await testSettingsRepository();
 
   // When you're done with the database
-  // await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
+  await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
 
   runApp(MyApp(preferences: preferences));
 }
@@ -58,11 +54,34 @@ class MyApp extends StatelessWidget {
             title: 'Life Wizard',
             theme: ThemeData(
               primaryColor: state.primaryColor,
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: state.primaryColor,
+              colorScheme: ColorScheme(
+                brightness:
+                    state.theme == 'dark' ? Brightness.dark : Brightness.light,
+                primary: state.primaryColor,
+                onPrimary: Colors.white,
                 secondary: state.secondaryColor,
+                onSecondary: Colors.white,
                 tertiary: state.thirdlyColor,
+                onTertiary: Colors.black,
+                surfaceTint: state.fourthlyColor,
+                error: Colors.red,
+                onError: Colors.white,
+                background: state.theme == 'dark' ? Colors.black : Colors.white,
+                onBackground:
+                    state.theme == 'dark' ? Colors.white : Colors.black,
+                surface:
+                    state.theme == 'dark'
+                        ? Colors.grey[900]!
+                        : Colors.grey[100]!,
+                onSurface: state.theme == 'dark' ? Colors.white : Colors.black,
               ),
+              appBarTheme: AppBarTheme(
+                backgroundColor: state.thirdlyColor,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+              ),
+              cardColor: state.fourthlyColor,
+              cardTheme: CardTheme(surfaceTintColor: Colors.transparent),
               useMaterial3: true,
             ),
             routes: {

@@ -19,15 +19,25 @@ class SettingsState extends Equatable {
   });
 
   // Get theme-based colors
-  Color get primaryColor => theme == 'dark' ? Colors.teal : Colors.blue;
+  Color get primaryColor =>
+      theme == 'dark'
+          ? Color.fromRGBO(40, 40, 40, 1)
+          : Color.fromRGBO(40, 40, 40, 0);
 
   Color get secondaryColor =>
-      theme == 'dark' ? Colors.tealAccent : Colors.blueAccent;
+      theme == 'dark'
+          ? Color.fromRGBO(145, 38, 38, 1)
+          : Color.fromRGBO(138, 93, 244, 1);
 
-  Color get thirdlyColor => theme == 'dark' ? Colors.cyan : Colors.lightBlue;
+  Color get thirdlyColor =>
+      theme == 'dark'
+          ? Color.fromRGBO(36, 36, 36, 1)
+          : Color.fromRGBO(10, 5, 14, 1);
 
   Color get fourthlyColor =>
-      theme == 'dark' ? Colors.cyanAccent : Colors.lightBlueAccent;
+      theme == 'dark'
+          ? Color.fromRGBO(55, 59, 60, 1)
+          : Color.fromRGBO(221, 1, 236, 1);
 
   SettingsState copyWith({
     String? theme,
