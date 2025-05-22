@@ -32,7 +32,7 @@ class SettingsState extends Equatable {
   Color get thirdlyColor =>
       theme == 'dark'
           ? Color.fromRGBO(36, 36, 36, 1)
-          : Color.fromRGBO(10, 5, 14, 1);
+          : Color.fromRGBO(249, 250, 252, 1);
 
   Color get fourthlyColor =>
       theme == 'dark'
