@@ -3,9 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../widgets/app_drawer.dart';
 import '../../main.dart' as app_main;
 import 'settings_bloc.dart';
-import 'settings_event.dart';
 import 'settings_state.dart';
-import 'settings_test.dart' as settings_test;
 import 'settings_widgets.dart';
 
 class SettingsScreen extends StatelessWidget {

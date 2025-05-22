@@ -13,6 +13,9 @@ import 'features/schedule/schedule_screen.dart';
 import 'features/progress_dashboard/progress_dashboard_screen.dart';
 import 'features/pro_clock/pro_clock_screen.dart';
 import 'features/mood_data/mood_data_screen.dart';
+import 'features/mood_data/mood_data_bloc.dart';
+import 'features/mood_data/mood_data_event.dart';
+import 'features/mood_data/mood_data_state.dart';
 import 'database_initializer.dart';
 
 // Import all test files
@@ -30,6 +33,8 @@ import 'features/logs/logs_test.dart' as logs_test;
 
 // Global singleton for SettingsBloc to ensure single source of truth
 late SettingsBloc settingsBloc;
+// Global singleton for MoodDataBloc to ensure single source of truth
+late MoodDataBloc moodDataBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +46,9 @@ void main() async {
 
   // Create a single SettingsBloc instance that will be used throughout the app
   settingsBloc = SettingsBloc(preferences);
+
+  // Create a single MoodDataBloc instance that will be used throughout the app
+  moodDataBloc = MoodDataBloc()..add(const LoadMoodQuestions());
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -73,8 +81,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: settingsBloc..add(LoadSettings()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: settingsBloc..add(LoadSettings())),
+        BlocProvider.value(value: moodDataBloc),
+      ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
           return MaterialApp(
@@ -242,7 +253,42 @@ void printFeatureState(String feature) {
       goals_test.main();
       break;
     case 'mood_data':
-      mood_data_test.main();
+      // Use the actual moodDataBloc state instead of running the test
+      final state = moodDataBloc.state;
+      print('===== MOOD DATA STATE =====');
+      print('Questions: ${state.questions.length}');
+      for (final question in state.questions) {
+        print('  - ${question.question} (ID: ${question.id})');
+        print('    Options: ${question.options.join(', ')}');
+      }
+      print('Responses: ${state.responses}');
+      for (final entry in state.responses.entries) {
+        final questionId = entry.key;
+        final question = state.questions.firstWhere(
+          (q) => q.id == questionId,
+          orElse:
+              () => const MoodQuestion(
+                id: 'unknown',
+                question: 'Unknown',
+                options: [],
+              ),
+        );
+        if (question.id != 'unknown' && entry.value < question.options.length) {
+          final selectedOption = question.options[entry.value];
+          print('  - ${question.question}: $selectedOption');
+        }
+      }
+      print('Text Responses: ${state.textResponses}');
+      for (final entry in state.textResponses.entries) {
+        final questionId = entry.key;
+        final question = state.questions.firstWhere(
+          (q) => q.id == questionId,
+          orElse: () => const MoodQuestion(id: 'unknown', question: 'Unknown'),
+        );
+        if (question.id != 'unknown') {
+          print('  - ${question.question}: ${entry.value}');
+        }
+      }
       break;
     case 'logs':
       logs_test.main();
