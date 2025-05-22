@@ -33,13 +33,11 @@ class MoodDataScreen extends StatelessWidget {
                   child: ListView(
                     children:
                         state.questions.map((question) {
-                          final selectedResponse = state.responses[question.id];
-                          final textResponse = state.textResponses[question.id];
+                          final response = state.responses[question.id];
                           return MoodDataWidgets.buildQuestionCard(
                             context,
                             question,
-                            selectedResponse,
-                            textResponse,
+                            response,
                           );
                         }).toList(),
                   ),
@@ -47,8 +45,8 @@ class MoodDataScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
-                  child: MoodDataWidgets.buildDebugButton(context, () {
-                    app_main.printFeatureState('mood_data');
+                  child: MoodDataWidgets.buildDebugButton(context, () async {
+                    await app_main.printFeatureState('mood_data');
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Mood Data state printed to console'),

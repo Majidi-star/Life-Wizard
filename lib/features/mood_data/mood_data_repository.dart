@@ -125,6 +125,36 @@ class MoodRepository {
 
     print('\n=== End of Mood Data Model Structure ===\n');
   }
+
+  /// Saves mood data responses to the database
+  Future<void> saveMoodData(Map<String, String> responses) async {
+    // Get all mood data entries
+    final allMoodData = await getAllMoodData();
+    MoodData? moodData;
+    int? moodDataId;
+
+    // Convert the map to strings
+    final List<String> questionIds = responses.keys.toList();
+    final List<String> answerValues = responses.values.toList();
+    final String questionsStr = questionIds.join('|');
+    final String answersStr = answerValues.join('|');
+
+    if (allMoodData == null || allMoodData.isEmpty) {
+      // Create a new entry if none exists
+      moodData = MoodData(questions: questionsStr, answers: answersStr);
+      await insertMoodData(moodData);
+    } else {
+      // Update the first entry
+      moodData = allMoodData.first;
+      moodDataId = moodData.id;
+      moodData = MoodData(
+        id: moodDataId,
+        questions: questionsStr,
+        answers: answersStr,
+      );
+      await updateMoodData(moodData);
+    }
+  }
 }
 
 // Test functions

@@ -37,8 +37,8 @@ class SettingsScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
                 child: Center(
                   child: ElevatedButton(
-                    onPressed: () {
-                      app_main.printFeatureState('settings');
+                    onPressed: () async {
+                      await app_main.printFeatureState('settings');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('State printed to console'),

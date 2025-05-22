@@ -16,6 +16,7 @@ import 'features/mood_data/mood_data_screen.dart';
 import 'features/mood_data/mood_data_bloc.dart';
 import 'features/mood_data/mood_data_event.dart';
 import 'features/mood_data/mood_data_state.dart';
+import 'features/todo/todo_bloc.dart';
 import 'database_initializer.dart';
 
 // Import all test files
@@ -35,20 +36,25 @@ import 'features/logs/logs_test.dart' as logs_test;
 late SettingsBloc settingsBloc;
 // Global singleton for MoodDataBloc to ensure single source of truth
 late MoodDataBloc moodDataBloc;
+// Global singleton for TodoBloc to ensure single source of truth
+late TodoBloc todoBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database
-  // await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
+  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
   // Create a single SettingsBloc instance that will be used throughout the app
   settingsBloc = SettingsBloc(preferences);
 
   // Create a single MoodDataBloc instance that will be used throughout the app
-  moodDataBloc = MoodDataBloc()..add(const LoadMoodQuestions());
+  moodDataBloc = MoodDataBloc();
+
+  // Create a single TodoBloc instance that will be used throughout the app
+  todoBloc = TodoBloc();
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -85,6 +91,7 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider.value(value: settingsBloc..add(LoadSettings())),
         BlocProvider.value(value: moodDataBloc),
+        BlocProvider.value(value: todoBloc),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
@@ -213,7 +220,7 @@ class MyApp extends StatelessWidget {
 
 // Helper function to print the current state of a specific feature
 // This can be called from anywhere in your app
-void printFeatureState(String feature) {
+Future<void> printFeatureState(String feature) async {
   print('\n===== Printing $feature State =====');
   switch (feature.toLowerCase()) {
     case 'settings':
@@ -232,7 +239,28 @@ void printFeatureState(String feature) {
       print('  fourthlyColor: ${state.fourthlyColor}');
       break;
     case 'todo':
-      todo_test.main();
+      // Use the actual todoBloc state instead of running the test
+      final state = todoBloc.state;
+      print('===== TODO STATE =====');
+      print('Total Todos: ${state.todos.length}');
+
+      if (state.todos.isNotEmpty) {
+        print('\nTodos:');
+        for (var i = 0; i < state.todos.length; i++) {
+          final todo = state.todos[i];
+          print('\nTodo ${i + 1}:');
+          print('  ID: ${todo.id}');
+          print('  Name: ${todo.todoName}');
+          print(
+            '  Description: ${todo.todoDescription.isEmpty ? 'N/A' : todo.todoDescription}',
+          );
+          print('  Status: ${todo.todoStatus ? 'Completed' : 'Not Completed'}');
+          print('  Created At: ${todo.todoCreatedAt}');
+          print('  Priority: ${todo.priority}');
+        }
+      } else {
+        print('No todos found.');
+      }
       break;
     case 'habits':
       habits_test.main();
@@ -259,8 +287,13 @@ void printFeatureState(String feature) {
       print('Questions: ${state.questions.length}');
       for (final question in state.questions) {
         print('  - ${question.question} (ID: ${question.id})');
-        print('    Options: ${question.options.join(', ')}');
+        if (question.type == QuestionType.selection) {
+          print('    Options: ${question.options.join(', ')}');
+        } else {
+          print('    Type: Text Input');
+        }
       }
+
       print('Responses: ${state.responses}');
       for (final entry in state.responses.entries) {
         final questionId = entry.key;
@@ -273,21 +306,26 @@ void printFeatureState(String feature) {
                 options: [],
               ),
         );
-        if (question.id != 'unknown' && entry.value < question.options.length) {
-          final selectedOption = question.options[entry.value];
-          print('  - ${question.question}: $selectedOption');
-        }
-      }
-      print('Text Responses: ${state.textResponses}');
-      for (final entry in state.textResponses.entries) {
-        final questionId = entry.key;
-        final question = state.questions.firstWhere(
-          (q) => q.id == questionId,
-          orElse: () => const MoodQuestion(id: 'unknown', question: 'Unknown'),
-        );
         if (question.id != 'unknown') {
           print('  - ${question.question}: ${entry.value}');
         }
+      }
+
+      // Add database persistence status
+      print('\nDatabase Persistence Status:');
+      try {
+        final repo = await DatabaseInitializer.moodRepository;
+        final allMoodData = await repo.getAllMoodData();
+        if (allMoodData != null && allMoodData.isNotEmpty) {
+          final moodData = allMoodData.first;
+          print('  Database ID: ${moodData.id}');
+          print('  Questions in DB: ${moodData.questions}');
+          print('  Answers in DB: ${moodData.answers}');
+        } else {
+          print('  No mood data found in database');
+        }
+      } catch (e) {
+        print('  Error accessing database: $e');
       }
       break;
     case 'logs':

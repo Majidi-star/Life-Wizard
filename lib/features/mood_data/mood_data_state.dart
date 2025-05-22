@@ -4,30 +4,25 @@ import 'package:equatable/equatable.dart';
 
 class MoodDataState extends Equatable {
   final List<MoodQuestion> questions;
-  final Map<String, int> responses;
-  final Map<String, String> textResponses;
+  final Map<String, String> responses;
 
-  const MoodDataState({
-    this.questions = const [],
-    this.responses = const {},
-    this.textResponses = const {},
-  });
+  const MoodDataState({this.questions = const [], this.responses = const {}});
 
   MoodDataState copyWith({
     List<MoodQuestion>? questions,
-    Map<String, int>? responses,
-    Map<String, String>? textResponses,
+    Map<String, String>? responses,
   }) {
     return MoodDataState(
       questions: questions ?? this.questions,
       responses: responses ?? this.responses,
-      textResponses: textResponses ?? this.textResponses,
     );
   }
 
   @override
-  List<Object> get props => [questions, responses, textResponses];
+  List<Object> get props => [questions, responses];
 }
+
+enum QuestionType { selection, textInput }
 
 class MoodQuestion {
   final String id;
@@ -42,5 +37,3 @@ class MoodQuestion {
     this.type = QuestionType.selection,
   });
 }
-
-enum QuestionType { selection, textInput }

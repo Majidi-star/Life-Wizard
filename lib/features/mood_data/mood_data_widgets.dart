@@ -10,8 +10,7 @@ class MoodDataWidgets {
   static Widget buildQuestionCard(
     BuildContext context,
     MoodQuestion question,
-    int? selectedResponse,
-    String? textResponse,
+    String? response,
   ) {
     final settingsState = app_main.settingsBloc.state;
 
@@ -37,20 +36,15 @@ class MoodDataWidgets {
               ...List.generate(question.options.length, (index) {
                 return _buildOptionRadio(
                   context,
-                  question.id,
+                  question,
                   index,
                   question.options[index],
-                  selectedResponse,
+                  response,
                   settingsState,
                 );
               })
             else if (question.type == QuestionType.textInput)
-              _buildTextInput(
-                context,
-                question.id,
-                textResponse,
-                settingsState,
-              ),
+              _buildTextInput(context, question.id, response, settingsState),
           ],
         ),
       ),
@@ -81,7 +75,11 @@ class MoodDataWidgets {
       ),
       onChanged: (value) {
         context.read<MoodDataBloc>().add(
-          UpdateMoodTextResponse(questionId: questionId, response: value),
+          UpdateMoodResponse(
+            questionId: questionId,
+            response: value,
+            questionType: QuestionType.textInput,
+          ),
         );
       },
     );
@@ -89,16 +87,19 @@ class MoodDataWidgets {
 
   static Widget _buildOptionRadio(
     BuildContext context,
-    String questionId,
+    MoodQuestion question,
     int optionIndex,
     String optionText,
-    int? selectedResponse,
+    String? selectedOptionText,
     SettingsState settingsState,
   ) {
+    // Check if this option is selected by comparing the text
+    final bool isSelected = optionText == selectedOptionText;
+
     return RadioListTile<int>(
       title: Text(optionText),
       value: optionIndex,
-      groupValue: selectedResponse,
+      groupValue: isSelected ? optionIndex : null,
       activeColor: settingsState.activatedColor,
       fillColor: MaterialStateProperty.resolveWith<Color>((states) {
         if (states.contains(MaterialState.selected)) {
@@ -115,14 +116,21 @@ class MoodDataWidgets {
       onChanged: (value) {
         if (value != null) {
           context.read<MoodDataBloc>().add(
-            UpdateMoodResponse(questionId: questionId, response: value),
+            UpdateMoodResponse(
+              questionId: question.id,
+              optionIndex: value,
+              questionType: QuestionType.selection,
+            ),
           );
         }
       },
     );
   }
 
-  static Widget buildDebugButton(BuildContext context, Function debugFunction) {
+  static Widget buildDebugButton(
+    BuildContext context,
+    Future<void> Function() debugFunction,
+  ) {
     final settingsState = app_main.settingsBloc.state;
 
     return ElevatedButton(

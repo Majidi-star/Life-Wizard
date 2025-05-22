@@ -27,8 +27,8 @@ void testSettingsState() {
     print('Add this debug button to your settings screen:');
     print('''
   ElevatedButton(
-    onPressed: () {
-      app_main.printFeatureState('settings');
+    onPressed: () async {
+      await app_main.printFeatureState('settings');
     },
     child: Text('Debug Settings State'),
   )

@@ -1,3 +1,4 @@
+import 'todo_model.dart';
 import 'todo_state.dart';
 
 void main() {
@@ -5,23 +6,59 @@ void main() {
 }
 
 void testTodoState() {
-  // Create a test state once TodoState is implemented
-  // final state = TodoState(...);
+  final now = DateTime.now();
+  final twoHoursAgo = now.subtract(Duration(hours: 2));
+
+  // Create sample todos with completedAt field
+  final todos = [
+    Todo(
+      id: 1,
+      todoName: 'Complete project',
+      todoDescription: 'Finish the Flutter project',
+      todoStatus: false, // Not completed
+      todoCreatedAt: now.subtract(Duration(days: 1)),
+      completedAt: null, // Not completed, so null
+      priority: 3,
+    ),
+    Todo(
+      id: 2,
+      todoName: 'Write documentation',
+      todoDescription: 'Create documentation for the project',
+      todoStatus: true, // Completed
+      todoCreatedAt: now.subtract(Duration(days: 1)),
+      completedAt: twoHoursAgo, // Completed 2 hours ago
+      priority: 2,
+    ),
+    Todo(
+      id: 3,
+      todoName: 'Send email',
+      todoDescription: 'Send progress report to client',
+      todoStatus: false,
+      todoCreatedAt: now,
+      completedAt: null,
+      priority: 1,
+    ),
+  ];
+
+  // Create test state
+  final state = TodoState(todos: todos);
 
   print('\n===== Todo State =====');
-  print('Todo state is not yet implemented.');
-  print('Update this test when TodoState is implemented.');
-  print('=====================\n');
+  print('Total Todos: ${state.todos.length}');
 
-  // Example of how to print a nested object:
-  /*
-  print('Property: ${state.property}');
-  if (state.nestedObject != null) {
-    print('  nestedProperty1: ${state.nestedObject.property1}');
-    print('  nestedProperty2: ${state.nestedObject.property2}');
-    if (state.nestedObject.deeperObject != null) {
-      print('    deeperProperty1: ${state.nestedObject.deeperObject.property1}');
+  for (var i = 0; i < state.todos.length; i++) {
+    final todo = state.todos[i];
+    print('\nTodo ${i + 1}:');
+    print('  ID: ${todo.id}');
+    print('  Name: ${todo.todoName}');
+    print('  Description: ${todo.todoDescription}');
+    print('  Status: ${todo.todoStatus ? 'Completed' : 'Not Completed'}');
+    print('  Created At: ${todo.todoCreatedAt}');
+    if (todo.todoStatus && todo.completedAt != null) {
+      print('  Completed At: ${todo.completedAt}');
     }
+    print('  Priority: ${todo.priority}');
   }
-  */
+
+  print('=====================\n');
 }

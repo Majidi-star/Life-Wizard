@@ -10,6 +10,7 @@ class TodoEntity {
   final String? todoDescription;
   final bool todoStatus;
   final DateTime todoCreatedAt;
+  final DateTime? completedAt;
   final int priority;
 
   TodoEntity({
@@ -18,6 +19,7 @@ class TodoEntity {
     this.todoDescription,
     required this.todoStatus,
     required this.todoCreatedAt,
+    this.completedAt,
     required this.priority,
   });
 
@@ -28,6 +30,7 @@ class TodoEntity {
       'todoDescription': todoDescription,
       'todoStatus': todoStatus ? 1 : 0,
       'todoCreatedAt': todoCreatedAt.toIso8601String(),
+      'completedAt': completedAt?.toIso8601String(),
       'priority': priority,
     };
   }
@@ -39,6 +42,10 @@ class TodoEntity {
       todoDescription: map['todoDescription'],
       todoStatus: map['todoStatus'] == 1,
       todoCreatedAt: DateTime.parse(map['todoCreatedAt']),
+      completedAt:
+          map['completedAt'] != null
+              ? DateTime.parse(map['completedAt'])
+              : null,
       priority: map['priority'],
     );
   }
@@ -143,9 +150,15 @@ class TodoRepository {
     );
   }
 
-  /// Updates todo status
+  /// Updates todo status and sets completedAt timestamp if completed
   Future<int> updateTodoStatus(int id, bool status) async {
-    return await updateTodoFields(id, {'todoStatus': status ? 1 : 0});
+    final fields = {
+      'todoStatus': status ? 1 : 0,
+      // If status is true (completed), set completedAt to current time
+      // If status is false (not completed), set completedAt to null
+      'completedAt': status ? DateTime.now().toIso8601String() : null,
+    };
+    return await updateTodoFields(id, fields);
   }
 
   /// Updates todo priority
@@ -169,10 +182,12 @@ class TodoRepository {
         todos
             .map(
               (todo) => Todo(
+                id: todo.id!,
                 todoName: todo.todoName,
                 todoDescription: todo.todoDescription ?? '',
                 todoStatus: todo.todoStatus,
                 todoCreatedAt: todo.todoCreatedAt,
+                completedAt: todo.completedAt,
                 priority: todo.priority,
               ),
             )
@@ -189,14 +204,35 @@ class TodoRepository {
     for (var i = 0; i < model.todos.length; i++) {
       final todo = model.todos[i];
       print('\nTodo ${i + 1}:');
+      print('  ID: ${todo.id}');
       print('  Name: ${todo.todoName}');
       print('  Description: ${todo.todoDescription}');
       print('  Status: ${todo.todoStatus}');
       print('  Created At: ${todo.todoCreatedAt}');
+      if (todo.todoStatus && todo.completedAt != null) {
+        print('  Completed At: ${todo.completedAt}');
+      }
       print('  Priority: ${todo.priority}');
     }
 
     print('\n=== End of Todo Model Structure ===\n');
+  }
+
+  /// Gets all todos from the last day
+  /// Returns null if no todos exist
+  Future<List<TodoEntity>?> getRecentTodos() async {
+    // Calculate the date one day ago
+    final DateTime oneDayAgo = DateTime.now().subtract(const Duration(days: 1));
+    final String oneDayAgoString = oneDayAgo.toIso8601String();
+
+    final List<Map<String, dynamic>> maps = await _db.query(
+      _tableName,
+      where: 'todoCreatedAt >= ?',
+      whereArgs: [oneDayAgoString],
+      orderBy: 'priority DESC, todoCreatedAt DESC',
+    );
+    if (maps.isEmpty) return null;
+    return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
   }
 }
 

@@ -1,6 +1,7 @@
 // Mood Data Event file
 
 import 'package:equatable/equatable.dart';
+import 'mood_data_state.dart';
 
 abstract class MoodDataEvent extends Equatable {
   const MoodDataEvent();
@@ -15,12 +16,24 @@ class LoadMoodQuestions extends MoodDataEvent {
 
 class UpdateMoodResponse extends MoodDataEvent {
   final String questionId;
-  final int response;
+  final String? response;
+  final int? optionIndex;
+  final QuestionType questionType;
 
-  const UpdateMoodResponse({required this.questionId, required this.response});
+  const UpdateMoodResponse({
+    required this.questionId,
+    this.response,
+    this.optionIndex,
+    required this.questionType,
+  });
 
   @override
-  List<Object> get props => [questionId, response];
+  List<Object> get props => [
+    questionId,
+    response ?? '',
+    optionIndex ?? -1,
+    questionType,
+  ];
 }
 
 class UpdateMoodTextResponse extends MoodDataEvent {
@@ -34,6 +47,14 @@ class UpdateMoodTextResponse extends MoodDataEvent {
 
   @override
   List<Object> get props => [questionId, response];
+}
+
+class LoadMoodDataFromDatabase extends MoodDataEvent {
+  const LoadMoodDataFromDatabase();
+}
+
+class SaveMoodDataToDatabase extends MoodDataEvent {
+  const SaveMoodDataToDatabase();
 }
 
 class ResetMoodData extends MoodDataEvent {
