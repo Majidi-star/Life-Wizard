@@ -15,26 +15,53 @@ import 'features/pro_clock/pro_clock_screen.dart';
 import 'features/mood_data/mood_data_screen.dart';
 import 'database_initializer.dart';
 
-// import 'features/settings/settings_repository.dart';
-// import 'features/goals/goals_repository.dart';
-// import 'features/habits/habits_repository.dart';
-// import 'features/logs/logs_repository.dart';
-// import 'features/Mood_data/Mood_data_repository.dart';
-// import 'features/schedule/schedule_repository.dart';
-// import 'features/settings/settings_repository.dart';
-// import 'features/todo/todo_repository.dart';
+// Import all test files
+import 'features/settings/settings_test.dart' as settings_test;
+import 'features/todo/todo_test.dart' as todo_test;
+import 'features/habits/habits_test.dart' as habits_test;
+import 'features/ai_chat/ai_chat_test.dart' as ai_chat_test;
+import 'features/schedule/schedule_test.dart' as schedule_test;
+import 'features/progress_dashboard/progress_dashboard_test.dart'
+    as progress_test;
+import 'features/pro_clock/pro_clock_test.dart' as pro_clock_test;
+import 'features/goals/goals_test.dart' as goals_test;
+import 'features/mood_data/mood_data_test.dart' as mood_data_test;
+import 'features/logs/logs_test.dart' as logs_test;
+
+// Global singleton for SettingsBloc to ensure single source of truth
+late SettingsBloc settingsBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
+
   // Initialize the database
   // await DatabaseInitializer.deleteDatabase(); //////////////////////////////// Removing the database
   final db = await DatabaseInitializer.database;
 
-  // await testSettingsRepository();
+  // Create a single SettingsBloc instance that will be used throughout the app
+  settingsBloc = SettingsBloc(preferences);
 
-  // When you're done with the database
-  await DatabaseInitializer.closeDatabase(); ///////////////////////////////// Closing the database
+  // Run state tests and print their output
+  // Set this to true to see all states printed in the console
+  bool runStateTests = true;
+  if (runStateTests) {
+    print('\n\n=========== FEATURE STATES ===========');
+    settings_test.main();
+    todo_test.main();
+    habits_test.main();
+    ai_chat_test.main();
+    schedule_test.main();
+    progress_test.main();
+    pro_clock_test.main();
+    goals_test.main();
+    mood_data_test.main();
+    logs_test.main();
+    print('======================================\n\n');
+  }
+
+  // Don't close the database here, as it will be needed by the app
+  // Database will be closed automatically when app terminates
 
   runApp(MyApp(preferences: preferences));
 }
@@ -46,8 +73,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => SettingsBloc(preferences)..add(LoadSettings()),
+    return BlocProvider.value(
+      value: settingsBloc..add(LoadSettings()),
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
           return MaterialApp(
@@ -82,6 +109,76 @@ class MyApp extends StatelessWidget {
               ),
               cardColor: state.fourthlyColor,
               cardTheme: CardTheme(surfaceTintColor: Colors.transparent),
+
+              // Configure radio buttons
+              radioTheme: RadioThemeData(
+                fillColor: MaterialStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return state.secondaryColor; // Active color
+                  }
+                  return state.fourthlyColor; // Inactive color
+                }),
+              ),
+
+              // Configure switches
+              switchTheme: SwitchThemeData(
+                thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return state.secondaryColor; // Active color
+                  }
+                  return state.fourthlyColor; // Inactive color
+                }),
+                trackColor: MaterialStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return state.secondaryColor.withOpacity(
+                      0.5,
+                    ); // Active track
+                  }
+                  return state.fourthlyColor.withOpacity(0.5); // Inactive track
+                }),
+              ),
+
+              // Configure checkboxes
+              checkboxTheme: CheckboxThemeData(
+                fillColor: MaterialStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return state.secondaryColor; // Active color
+                  }
+                  return state.fourthlyColor; // Inactive color
+                }),
+              ),
+
+              // Configure sliders
+              sliderTheme: SliderThemeData(
+                activeTrackColor: state.secondaryColor,
+                inactiveTrackColor: state.fourthlyColor,
+                thumbColor: state.secondaryColor,
+                overlayColor: state.secondaryColor.withOpacity(0.3),
+              ),
+
+              // Configure dropdown buttons
+              dropdownMenuTheme: DropdownMenuThemeData(
+                menuStyle: MenuStyle(
+                  backgroundColor: MaterialStatePropertyAll(state.primaryColor),
+                ),
+              ),
+
+              // Configure text form fields
+              inputDecorationTheme: InputDecorationTheme(
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: state.secondaryColor, width: 2),
+                ),
+                border: const OutlineInputBorder(),
+              ),
+
+              // Configure elevated buttons
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: state.secondaryColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+
               useMaterial3: true,
             ),
             routes: {
@@ -101,4 +198,57 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+// Helper function to print the current state of a specific feature
+// This can be called from anywhere in your app
+void printFeatureState(String feature) {
+  print('\n===== Printing $feature State =====');
+  switch (feature.toLowerCase()) {
+    case 'settings':
+      // Use the actual settingsBloc state instead of creating a new test state
+      final state = settingsBloc.state;
+      print('Theme: ${state.theme}');
+      print('Language: ${state.language}');
+      print('Notifications: ${state.notifications}');
+      print('Mood Tracking: ${state.moodTracking}');
+      print('Feedback Frequency: ${state.feedbackFrequency}');
+      print('AI Guidelines: ${state.aiGuideLines}');
+      print('Calculated Colors:');
+      print('  primaryColor: ${state.primaryColor}');
+      print('  secondaryColor: ${state.secondaryColor}');
+      print('  thirdlyColor: ${state.thirdlyColor}');
+      print('  fourthlyColor: ${state.fourthlyColor}');
+      break;
+    case 'todo':
+      todo_test.main();
+      break;
+    case 'habits':
+      habits_test.main();
+      break;
+    case 'ai_chat':
+      ai_chat_test.main();
+      break;
+    case 'schedule':
+      schedule_test.main();
+      break;
+    case 'progress':
+      progress_test.main();
+      break;
+    case 'pro_clock':
+      pro_clock_test.main();
+      break;
+    case 'goals':
+      goals_test.main();
+      break;
+    case 'mood_data':
+      mood_data_test.main();
+      break;
+    case 'logs':
+      logs_test.main();
+      break;
+    default:
+      print('Feature not found: $feature');
+  }
+  print('================================\n');
 }

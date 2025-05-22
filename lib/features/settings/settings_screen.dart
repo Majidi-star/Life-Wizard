@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../widgets/app_drawer.dart';
+import '../../main.dart' as app_main;
 import 'settings_bloc.dart';
 import 'settings_event.dart';
 import 'settings_state.dart';
+import 'settings_test.dart' as settings_test;
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -30,6 +32,25 @@ class SettingsScreen extends StatelessWidget {
               _buildFeedbackSection(context, state),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
               _buildAiGuidelinesSection(context, state),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              // Debug section
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      app_main.printFeatureState('settings');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('State printed to console'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    child: const Text('Debug Settings State'),
+                  ),
+                ),
+              ),
             ],
           );
         },
@@ -63,6 +84,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('Light colors with blue accents'),
                 value: 'light',
                 groupValue: state.theme,
+                activeColor: state.secondaryColor,
                 onChanged: (value) {
                   if (value != null) {
                     context.read<SettingsBloc>().add(UpdateTheme(value));
@@ -74,6 +96,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('Dark theme with teal accents'),
                 value: 'dark',
                 groupValue: state.theme,
+                activeColor: state.secondaryColor,
                 onChanged: (value) {
                   if (value != null) {
                     context.read<SettingsBloc>().add(UpdateTheme(value));
@@ -199,6 +222,10 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Enable Notifications'),
             subtitle: const Text('Receive reminders and updates'),
             value: state.notifications,
+            activeColor: state.secondaryColor,
+            inactiveThumbColor: state.fourthlyColor,
+            activeTrackColor: state.secondaryColor.withOpacity(0.5),
+            inactiveTrackColor: state.fourthlyColor.withOpacity(0.5),
             onChanged: (value) {
               context.read<SettingsBloc>().add(UpdateNotifications(value));
             },
@@ -230,6 +257,10 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Enable Mood Tracking'),
             subtitle: const Text('Track your daily moods and emotions'),
             value: state.moodTracking,
+            activeColor: state.secondaryColor,
+            inactiveThumbColor: state.fourthlyColor,
+            activeTrackColor: state.secondaryColor.withOpacity(0.5),
+            inactiveTrackColor: state.fourthlyColor.withOpacity(0.5),
             onChanged: (value) {
               context.read<SettingsBloc>().add(UpdateMoodTracking(value));
             },
@@ -269,6 +300,9 @@ class SettingsScreen extends StatelessWidget {
                   max: 30,
                   divisions: 29,
                   label: state.feedbackFrequency.toString(),
+                  activeColor: state.secondaryColor,
+                  inactiveColor: state.fourthlyColor,
+                  thumbColor: state.secondaryColor,
                   onChanged: (value) {
                     context.read<SettingsBloc>().add(
                       UpdateFeedbackFrequency(value.round()),

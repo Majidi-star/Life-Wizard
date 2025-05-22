@@ -22,12 +22,12 @@ class SettingsState extends Equatable {
   Color get primaryColor =>
       theme == 'dark'
           ? Color.fromRGBO(40, 40, 40, 1)
-          : Color.fromRGBO(40, 40, 40, 0);
+          : Color.fromRGBO(255, 255, 255, 1);
 
   Color get secondaryColor =>
       theme == 'dark'
-          ? Color.fromRGBO(145, 38, 38, 1)
-          : Color.fromRGBO(138, 93, 244, 1);
+          ? Color.fromRGBO(35, 190, 172, 1)
+          : Color.fromRGBO(10, 93, 244, 1);
 
   Color get thirdlyColor =>
       theme == 'dark'
@@ -37,7 +37,7 @@ class SettingsState extends Equatable {
   Color get fourthlyColor =>
       theme == 'dark'
           ? Color.fromRGBO(55, 59, 60, 1)
-          : Color.fromRGBO(221, 1, 236, 1);
+          : Color.fromRGBO(55, 59, 60, 1);
 
   SettingsState copyWith({
     String? theme,

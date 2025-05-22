@@ -9,6 +9,12 @@ abstract class SettingsEvent extends Equatable {
 
 class LoadSettings extends SettingsEvent {}
 
+// Event to trigger loading settings from the database
+class LoadSettingsFromDatabase extends SettingsEvent {}
+
+// Event to sync current state with the database
+class SyncSettingsWithDatabase extends SettingsEvent {}
+
 class UpdateTheme extends SettingsEvent {
   final String theme;
 
