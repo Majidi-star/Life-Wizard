@@ -53,15 +53,19 @@ class Habit {
 }
 
 class HabitsRepository {
-  final Database _db;
+  Database? _db;
   static const String _tableName = 'habits';
 
-  HabitsRepository(this._db);
+  HabitsRepository(Database? db) : _db = db;
+
+  void updateDatabase(Database db) {
+    _db = db;
+  }
 
   /// Gets all habits
   /// Returns null if no habits exist
   Future<List<Habit>?> getAllHabits() async {
-    final List<Map<String, dynamic>> maps = await _db.query(
+    final List<Map<String, dynamic>> maps = await _db!.query(
       _tableName,
       orderBy: 'createdAt DESC',
     );
@@ -72,7 +76,7 @@ class HabitsRepository {
   /// Gets a specific habit by ID
   /// Returns null if habit doesn't exist
   Future<Habit?> getHabitById(int id) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
+    final List<Map<String, dynamic>> maps = await _db!.query(
       _tableName,
       where: 'id = ?',
       whereArgs: [id],
@@ -87,7 +91,7 @@ class HabitsRepository {
     int minProgress,
     int maxProgress,
   ) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
+    final List<Map<String, dynamic>> maps = await _db!.query(
       _tableName,
       where: 'consecutiveProgress >= ? AND consecutiveProgress <= ?',
       whereArgs: [minProgress, maxProgress],
@@ -99,13 +103,13 @@ class HabitsRepository {
 
   /// Inserts a new habit
   Future<int> insertHabit(Habit habit) async {
-    return await _db.insert(_tableName, habit.toMap());
+    return await _db!.insert(_tableName, habit.toMap());
   }
 
   /// Updates an existing habit
   Future<int> updateHabit(Habit habit) async {
     if (habit.id == null) return 0;
-    return await _db.update(
+    return await _db!.update(
       _tableName,
       habit.toMap(),
       where: 'id = ?',
@@ -115,13 +119,13 @@ class HabitsRepository {
 
   /// Deletes a habit
   Future<int> deleteHabit(int id) async {
-    return await _db.delete(_tableName, where: 'id = ?', whereArgs: [id]);
+    return await _db!.delete(_tableName, where: 'id = ?', whereArgs: [id]);
   }
 
   /// Searches habits by name
   /// Returns null if no habits match the search
   Future<List<Habit>?> searchHabits(String query) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
+    final List<Map<String, dynamic>> maps = await _db!.query(
       _tableName,
       where: 'name LIKE ?',
       whereArgs: ['%$query%'],
@@ -133,7 +137,7 @@ class HabitsRepository {
 
   /// Updates specific fields of a habit
   Future<int> updateHabitFields(int id, Map<String, dynamic> fields) async {
-    return await _db.update(
+    return await _db!.update(
       _tableName,
       fields,
       where: 'id = ?',
@@ -171,6 +175,7 @@ class HabitsRepository {
     final List<HabitsCard> habitsCards =
         habits.map((habit) {
           return HabitsCard(
+            id: habit.id,
             habitName: habit.name,
             habitDescription: habit.description ?? '',
             habitConsecutiveProgress: habit.consecutiveProgress,
@@ -179,10 +184,6 @@ class HabitsRepository {
             habitStart: [habit.start], // Convert single time to list for model
             habitEnd: [habit.end], // Convert single time to list for model
             habitStatus: _calculateHabitStatus(habit.consecutiveProgress),
-            habitPriority: _calculateHabitPriority(
-              habit.consecutiveProgress,
-              habit.totalProgress,
-            ),
           );
         }).toList();
 
@@ -198,29 +199,26 @@ class HabitsRepository {
     return 'Needs Improvement';
   }
 
-  /// Calculates habit priority based on progress
-  int _calculateHabitPriority(int consecutiveProgress, int totalProgress) {
-    if (consecutiveProgress >= 20 || totalProgress >= 50) return 1;
-    if (consecutiveProgress >= 10 || totalProgress >= 30) return 2;
-    return 3;
-  }
-
   /// Prints all objects and their nested properties recursively
   void printHabitsModelStructure(HabitsModel model) {
-    print('\n=== Habits Model Structure ===');
-    for (var habitCard in model.habits) {
-      print('\n--- Habit Card ---');
-      print('Name: ${habitCard.habitName}');
-      print('Description: ${habitCard.habitDescription}');
-      print('Consecutive Progress: ${habitCard.habitConsecutiveProgress}');
-      print('Total Progress: ${habitCard.habitTotalProgress}');
-      print('Created At: ${habitCard.createdAt}');
-      print('Start Times: ${habitCard.habitStart.join(", ")}');
-      print('End Times: ${habitCard.habitEnd.join(", ")}');
-      print('Status: ${habitCard.habitStatus}');
-      print('Priority: ${habitCard.habitPriority}');
+    print('\n=== HABITS STATE DEBUG ===');
+    if (model.habits.isNotEmpty) {
+      for (int i = 0; i < model.habits.length; i++) {
+        final habit = model.habits[i];
+        print('\nHabit #${i + 1}:');
+        print('  Name: ${habit.habitName}');
+        print('  Description: ${habit.habitDescription}');
+        print('  Consecutive Progress: ${habit.habitConsecutiveProgress}');
+        print('  Total Progress: ${habit.habitTotalProgress}');
+        print('  Created At: ${habit.createdAt}');
+        print('  Start: ${habit.habitStart}');
+        print('  End: ${habit.habitEnd}');
+        print('  Status: ${habit.habitStatus}');
+      }
+    } else {
+      print('No habits data available');
     }
-    print('\n=== End of Habits Model Structure ===\n');
+    print('=== END HABITS STATE DEBUG ===\n');
   }
 }
 

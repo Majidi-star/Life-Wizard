@@ -62,7 +62,6 @@ class Habit {
   final String habitDescription; // Description of the habit
   final int
   habitConsecutiveProgress; // How many consecutive times the habit has been done
-  final int habitPriority; // Priority of the habit
   final bool
   habitCompleted; // Status of the habit (completed, not completed, etc.)
   final bool habitStatus; // The AI judgement of the habit frequency
@@ -71,7 +70,6 @@ class Habit {
     required this.habitName,
     required this.habitDescription,
     required this.habitConsecutiveProgress,
-    required this.habitPriority,
     required this.habitCompleted,
     required this.habitStatus,
   });

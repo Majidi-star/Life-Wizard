@@ -262,8 +262,8 @@ class DatabaseInitializer {
       'consecutiveProgress': 5,
       'totalProgress': 15,
       'createdAt': now.subtract(const Duration(days: 20)).toIso8601String(),
-      'start': '8:00',
-      'end': '8:15',
+      'start': '1,3,6,8,10',
+      'end': '2,5,7,9,12',
     });
 
     await db.insert('habits', {
@@ -272,8 +272,8 @@ class DatabaseInitializer {
       'consecutiveProgress': 12,
       'totalProgress': 25,
       'createdAt': now.subtract(const Duration(days: 30)).toIso8601String(),
-      'start': '8:00',
-      'end': '20:00',
+      'start': '1,5,8,10,13,15,18,21,24',
+      'end': '4,7,9,12,14,17,20,23,25',
     });
 
     await db.insert('habits', {
@@ -282,8 +282,28 @@ class DatabaseInitializer {
       'consecutiveProgress': 3,
       'totalProgress': 10,
       'createdAt': now.subtract(const Duration(days: 15)).toIso8601String(),
-      'start': '21:00',
-      'end': '21:30',
+      'start': '2,5,8',
+      'end': '4,7,10',
+    });
+
+    await db.insert('habits', {
+      'name': 'Morning Exercise',
+      'description': 'Do a quick 15-minute workout after waking up',
+      'consecutiveProgress': 4,
+      'totalProgress': 12,
+      'createdAt': now.subtract(const Duration(days: 25)).toIso8601String(),
+      'start': '3,6,9,11',
+      'end': '5,8,10,12',
+    });
+
+    await db.insert('habits', {
+      'name': 'Practice Guitar',
+      'description': 'Practice guitar for at least 20 minutes daily',
+      'consecutiveProgress': 0,
+      'totalProgress': 8,
+      'createdAt': now.subtract(const Duration(days: 18)).toIso8601String(),
+      'start': '1,4,7',
+      'end': '3,6,8',
     });
   }
 

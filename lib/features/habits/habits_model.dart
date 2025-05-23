@@ -8,6 +8,7 @@ class HabitsModel {
 
 // Define the HabitsCard to be used in the HabitsModel
 class HabitsCard {
+  final int? id; // ID of the habit in the database
   final String habitName; // Name of the habit
   final String habitDescription; // Description of the habit
   final int
@@ -20,9 +21,9 @@ class HabitsCard {
   final List
   habitEnd; // Used for showing the progress of the habit on a timeline
   final String habitStatus; // The AI judgement of the habit frequency
-  final int habitPriority; // The priority of the habit
 
   HabitsCard({
+    this.id,
     required this.habitName,
     required this.habitDescription,
     required this.habitConsecutiveProgress,
@@ -31,6 +32,5 @@ class HabitsCard {
     required this.habitStart,
     required this.habitEnd,
     required this.habitStatus,
-    required this.habitPriority,
   });
 }

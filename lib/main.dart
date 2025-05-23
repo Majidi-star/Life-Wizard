@@ -17,6 +17,8 @@ import 'features/mood_data/mood_data_bloc.dart';
 import 'features/mood_data/mood_data_event.dart';
 import 'features/mood_data/mood_data_state.dart';
 import 'features/todo/todo_bloc.dart';
+import 'features/habits/habits_bloc.dart';
+import 'features/habits/habits_event.dart';
 import 'database_initializer.dart';
 
 // Import all test files
@@ -38,6 +40,8 @@ late SettingsBloc settingsBloc;
 late MoodDataBloc moodDataBloc;
 // Global singleton for TodoBloc to ensure single source of truth
 late TodoBloc todoBloc;
+// Global singleton for HabitsBloc to ensure single source of truth
+late HabitsBloc habitsBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +59,9 @@ void main() async {
 
   // Create a single TodoBloc instance that will be used throughout the app
   todoBloc = TodoBloc();
+
+  // Create a single HabitsBloc instance that will be used throughout the app
+  habitsBloc = HabitsBloc();
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -92,6 +99,7 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: settingsBloc..add(LoadSettings())),
         BlocProvider.value(value: moodDataBloc),
         BlocProvider.value(value: todoBloc),
+        BlocProvider.value(value: habitsBloc..add(const LoadHabits())),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
