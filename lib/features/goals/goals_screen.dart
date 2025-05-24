@@ -1,20 +1,996 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:convert';
 import '../../widgets/app_drawer.dart';
 import '../../utils/theme_utils.dart';
+import 'goals_bloc.dart';
+import 'goals_event.dart';
+import 'goals_state.dart';
+import 'goals_model.dart';
 
-class GoalsScreen extends StatelessWidget {
+class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
+
+  @override
+  State<GoalsScreen> createState() => _GoalsScreenState();
+}
+
+class _GoalsScreenState extends State<GoalsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<GoalsBloc>().setIsOnGoalsScreen(true);
+    context.read<GoalsBloc>().add(const LoadGoals());
+  }
+
+  @override
+  void dispose() {
+    context.read<GoalsBloc>().setIsOnGoalsScreen(false);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Goals'),
         backgroundColor: ThemeUtils.getAppBarColor(context),
       ),
       drawer: const AppDrawer(),
-      body: const Center(child: Text('Goals Screen')),
+      body: BlocBuilder<GoalsBloc, GoalsState>(
+        builder: (context, state) {
+          if (state is GoalsInitial || state is GoalsLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is GoalsError) {
+            return Center(child: Text('Error: ${state.message}'));
+          } else if (state is GoalsLoaded) {
+            return _buildContent(context, state);
+          } else {
+            return const Center(child: Text('Unknown state'));
+          }
+        },
+      ),
     );
   }
+
+  Widget _buildContent(BuildContext context, GoalsLoaded state) {
+    final goals = state.goalsModel.goals;
+
+    return Column(
+      children: [
+        Expanded(
+          child:
+              goals.isEmpty
+                  ? const Center(
+                    child: Text(
+                      'No goals available. Add a goal to get started!',
+                    ),
+                  )
+                  : ListView.builder(
+                    itemCount: goals.length,
+                    itemBuilder: (context, index) {
+                      final goal = goals[index];
+                      final isExpanded = state.expandedGoals[index] ?? false;
+
+                      return _buildGoalCard(
+                        context,
+                        goal,
+                        index,
+                        isExpanded,
+                        state,
+                      );
+                    },
+                  ),
+        ),
+        _buildDebugButton(context, state),
+      ],
+    );
+  }
+
+  Widget _buildGoalCard(
+    BuildContext context,
+    GoalsCard goal,
+    int index,
+    bool isExpanded,
+    GoalsLoaded state,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final priorityColor = _getPriorityColor(goal.priority, colorScheme);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          context.read<GoalsBloc>().add(ToggleGoalExpansion(index));
+        },
+        child: Column(
+          children: [
+            _buildGoalHeader(context, goal, priorityColor),
+            if (isExpanded) _buildExpandedContent(context, goal, index, state),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoalHeader(
+    BuildContext context,
+    GoalsCard goal,
+    Color priorityColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: priorityColor, width: 4.0)),
+      ),
+      child: Row(
+        children: [
+          _buildPriorityCircle(goal.priority, priorityColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  goal.goalName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('Progress: ${goal.goalProgress}%'),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.arrow_downward, size: 14),
+                  Text('${goal.startingScore}'),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.arrow_forward, size: 14),
+                  Text('${goal.currentScore}'),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.arrow_upward, size: 14),
+                  Text('${goal.futureScore}'),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpandedContent(
+    BuildContext context,
+    GoalsCard goal,
+    int goalIndex,
+    GoalsLoaded state,
+  ) {
+    final decodedPlan = jsonDecode(goal.planInfo) as Map<String, dynamic>;
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Description section
+          _buildSectionHeader('Description'),
+          Text(goal.goalDescription),
+          const SizedBox(height: 16),
+
+          // Milestones section
+          _buildSectionHeader('Milestones'),
+          if (decodedPlan.containsKey('milestones') &&
+              decodedPlan['milestones'] is List)
+            _buildMilestones(
+              context,
+              goalIndex,
+              decodedPlan['milestones'],
+              state,
+            ),
+
+          // Overall Plan section
+          if (decodedPlan.containsKey('overallPlan') &&
+              decodedPlan['overallPlan'] is Map)
+            _buildOverallPlan(decodedPlan['overallPlan']),
+
+          // Goal Formula section
+          if (decodedPlan.containsKey('goalFormula') &&
+              decodedPlan['goalFormula'] is Map)
+            _buildGoalFormula(decodedPlan['goalFormula']),
+
+          // Score Chart section
+          if (decodedPlan.containsKey('scoreChart') &&
+              decodedPlan['scoreChart'] is Map)
+            _buildScoreChart(decodedPlan['scoreChart']),
+
+          // Comparison Card section
+          if (decodedPlan.containsKey('comparisonCard') &&
+              decodedPlan['comparisonCard'] is Map)
+            _buildComparisonCard(
+              context,
+              decodedPlan['comparisonCard'],
+              goal.currentScore,
+            ),
+
+          // Plan Explanation section
+          if (decodedPlan.containsKey('planExplanationCard') &&
+              decodedPlan['planExplanationCard'] is Map)
+            _buildPlanExplanation(decodedPlan['planExplanationCard']),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMilestones(
+    BuildContext context,
+    int goalIndex,
+    List<dynamic> milestones,
+    GoalsLoaded state,
+  ) {
+    return Column(
+      children: List.generate(
+        milestones.length,
+        (milestoneIndex) => _buildMilestone(
+          context,
+          goalIndex,
+          milestoneIndex,
+          milestones[milestoneIndex],
+          state,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMilestone(
+    BuildContext context,
+    int goalIndex,
+    int milestoneIndex,
+    Map<String, dynamic> milestone,
+    GoalsLoaded state,
+  ) {
+    final isMilestoneExpanded =
+        state.expandedMilestones[goalIndex]?[milestoneIndex] ?? false;
+    final theme = Theme.of(context);
+    final isCompleted = milestone['isCompleted'] ?? false;
+    final progressText = milestone['milestoneProgress'] ?? '0%';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: InkWell(
+        onTap: () {
+          context.read<GoalsBloc>().add(
+            ToggleMilestoneExpansion(goalIndex, milestoneIndex),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              title: Text(milestone['milestoneName'] ?? 'Untitled Milestone'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(milestone['milestoneDescription'] ?? ''),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text('Due: ${milestone['milestoneDate'] ?? 'Not set'}'),
+                      const Spacer(),
+                      Text(
+                        progressText,
+                        style: TextStyle(
+                          color: isCompleted ? theme.colorScheme.primary : null,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: Icon(
+                isMilestoneExpanded ? Icons.expand_less : Icons.expand_more,
+              ),
+            ),
+            if (isMilestoneExpanded && milestone['milestoneTasks'] is List)
+              _buildMilestoneTasks(
+                context,
+                goalIndex,
+                milestoneIndex,
+                milestone['milestoneTasks'],
+                state,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMilestoneTasks(
+    BuildContext context,
+    int goalIndex,
+    int milestoneIndex,
+    List<dynamic> tasks,
+    GoalsLoaded state,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(
+          tasks.length,
+          (taskIndex) => _buildMilestoneTask(
+            context,
+            goalIndex,
+            milestoneIndex,
+            taskIndex,
+            tasks[taskIndex],
+            state,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMilestoneTask(
+    BuildContext context,
+    int goalIndex,
+    int milestoneIndex,
+    int taskIndex,
+    Map<String, dynamic> task,
+    GoalsLoaded state,
+  ) {
+    final isTimelineView =
+        state.timelineViewTasks[goalIndex]?[milestoneIndex]?[taskIndex] ??
+        false;
+    final theme = Theme.of(context);
+    final isCompleted = task['isCompleted'] ?? false;
+    final taskTime = task['taskTime'] ?? 0;
+    final taskTimeFormat = task['taskTimeFormat'] ?? 'hours';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      child: InkWell(
+        onTap: () {
+          context.read<GoalsBloc>().add(
+            ToggleTaskTimelineView(goalIndex, milestoneIndex, taskIndex),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isCompleted ? Icons.check_circle : Icons.circle_outlined,
+                    color: isCompleted ? theme.colorScheme.primary : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      task['taskName'] ?? 'Untitled Task',
+                      style: TextStyle(
+                        decoration:
+                            isCompleted ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  ),
+                  Text('$taskTime $taskTimeFormat'),
+                ],
+              ),
+              if (task['taskDescription'] != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 32.0, top: 4.0),
+                  child: Text(
+                    task['taskDescription'],
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              if (!isTimelineView)
+                _buildTaskProgressBar(task, theme)
+              else
+                _buildTaskTimeline(task, theme),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskProgressBar(Map<String, dynamic> task, ThemeData theme) {
+    final isCompleted = task['isCompleted'] ?? false;
+    final progress = isCompleted ? 1.0 : 0.0; // Simple completion for now
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: LinearProgressIndicator(
+        value: progress,
+        backgroundColor: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.primary,
+        minHeight: 8,
+      ),
+    );
+  }
+
+  Widget _buildTaskTimeline(Map<String, dynamic> task, ThemeData theme) {
+    final startPercentages =
+        task['taskStartPercentage'] as List<dynamic>? ?? [0];
+    final endPercentages = task['taskEndPercentage'] as List<dynamic>? ?? [100];
+
+    return SizedBox(
+      height: 25,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              // Timeline baseline
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                height: 5,
+                width: constraints.maxWidth,
+                color: theme.colorScheme.surfaceVariant,
+              ),
+
+              // Timeline segments
+              ...List.generate(
+                startPercentages.length.clamp(0, endPercentages.length),
+                (i) {
+                  final start =
+                      (startPercentages[i] is int)
+                          ? startPercentages[i] as int
+                          : int.tryParse(
+                                startPercentages[i].toString().replaceAll(
+                                  '%',
+                                  '',
+                                ),
+                              ) ??
+                              0;
+
+                  final end =
+                      (endPercentages[i] is int)
+                          ? endPercentages[i] as int
+                          : int.tryParse(
+                                endPercentages[i].toString().replaceAll(
+                                  '%',
+                                  '',
+                                ),
+                              ) ??
+                              100;
+
+                  return Positioned(
+                    left: constraints.maxWidth * start / 100,
+                    width: constraints.maxWidth * (end - start) / 100,
+                    top: 5,
+                    height: 15,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Start label
+              Positioned(
+                left: 0,
+                bottom: 0,
+                child: Text(
+                  '0%',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+              ),
+
+              // End label
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Text(
+                  '100%',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildOverallPlan(Map<String, dynamic> overallPlan) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Overall Plan'),
+        if (overallPlan.containsKey('taskGroups') &&
+            overallPlan['taskGroups'] is List)
+          _buildTaskGroups(overallPlan['taskGroups']),
+        if (overallPlan.containsKey('deadline'))
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text('Deadline: ${overallPlan['deadline'] ?? 'Not set'}'),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildTaskGroups(List<dynamic> taskGroups) {
+    return Column(
+      children: List.generate(
+        taskGroups.length,
+        (index) => _buildTaskGroup(taskGroups[index]),
+      ),
+    );
+  }
+
+  Widget _buildTaskGroup(Map<String, dynamic> taskGroup) {
+    final theme = Theme.of(context);
+    final progress = (taskGroup['taskGroupProgress'] as int?) ?? 0;
+    final time = (taskGroup['taskGroupTime'] as int?) ?? 0;
+    final timeFormat = taskGroup['taskGroupTimeFormat'] as String? ?? 'hours';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Container(
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: theme.colorScheme.tertiary, width: 4.0),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(taskGroup['taskGroupName'] ?? 'Untitled Group'),
+                ),
+                Text('$time $timeFormat'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress / 100,
+                backgroundColor: theme.colorScheme.surfaceVariant,
+                color: theme.colorScheme.tertiary,
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$progress%',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.textTheme.bodySmall?.color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoalFormula(Map<String, dynamic> goalFormula) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Goal Formula'),
+        Card(
+          child: Container(
+            padding: const EdgeInsets.all(12.0),
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  goalFormula['goalFormula'] ?? 'No formula defined',
+                  style: const TextStyle(fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildScoreBox(
+                      'Current',
+                      goalFormula['currentScore'] ?? 0,
+                      theme,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildScoreBox(
+                      'Goal',
+                      goalFormula['goalScore'] ?? 0,
+                      theme,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildScoreBox(String label, int score, ThemeData theme) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+        Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceVariant,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            score.toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScoreChart(Map<String, dynamic> scoreChart) {
+    final theme = Theme.of(context);
+    final scores = scoreChart['scores'] as List<dynamic>? ?? [];
+    final dates = scoreChart['dates'] as List<dynamic>? ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Progress Over Time'),
+        Card(
+          child: Container(
+            padding: const EdgeInsets.all(12.0),
+            width: double.infinity,
+            height: 150,
+            child:
+                scores.isEmpty || dates.isEmpty
+                    ? const Center(child: Text('No data available'))
+                    : _buildSimpleChart(scores, dates, theme),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildSimpleChart(
+    List<dynamic> scores,
+    List<dynamic> dates,
+    ThemeData theme,
+  ) {
+    // This is a simple chart representation, in a real app a chart library should be used
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxScore = scores.fold(
+          0,
+          (max, score) => score > max ? score : max,
+        );
+        final height = constraints.maxHeight;
+        final width = constraints.maxWidth;
+
+        return CustomPaint(
+          size: Size(width, height),
+          painter: SimpleChartPainter(
+            scores: scores.map((s) => s as int).toList(),
+            dates: dates.map((d) => d as String).toList(),
+            maxScore: maxScore,
+            color: theme.colorScheme.primary,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildComparisonCard(
+    BuildContext context,
+    Map<String, dynamic> comparisonCard,
+    int userScore,
+  ) {
+    final theme = Theme.of(context);
+    final comparisons = comparisonCard['comparisons'] as List<dynamic>? ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Comparison'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                // User's score
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: theme.colorScheme.primary,
+                    child: const Icon(Icons.person, color: Colors.white),
+                  ),
+                  title: const Text('You'),
+                  trailing: Text(
+                    userScore.toString(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                // Divider
+                const Divider(),
+
+                // Competitors
+                ...comparisons.map((comparison) {
+                  final name = comparison['name'] ?? 'Unknown';
+                  final level = comparison['level'] ?? 'N/A';
+                  final score = comparison['score'] ?? 0;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: theme.colorScheme.surfaceVariant,
+                      child: const Icon(Icons.person_outline),
+                    ),
+                    title: Text(name),
+                    subtitle: Text(level),
+                    trailing: Text(score.toString()),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildPlanExplanation(Map<String, dynamic> planExplanationCard) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Plan Explanation'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Text(
+              planExplanationCard['planExplanation'] ??
+                  'No explanation provided.',
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildPriorityCircle(int priority, Color color) {
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      child: Center(
+        child: Text(
+          priority.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(int priority, ColorScheme colorScheme) {
+    if (priority >= 7) return Colors.red;
+    if (priority >= 4) return Colors.orange;
+    return Colors.green;
+  }
+
+  Widget _buildDebugButton(BuildContext context, GoalsLoaded state) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          _showDebugInfo(context, state);
+        },
+        icon: const Icon(Icons.bug_report),
+        label: const Text('Debug Goals State'),
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(double.infinity, 48),
+        ),
+      ),
+    );
+  }
+
+  void _showDebugInfo(BuildContext context, GoalsLoaded state) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Goals State Debug Info'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Number of goals: ${state.goalsModel.goals.length}'),
+                  Text(
+                    'Selected goal index: ${state.selectedGoalIndex ?? "None"}',
+                  ),
+                  Text('Expanded goals: ${state.expandedGoals}'),
+                  Text('Expanded milestones: ${state.expandedMilestones}'),
+                  Text('Timeline view tasks: ${state.timelineViewTasks}'),
+                  const Divider(),
+                  const Text(
+                    'Goals:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  ...state.goalsModel.goals.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final goal = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 16.0, top: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Goal $index: ${goal.goalName}'),
+                          Text('   Progress: ${goal.goalProgress}%'),
+                          Text('   Priority: ${goal.priority}'),
+                          Text(
+                            '   Scores: ${goal.startingScore} → ${goal.currentScore} → ${goal.futureScore}',
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
+}
+
+class SimpleChartPainter extends CustomPainter {
+  final List<int> scores;
+  final List<String> dates;
+  final int maxScore;
+  final Color color;
+
+  SimpleChartPainter({
+    required this.scores,
+    required this.dates,
+    required this.maxScore,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (scores.isEmpty) return;
+
+    final paint =
+        Paint()
+          ..color = color
+          ..strokeWidth = 3
+          ..style = PaintingStyle.stroke;
+
+    final dotPaint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
+
+    final path = Path();
+
+    // Draw the line chart
+    for (var i = 0; i < scores.length; i++) {
+      final x = i * size.width / (scores.length - 1);
+      final y = size.height - (scores[i] / maxScore) * size.height;
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+
+      // Draw dots at each data point
+      canvas.drawCircle(Offset(x, y), 4, dotPaint);
+    }
+
+    canvas.drawPath(path, paint);
+
+    // Draw labels for the first and last date
+    if (dates.isNotEmpty) {
+      final textStyle = TextStyle(color: Colors.grey[600], fontSize: 10);
+      final firstDateSpan = TextSpan(
+        text: _formatDate(dates.first),
+        style: textStyle,
+      );
+      final lastDateSpan = TextSpan(
+        text: _formatDate(dates.last),
+        style: textStyle,
+      );
+
+      final firstDatePainter = TextPainter(
+        text: firstDateSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final lastDatePainter = TextPainter(
+        text: lastDateSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      firstDatePainter.paint(canvas, Offset(0, size.height + 5));
+      lastDatePainter.paint(
+        canvas,
+        Offset(size.width - lastDatePainter.width, size.height + 5),
+      );
+    }
+  }
+
+  String _formatDate(String dateString) {
+    final date = DateTime.tryParse(dateString);
+    if (date == null) return dateString;
+
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
+  @override
+  bool shouldRepaint(SimpleChartPainter oldDelegate) =>
+      oldDelegate.scores != scores ||
+      oldDelegate.dates != dates ||
+      oldDelegate.maxScore != maxScore ||
+      oldDelegate.color != color;
 }

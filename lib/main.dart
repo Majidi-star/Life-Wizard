@@ -19,6 +19,9 @@ import 'features/mood_data/mood_data_state.dart';
 import 'features/todo/todo_bloc.dart';
 import 'features/habits/habits_bloc.dart';
 import 'features/habits/habits_event.dart';
+import 'features/goals/goals_bloc.dart';
+import 'features/goals/goals_event.dart';
+import 'features/goals/goals_state.dart';
 import 'database_initializer.dart';
 
 // Import all test files
@@ -42,13 +45,15 @@ late MoodDataBloc moodDataBloc;
 late TodoBloc todoBloc;
 // Global singleton for HabitsBloc to ensure single source of truth
 late HabitsBloc habitsBloc;
+// Global singleton for GoalsBloc to ensure single source of truth
+late GoalsBloc goalsBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database
-  await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
+  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
   // Create a single SettingsBloc instance that will be used throughout the app
@@ -62,6 +67,9 @@ void main() async {
 
   // Create a single HabitsBloc instance that will be used throughout the app
   habitsBloc = HabitsBloc();
+
+  // Create a single GoalsBloc instance that will be used throughout the app
+  goalsBloc = GoalsBloc();
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -100,6 +108,7 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: moodDataBloc),
         BlocProvider.value(value: todoBloc),
         BlocProvider.value(value: habitsBloc..add(const LoadHabits())),
+        BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
@@ -286,7 +295,34 @@ Future<void> printFeatureState(String feature) async {
       pro_clock_test.main();
       break;
     case 'goals':
-      goals_test.main();
+      // Use the actual goalsBloc state instead of running the test
+      final state = goalsBloc.state;
+      print('===== GOALS STATE =====');
+      if (state is GoalsLoaded) {
+        print('Goals count: ${state.goalsModel.goals.length}');
+        print('Selected Goal Index: ${state.selectedGoalIndex}');
+        print('Expanded Goals: ${state.expandedGoals}');
+
+        if (state.goalsModel.goals.isNotEmpty) {
+          for (int i = 0; i < state.goalsModel.goals.length; i++) {
+            final goal = state.goalsModel.goals[i];
+            print('\nGoal $i:');
+            print('  Name: ${goal.goalName}');
+            print('  Description: ${goal.goalDescription}');
+            print('  Progress: ${goal.goalProgress}%');
+            print('  Priority: ${goal.priority}');
+            print(
+              '  Scores: ${goal.startingScore} → ${goal.currentScore} → ${goal.futureScore}',
+            );
+          }
+        }
+      } else if (state is GoalsLoading) {
+        print('Goals are currently loading...');
+      } else if (state is GoalsError) {
+        print('Goals error: ${state.message}');
+      } else {
+        print('Goals state: ${state.runtimeType}');
+      }
       break;
     case 'mood_data':
       // Use the actual moodDataBloc state instead of running the test
