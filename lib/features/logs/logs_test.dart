@@ -1,5 +1,3 @@
-import 'logs_state.dart';
-
 void main() {
   testLogsState();
 }

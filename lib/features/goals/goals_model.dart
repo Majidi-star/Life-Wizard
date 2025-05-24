@@ -15,9 +15,9 @@ class GoalsCard {
   final int currentScore; // Current score of the goal
   final int futureScore; // Future score of the goal
   final String createdAt; // Date of creation of the goal
-  final String goalProgress; // Progress of the goal
-  final List
-  planInfo; // the plan info of the goal (e.g. milestones, tasks, etc.)
+  final int goalProgress; // Progress of the goal
+  final String
+  planInfo; // the plan info of the goal (e.g. milestones, tasks, etc.) as JSON string
   final int priority; // Priority of the goal
 
   GoalsCard({

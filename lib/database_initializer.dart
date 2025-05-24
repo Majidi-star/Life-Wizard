@@ -132,6 +132,9 @@ class DatabaseInitializer {
         startScore INTEGER NOT NULL,
         currentScore INTEGER NOT NULL,
         targetScore INTEGER NOT NULL,
+        createdAt DATETIME NOT NULL,
+        priority INTEGER NOT NULL,
+        description TEXT NOT NULL,
         goalsRoadmap TEXT NOT NULL
       )
     ''');
@@ -309,24 +312,297 @@ class DatabaseInitializer {
 
   // Helper method to insert sample goals
   static Future<void> _insertSampleGoals(Database db) async {
+    final now = DateTime.now();
+    final oneWeekAgo = now.subtract(const Duration(days: 7));
+    final twoWeeksAgo = now.subtract(const Duration(days: 14));
+    final threeWeeksAgo = now.subtract(const Duration(days: 21));
+
+    final sampleGoalsRoadmap1 = '''{
+  "milestones": [
+    {
+      "milestoneDate": "2025-05-30",
+      "milestoneName": "Complete Phase 1",
+      "milestoneDescription": "Finish initial development of the project",
+      "milestoneProgress": "70%",
+      "isCompleted": false,
+      "milestoneTasks": [
+        {
+          "taskName": "Setup project structure",
+          "taskDescription": "Organize the folders and initial files",
+          "isCompleted": true,
+          "taskTime": 4,
+          "taskTimeFormat": "hours",
+          "taskStartPercentage": [0],
+          "taskEndPercentage": [20]
+        },
+        {
+          "taskName": "Implement core functionality",
+          "taskDescription": "Develop the core features of the app",
+          "isCompleted": false,
+          "taskTime": 10,
+          "taskTimeFormat": "hours",
+          "taskStartPercentage": [20],
+          "taskEndPercentage": [90]
+        }
+      ]
+    }
+  ],
+  "overallPlan": {
+    "taskGroups": [
+      {
+        "taskGroupName": "Development",
+        "taskGroupProgress": 50,
+        "taskGroupTime": 40,
+        "taskGroupTimeFormat": "hours"
+      },
+      {
+        "taskGroupName": "Testing",
+        "taskGroupProgress": 20,
+        "taskGroupTime": 10,
+        "taskGroupTimeFormat": "hours"
+      }
+    ],
+    "deadline": "2025-06-15"
+  },
+  "goalFormula": {
+    "goalFormula": "totalTasksCompleted / totalTasks",
+    "currentScore": 7,
+    "goalScore": 20
+  },
+  "scoreChart": {
+    "scores": [2, 4, 6, 7],
+    "dates": ["2025-05-01", "2025-05-08", "2025-05-15", "2025-05-22"]
+  },
+  "comparisonCard": {
+    "comparisons": [
+      {
+        "name": "John Doe",
+        "level": "Intermediate",
+        "score": 15
+      },
+      {
+        "name": "Jane Smith",
+        "level": "Advanced",
+        "score": 20
+      }
+    ]
+  },
+  "planExplanationCard": {
+    "planExplanation": "This plan outlines the milestones, tasks, and timelines to achieve the project objectives."
+  }
+}''';
+
+    final sampleGoalsRoadmap2 = '''{
+  "milestones": [
+    {
+      "milestoneDate": "2025-07-15",
+      "milestoneName": "Research Phase",
+      "milestoneDescription": "Complete all research activities",
+      "milestoneProgress": "85%",
+      "isCompleted": false,
+      "milestoneTasks": [
+        {
+          "taskName": "Literature review",
+          "taskDescription": "Review existing research papers",
+          "isCompleted": true,
+          "taskTime": 20,
+          "taskTimeFormat": "hours",
+          "taskStartPercentage": [0],
+          "taskEndPercentage": [40]
+        },
+        {
+          "taskName": "Data collection",
+          "taskDescription": "Gather preliminary data from sources",
+          "isCompleted": true,
+          "taskTime": 15,
+          "taskTimeFormat": "hours",
+          "taskStartPercentage": [40],
+          "taskEndPercentage": [70]
+        },
+        {
+          "taskName": "Analysis preparation",
+          "taskDescription": "Prepare data for analysis phase",
+          "isCompleted": false,
+          "taskTime": 10,
+          "taskTimeFormat": "hours",
+          "taskStartPercentage": [70],
+          "taskEndPercentage": [100]
+        }
+      ]
+    }
+  ],
+  "overallPlan": {
+    "taskGroups": [
+      {
+        "taskGroupName": "Research",
+        "taskGroupProgress": 75,
+        "taskGroupTime": 60,
+        "taskGroupTimeFormat": "hours"
+      },
+      {
+        "taskGroupName": "Analysis",
+        "taskGroupProgress": 25,
+        "taskGroupTime": 40,
+        "taskGroupTimeFormat": "hours"
+      }
+    ],
+    "deadline": "2025-08-30"
+  },
+  "goalFormula": {
+    "goalFormula": "researchComplete / totalResearchNeeded",
+    "currentScore": 15,
+    "goalScore": 20
+  },
+  "scoreChart": {
+    "scores": [5, 8, 12, 15],
+    "dates": ["2025-06-01", "2025-06-15", "2025-06-30", "2025-07-10"]
+  },
+  "comparisonCard": {
+    "comparisons": [
+      {
+        "name": "Average Researcher",
+        "level": "Intermediate",
+        "score": 14
+      },
+      {
+        "name": "Expert Researcher",
+        "level": "Advanced",
+        "score": 19
+      }
+    ]
+  },
+  "planExplanationCard": {
+    "planExplanation": "This research plan is designed to systematically explore the topic and gather necessary data for analysis."
+  }
+}''';
+
+    final sampleGoalsRoadmap3 = '''{
+  "milestones": [
+    {
+      "milestoneDate": "2025-09-30",
+      "milestoneName": "Fitness Milestone 1",
+      "milestoneDescription": "Achieve initial fitness targets",
+      "milestoneProgress": "40%",
+      "isCompleted": false,
+      "milestoneTasks": [
+        {
+          "taskName": "Establish workout routine",
+          "taskDescription": "Create and follow consistent exercise schedule",
+          "isCompleted": true,
+          "taskTime": 3,
+          "taskTimeFormat": "weeks",
+          "taskStartPercentage": [0],
+          "taskEndPercentage": [30]
+        },
+        {
+          "taskName": "Improve cardiovascular endurance",
+          "taskDescription": "Gradually increase running distance and time",
+          "isCompleted": false,
+          "taskTime": 4,
+          "taskTimeFormat": "weeks",
+          "taskStartPercentage": [30],
+          "taskEndPercentage": [70]
+        },
+        {
+          "taskName": "Strength training foundation",
+          "taskDescription": "Develop basic strength in major muscle groups",
+          "isCompleted": false,
+          "taskTime": 5,
+          "taskTimeFormat": "weeks",
+          "taskStartPercentage": [70],
+          "taskEndPercentage": [100]
+        }
+      ]
+    }
+  ],
+  "overallPlan": {
+    "taskGroups": [
+      {
+        "taskGroupName": "Cardio",
+        "taskGroupProgress": 45,
+        "taskGroupTime": 12,
+        "taskGroupTimeFormat": "weeks"
+      },
+      {
+        "taskGroupName": "Strength",
+        "taskGroupProgress": 35,
+        "taskGroupTime": 12,
+        "taskGroupTimeFormat": "weeks"
+      },
+      {
+        "taskGroupName": "Nutrition",
+        "taskGroupProgress": 60,
+        "taskGroupTime": 12,
+        "taskGroupTimeFormat": "weeks"
+      }
+    ],
+    "deadline": "2026-03-01"
+  },
+  "goalFormula": {
+    "goalFormula": "currentFitness / targetFitness",
+    "currentScore": 40,
+    "goalScore": 100
+  },
+  "scoreChart": {
+    "scores": [10, 20, 30, 40],
+    "dates": ["2025-06-30", "2025-07-31", "2025-08-31", "2025-09-15"]
+  },
+  "comparisonCard": {
+    "comparisons": [
+      {
+        "name": "Beginning Level",
+        "level": "Beginner",
+        "score": 20
+      },
+      {
+        "name": "Target Level",
+        "level": "Intermediate",
+        "score": 70
+      }
+    ]
+  },
+  "planExplanationCard": {
+    "planExplanation": "This fitness plan focuses on progressive improvement in cardiovascular endurance, strength, and overall health."
+  }
+}''';
+
     await db.insert('goals', {
-      'name': 'Learn Flutter Development',
-      'progressPercentage': 45,
+      'name': 'Project Development',
+      'progressPercentage': 35,
       'startScore': 0,
-      'currentScore': 45,
-      'targetScore': 100,
-      'goalsRoadmap':
-          'Complete basic UI|Build first app|Master state management|Create complex applications',
+      'currentScore': 7,
+      'targetScore': 20,
+      'createdAt': twoWeeksAgo.toIso8601String(),
+      'priority': 8,
+      'description':
+          'Complete the development of the main project by the deadline',
+      'goalsRoadmap': sampleGoalsRoadmap1,
     });
 
     await db.insert('goals', {
-      'name': 'Improve Physical Fitness',
-      'progressPercentage': 30,
+      'name': 'Research Study',
+      'progressPercentage': 75,
+      'startScore': 0,
+      'currentScore': 15,
+      'targetScore': 20,
+      'createdAt': threeWeeksAgo.toIso8601String(),
+      'priority': 6,
+      'description':
+          'Conduct comprehensive research study on the selected topic',
+      'goalsRoadmap': sampleGoalsRoadmap2,
+    });
+
+    await db.insert('goals', {
+      'name': 'Fitness Improvement',
+      'progressPercentage': 40,
       'startScore': 10,
       'currentScore': 40,
       'targetScore': 100,
-      'goalsRoadmap':
-          'Start regular workouts|Run 5K|Build strength training routine|Complete a half marathon',
+      'createdAt': oneWeekAgo.toIso8601String(),
+      'priority': 4,
+      'description':
+          'Improve overall fitness and establish healthy lifestyle habits',
+      'goalsRoadmap': sampleGoalsRoadmap3,
     });
   }
 

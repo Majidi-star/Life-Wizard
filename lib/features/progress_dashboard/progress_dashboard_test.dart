@@ -1,5 +1,3 @@
-import 'progress_dashboard_state.dart';
-
 void main() {
   testProgressDashboardState();
 }

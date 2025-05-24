@@ -14,6 +14,9 @@ class Goal {
   final int startScore; // Initial score when goal was created
   final int currentScore; // Current score achieved
   final int targetScore; // Target score to achieve
+  final String createdAt; // Time when the goal was created
+  final int priority; // Priority level of the goal (1-9)
+  final String description; // Description of the goal
   final Map<String, dynamic>
   goalsRoadmap; // JSON structure containing goal milestones and details
 
@@ -24,6 +27,9 @@ class Goal {
     required this.startScore,
     required this.currentScore,
     required this.targetScore,
+    required this.createdAt,
+    required this.priority,
+    required this.description,
     required this.goalsRoadmap,
   });
 
@@ -37,6 +43,9 @@ class Goal {
       'startScore': startScore,
       'currentScore': currentScore,
       'targetScore': targetScore,
+      'createdAt': createdAt,
+      'priority': priority,
+      'description': description,
       'goalsRoadmap': jsonEncode(goalsRoadmap), // Convert Map to JSON string
     };
   }
@@ -51,6 +60,9 @@ class Goal {
       startScore: map['startScore'],
       currentScore: map['currentScore'],
       targetScore: map['targetScore'],
+      createdAt: map['createdAt'],
+      priority: map['priority'],
+      description: map['description'],
       goalsRoadmap: jsonDecode(
         map['goalsRoadmap'],
       ), // Convert JSON string back to Map
@@ -155,47 +167,16 @@ class GoalsRepository {
   GoalsModel transformToGoalsModel(List<Goal> goals) {
     final List<GoalsCard> goalsCards =
         goals.map((goal) {
-          // Extract milestones from goalsRoadmap
-          final List<dynamic> roadmapMilestones =
-              goal.goalsRoadmap['milestones'] ?? [];
-
-          // Transform milestones into MilestoneCard structure
-          final List<MilestoneCard> milestoneCards =
-              roadmapMilestones.map((milestone) {
-                return MilestoneCard(
-                  milestoneDate: milestone['date'] ?? '',
-                  milestoneName: milestone['name'] ?? '',
-                  milestoneDescription: milestone['description'] ?? '',
-                  milestoneProgress: '${milestone['progress'] ?? 0}%',
-                  isCompleted: milestone['isCompleted'] ?? false,
-                  milestoneTasks:
-                      (milestone['tasks'] as List<dynamic>?)?.map((task) {
-                        return MilestoneTask(
-                          taskName: task['name'] ?? '',
-                          taskDescription: task['description'] ?? '',
-                          isCompleted: task['isCompleted'] ?? false,
-                          taskTime: task['time'] ?? 0,
-                          taskTimeFormat: task['timeFormat'] ?? 'hours',
-                          taskStartPercentage: task['startPercentage'] ?? [0],
-                          taskEndPercentage: task['endPercentage'] ?? [100],
-                        );
-                      }).toList() ??
-                      [],
-                );
-              }).toList();
-
           return GoalsCard(
             goalName: goal.name,
-            goalDescription: goal.goalsRoadmap['description'] ?? '',
+            goalDescription: goal.description,
             startingScore: goal.startScore,
             currentScore: goal.currentScore,
             futureScore: goal.targetScore,
-            createdAt:
-                goal.goalsRoadmap['createdAt'] ??
-                DateTime.now().toIso8601String(),
-            goalProgress: '${goal.progressPercentage}%',
-            planInfo: milestoneCards,
-            priority: goal.goalsRoadmap['priority'] ?? 1,
+            createdAt: goal.createdAt,
+            goalProgress: goal.progressPercentage,
+            planInfo: jsonEncode(goal.goalsRoadmap),
+            priority: goal.priority,
           );
         }).toList();
 
@@ -215,27 +196,7 @@ class GoalsRepository {
       print('Created At: ${goalCard.createdAt}');
       print('Goal Progress: ${goalCard.goalProgress}');
       print('Priority: ${goalCard.priority}');
-
-      print('\n--- Milestones ---');
-      for (var milestone in goalCard.planInfo) {
-        print('\nMilestone:');
-        print('  Name: ${milestone.milestoneName}');
-        print('  Date: ${milestone.milestoneDate}');
-        print('  Description: ${milestone.milestoneDescription}');
-        print('  Progress: ${milestone.milestoneProgress}');
-        print('  Is Completed: ${milestone.isCompleted}');
-
-        print('\n  --- Tasks ---');
-        for (var task in milestone.milestoneTasks) {
-          print('  Task:');
-          print('    Name: ${task.taskName}');
-          print('    Description: ${task.taskDescription}');
-          print('    Is Completed: ${task.isCompleted}');
-          print('    Time: ${task.taskTime} ${task.taskTimeFormat}');
-          print('    Start Percentage: ${task.taskStartPercentage}');
-          print('    End Percentage: ${task.taskEndPercentage}');
-        }
-      }
+      print('Plan Info: ${goalCard.planInfo}');
     }
     print('\n=== End of Goals Model Structure ===\n');
   }
@@ -245,6 +206,7 @@ class GoalsRepository {
 Future<void> testGoalsRepository() async {
   final db = await DatabaseInitializer.database;
   final repository = GoalsRepository(db);
+  final now = DateTime.now();
 
   // Create first test goal
   final testGoal1 = Goal(
@@ -253,47 +215,76 @@ Future<void> testGoalsRepository() async {
     startScore: 0,
     currentScore: 0,
     targetScore: 100,
+    createdAt: now.toIso8601String(),
+    priority: 8,
+    description: 'Master Flutter development',
     goalsRoadmap: {
-      'description': 'Master Flutter development',
-      'createdAt': DateTime.now().toIso8601String(),
-      'priority': 1,
       'milestones': [
         {
-          'name': 'Complete Flutter basics',
-          'description': 'Learn basic widgets and layouts',
-          'date': '2024-03-01',
-          'progress': 0,
+          'milestoneDate': '2024-03-01',
+          'milestoneName': 'Complete Flutter basics',
+          'milestoneDescription': 'Learn basic widgets and layouts',
+          'milestoneProgress': '0%',
           'isCompleted': false,
-          'tasks': [
+          'milestoneTasks': [
             {
-              'name': 'Study widgets',
-              'description': 'Learn about basic Flutter widgets',
+              'taskName': 'Study widgets',
+              'taskDescription': 'Learn about basic Flutter widgets',
               'isCompleted': false,
-              'time': 2,
-              'timeFormat': 'hours',
-              'startPercentage': [0],
-              'endPercentage': [50],
+              'taskTime': 2,
+              'taskTimeFormat': 'hours',
+              'taskStartPercentage': [0],
+              'taskEndPercentage': [50],
             },
             {
-              'name': 'Practice layouts',
-              'description': 'Create sample layouts',
+              'taskName': 'Practice layouts',
+              'taskDescription': 'Create sample layouts',
               'isCompleted': false,
-              'time': 3,
-              'timeFormat': 'hours',
-              'startPercentage': [50],
-              'endPercentage': [100],
+              'taskTime': 3,
+              'taskTimeFormat': 'hours',
+              'taskStartPercentage': [50],
+              'taskEndPercentage': [100],
             },
           ],
         },
         {
-          'name': 'Build first app',
-          'description': 'Create a simple Flutter application',
-          'date': '2024-03-15',
-          'progress': 0,
+          'milestoneDate': '2024-03-15',
+          'milestoneName': 'Build first app',
+          'milestoneDescription': 'Create a simple Flutter application',
+          'milestoneProgress': '0%',
           'isCompleted': false,
-          'tasks': [],
+          'milestoneTasks': [],
         },
       ],
+      'overallPlan': {
+        'taskGroups': [
+          {
+            'taskGroupName': 'Learning Flutter',
+            'taskGroupProgress': 0,
+            'taskGroupTime': 40,
+            'taskGroupTimeFormat': 'hours',
+          },
+        ],
+        'deadline': '2024-04-30',
+      },
+      'goalFormula': {
+        'goalFormula': 'Completed Modules / Total Modules',
+        'currentScore': 0,
+        'goalScore': 100,
+      },
+      'scoreChart': {
+        'scores': [0],
+        'dates': [now.toIso8601String()],
+      },
+      'comparisonCard': {
+        'comparisons': [
+          {'name': 'Average Learner', 'level': 'Beginner', 'score': 40},
+        ],
+      },
+      'planExplanationCard': {
+        'planExplanation':
+            'This plan is designed to help you learn Flutter development systematically.',
+      },
     },
   );
 
@@ -304,83 +295,120 @@ Future<void> testGoalsRepository() async {
     startScore: 0,
     currentScore: 30,
     targetScore: 100,
+    createdAt: now.toIso8601String(),
+    priority: 5,
+    description: 'Achieve fitness goals and maintain healthy lifestyle',
     goalsRoadmap: {
-      'description': 'Achieve fitness goals and maintain healthy lifestyle',
-      'createdAt': DateTime.now().toIso8601String(),
-      'priority': 2,
       'milestones': [
         {
-          'name': 'Initial Fitness Assessment',
-          'description': 'Complete initial fitness evaluation',
-          'date': '2024-03-01',
-          'progress': 100,
+          'milestoneDate': '2024-03-01',
+          'milestoneName': 'Initial Fitness Assessment',
+          'milestoneDescription': 'Complete initial fitness evaluation',
+          'milestoneProgress': '100%',
           'isCompleted': true,
-          'tasks': [
+          'milestoneTasks': [
             {
-              'name': 'Body measurements',
-              'description': 'Record initial body measurements',
+              'taskName': 'Body measurements',
+              'taskDescription': 'Record initial body measurements',
               'isCompleted': true,
-              'time': 1,
-              'timeFormat': 'hours',
-              'startPercentage': [0],
-              'endPercentage': [50],
+              'taskTime': 1,
+              'taskTimeFormat': 'hours',
+              'taskStartPercentage': [0],
+              'taskEndPercentage': [50],
             },
             {
-              'name': 'Fitness test',
-              'description': 'Complete basic fitness assessment',
+              'taskName': 'Fitness test',
+              'taskDescription': 'Complete basic fitness assessment',
               'isCompleted': true,
-              'time': 2,
-              'timeFormat': 'hours',
-              'startPercentage': [50],
-              'endPercentage': [100],
+              'taskTime': 2,
+              'taskTimeFormat': 'hours',
+              'taskStartPercentage': [50],
+              'taskEndPercentage': [100],
             },
           ],
         },
         {
-          'name': 'Begin Training Program',
-          'description': 'Start structured workout routine',
-          'date': '2024-03-15',
-          'progress': 50,
+          'milestoneDate': '2024-03-15',
+          'milestoneName': 'Begin Training Program',
+          'milestoneDescription': 'Start structured workout routine',
+          'milestoneProgress': '50%',
           'isCompleted': false,
-          'tasks': [
+          'milestoneTasks': [
             {
-              'name': 'Cardio workout',
-              'description': '30 minutes cardio session',
+              'taskName': 'Cardio workout',
+              'taskDescription': '30 minutes cardio session',
               'isCompleted': true,
-              'time': 30,
-              'timeFormat': 'minutes',
-              'startPercentage': [0],
-              'endPercentage': [33],
+              'taskTime': 30,
+              'taskTimeFormat': 'minutes',
+              'taskStartPercentage': [0],
+              'taskEndPercentage': [33],
             },
             {
-              'name': 'Strength training',
-              'description': 'Basic strength exercises',
+              'taskName': 'Strength training',
+              'taskDescription': 'Basic strength exercises',
               'isCompleted': false,
-              'time': 45,
-              'timeFormat': 'minutes',
-              'startPercentage': [33],
-              'endPercentage': [66],
+              'taskTime': 45,
+              'taskTimeFormat': 'minutes',
+              'taskStartPercentage': [33],
+              'taskEndPercentage': [66],
             },
             {
-              'name': 'Flexibility session',
-              'description': 'Stretching and mobility work',
+              'taskName': 'Flexibility session',
+              'taskDescription': 'Stretching and mobility work',
               'isCompleted': false,
-              'time': 20,
-              'timeFormat': 'minutes',
-              'startPercentage': [66],
-              'endPercentage': [100],
+              'taskTime': 20,
+              'taskTimeFormat': 'minutes',
+              'taskStartPercentage': [66],
+              'taskEndPercentage': [100],
             },
           ],
         },
         {
-          'name': 'Nutrition Plan',
-          'description': 'Develop and follow meal plan',
-          'date': '2024-04-01',
-          'progress': 0,
+          'milestoneDate': '2024-04-01',
+          'milestoneName': 'Nutrition Plan',
+          'milestoneDescription': 'Develop and follow meal plan',
+          'milestoneProgress': '0%',
           'isCompleted': false,
-          'tasks': [],
+          'milestoneTasks': [],
         },
       ],
+      'overallPlan': {
+        'taskGroups': [
+          {
+            'taskGroupName': 'Fitness Training',
+            'taskGroupProgress': 30,
+            'taskGroupTime': 12,
+            'taskGroupTimeFormat': 'weeks',
+          },
+        ],
+        'deadline': '2024-06-30',
+      },
+      'goalFormula': {
+        'goalFormula': 'Current Fitness Level / Target Fitness Level',
+        'currentScore': 30,
+        'goalScore': 100,
+      },
+      'scoreChart': {
+        'scores': [0, 15, 30],
+        'dates': [
+          now.subtract(const Duration(days: 30)).toIso8601String(),
+          now.subtract(const Duration(days: 15)).toIso8601String(),
+          now.toIso8601String(),
+        ],
+      },
+      'comparisonCard': {
+        'comparisons': [
+          {
+            'name': 'Average Fitness Enthusiast',
+            'level': 'Intermediate',
+            'score': 60,
+          },
+        ],
+      },
+      'planExplanationCard': {
+        'planExplanation':
+            'This fitness plan focuses on building strength, endurance, and flexibility.',
+      },
     },
   );
 

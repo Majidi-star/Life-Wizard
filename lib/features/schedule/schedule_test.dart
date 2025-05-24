@@ -1,5 +1,3 @@
-import 'schedule_state.dart';
-
 void main() {
   testScheduleState();
 }

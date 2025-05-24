@@ -1,5 +1,3 @@
-import 'pro_clock_state.dart';
-
 void main() {
   testProClockState();
 }

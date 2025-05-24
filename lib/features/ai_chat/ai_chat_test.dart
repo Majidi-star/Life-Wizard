@@ -1,5 +1,3 @@
-import 'ai_chat_state.dart';
-
 void main() {
   testAiChatState();
 }

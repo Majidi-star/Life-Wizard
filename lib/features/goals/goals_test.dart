@@ -1,5 +1,3 @@
-import 'goals_state.dart';
-
 void main() {
   testGoalsState();
 }
