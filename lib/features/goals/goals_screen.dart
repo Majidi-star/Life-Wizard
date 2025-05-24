@@ -7,6 +7,8 @@ import 'goals_bloc.dart';
 import 'goals_event.dart';
 import 'goals_state.dart';
 import 'goals_model.dart';
+import '../../main.dart' as app_main;
+import '../../features/settings/settings_state.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -16,6 +18,26 @@ class GoalsScreen extends StatefulWidget {
 }
 
 class _GoalsScreenState extends State<GoalsScreen> {
+  // Get color based on index - similar to the referenced function
+  Color _getTaskColor(int index) {
+    switch (index % 6) {
+      case 0:
+        return Colors.green;
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.red;
+      case 3:
+        return Colors.purple;
+      case 4:
+        return Colors.orange;
+      case 5:
+        return Colors.teal;
+      default:
+        return Colors.green;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -293,7 +315,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       Text('Due: ${milestone['milestoneDate'] ?? 'Not set'}'),
                       const Spacer(),
                       Text(
-                        progressText,
+                        'Progress: $progressText',
                         style: TextStyle(
                           color: isCompleted ? theme.colorScheme.primary : null,
                           fontWeight: FontWeight.bold,
@@ -355,22 +377,19 @@ class _GoalsScreenState extends State<GoalsScreen> {
     Map<String, dynamic> task,
     GoalsLoaded state,
   ) {
-    final isTimelineView =
-        state.timelineViewTasks[goalIndex]?[milestoneIndex]?[taskIndex] ??
-        false;
     final theme = Theme.of(context);
     final isCompleted = task['isCompleted'] ?? false;
     final taskTime = task['taskTime'] ?? 0;
     final taskTimeFormat = task['taskTimeFormat'] ?? 'hours';
+    final settingsState = app_main.settingsBloc.state;
+    final taskColor = _getTaskColor(taskIndex);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
-      child: InkWell(
-        onTap: () {
-          context.read<GoalsBloc>().add(
-            ToggleTaskTimelineView(goalIndex, milestoneIndex, taskIndex),
-          );
-        },
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: taskColor, width: 4.0)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
@@ -380,7 +399,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 children: [
                   Icon(
                     isCompleted ? Icons.check_circle : Icons.circle_outlined,
-                    color: isCompleted ? theme.colorScheme.primary : null,
+                    color:
+                        isCompleted
+                            ? settingsState.activatedColor
+                            : settingsState.deactivatedBorderColor,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -392,7 +414,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       ),
                     ),
                   ),
-                  Text('$taskTime $taskTimeFormat'),
+                  Text('($taskTime $taskTimeFormat)'),
                 ],
               ),
               if (task['taskDescription'] != null)
@@ -407,28 +429,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   ),
                 ),
               const SizedBox(height: 8),
-              if (!isTimelineView)
-                _buildTaskProgressBar(task, theme)
-              else
-                _buildTaskTimeline(task, theme),
+              _buildTaskTimeline(task, theme),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTaskProgressBar(Map<String, dynamic> task, ThemeData theme) {
-    final isCompleted = task['isCompleted'] ?? false;
-    final progress = isCompleted ? 1.0 : 0.0; // Simple completion for now
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: LinearProgressIndicator(
-        value: progress,
-        backgroundColor: theme.colorScheme.surfaceVariant,
-        color: theme.colorScheme.primary,
-        minHeight: 8,
       ),
     );
   }
@@ -437,95 +441,96 @@ class _GoalsScreenState extends State<GoalsScreen> {
     final startPercentages =
         task['taskStartPercentage'] as List<dynamic>? ?? [0];
     final endPercentages = task['taskEndPercentage'] as List<dynamic>? ?? [100];
+    final settingsState = app_main.settingsBloc.state;
 
-    return SizedBox(
-      height: 25,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4.0),
+          child: Row(
             children: [
-              // Timeline baseline
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                height: 5,
-                width: constraints.maxWidth,
-                color: theme.colorScheme.surfaceVariant,
+              Icon(
+                Icons.timeline,
+                size: 14,
+                color: theme.textTheme.bodySmall?.color,
               ),
-
-              // Timeline segments
-              ...List.generate(
-                startPercentages.length.clamp(0, endPercentages.length),
-                (i) {
-                  final start =
-                      (startPercentages[i] is int)
-                          ? startPercentages[i] as int
-                          : int.tryParse(
-                                startPercentages[i].toString().replaceAll(
-                                  '%',
-                                  '',
-                                ),
-                              ) ??
-                              0;
-
-                  final end =
-                      (endPercentages[i] is int)
-                          ? endPercentages[i] as int
-                          : int.tryParse(
-                                endPercentages[i].toString().replaceAll(
-                                  '%',
-                                  '',
-                                ),
-                              ) ??
-                              100;
-
-                  return Positioned(
-                    left: constraints.maxWidth * start / 100,
-                    width: constraints.maxWidth * (end - start) / 100,
-                    top: 5,
-                    height: 15,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              // Start label
-              Positioned(
-                left: 0,
-                bottom: 0,
-                child: Text(
-                  '0%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                ),
-              ),
-
-              // End label
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Text(
-                  '100%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
+              const SizedBox(width: 4),
+              Text(
+                'Timeline',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.textTheme.bodySmall?.color,
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        ),
+        SizedBox(
+          height: 15,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  // Timeline baseline
+                  Container(
+                    height: 5,
+                    width: constraints.maxWidth,
+                    color: theme.colorScheme.surfaceVariant,
+                  ),
+
+                  // Timeline segments
+                  ...List.generate(
+                    startPercentages.length.clamp(0, endPercentages.length),
+                    (i) {
+                      final start =
+                          (startPercentages[i] is int)
+                              ? startPercentages[i] as int
+                              : int.tryParse(
+                                    startPercentages[i].toString().replaceAll(
+                                      '%',
+                                      '',
+                                    ),
+                                  ) ??
+                                  0;
+
+                      final end =
+                          (endPercentages[i] is int)
+                              ? endPercentages[i] as int
+                              : int.tryParse(
+                                    endPercentages[i].toString().replaceAll(
+                                      '%',
+                                      '',
+                                    ),
+                                  ) ??
+                                  100;
+
+                      return Positioned(
+                        left: constraints.maxWidth * start / 100,
+                        width: constraints.maxWidth * (end - start) / 100,
+                        top: 0,
+                        height: 5,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: settingsState.activatedColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildOverallPlan(Map<String, dynamic> overallPlan) {
+    final settingsState = app_main.settingsBloc.state;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -534,9 +539,30 @@ class _GoalsScreenState extends State<GoalsScreen> {
             overallPlan['taskGroups'] is List)
           _buildTaskGroups(overallPlan['taskGroups']),
         if (overallPlan.containsKey('deadline'))
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Text('Deadline: ${overallPlan['deadline'] ?? 'Not set'}'),
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 4.0),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: Colors.deepPurple, width: 4.0),
+                ),
+              ),
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event,
+                    color: settingsState.activatedColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Deadline: ${overallPlan['deadline'] ?? 'Not set'}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
           ),
         const SizedBox(height: 16),
       ],
@@ -547,60 +573,87 @@ class _GoalsScreenState extends State<GoalsScreen> {
     return Column(
       children: List.generate(
         taskGroups.length,
-        (index) => _buildTaskGroup(taskGroups[index]),
+        (index) => _buildTaskGroup(taskGroups[index], index),
       ),
     );
   }
 
-  Widget _buildTaskGroup(Map<String, dynamic> taskGroup) {
+  Widget _buildTaskGroup(Map<String, dynamic> taskGroup, int index) {
     final theme = Theme.of(context);
     final progress = (taskGroup['taskGroupProgress'] as int?) ?? 0;
     final time = (taskGroup['taskGroupTime'] as int?) ?? 0;
     final timeFormat = taskGroup['taskGroupTimeFormat'] as String? ?? 'hours';
+    final settingsState = app_main.settingsBloc.state;
+    final taskColor = _getTaskColor(index);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       child: Container(
-        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: theme.colorScheme.tertiary, width: 4.0),
-          ),
+          border: Border(left: BorderSide(color: taskColor, width: 4.0)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(taskGroup['taskGroupName'] ?? 'Untitled Group'),
-                ),
-                Text('$time $timeFormat'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress / 100,
-                backgroundColor: theme.colorScheme.surfaceVariant,
-                color: theme.colorScheme.tertiary,
-                minHeight: 8,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(taskGroup['taskGroupName'] ?? 'Untitled Group'),
+                  ),
+                  Text('($time $timeFormat)'),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '$progress%',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.textTheme.bodySmall?.color,
-                ),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.donut_large,
+                          size: 14,
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Progress',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '$progress%',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 5,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: progress / 100,
+                        backgroundColor: theme.colorScheme.surfaceVariant,
+                        color: settingsState.activatedColor,
+                        minHeight: 5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -608,6 +661,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   Widget _buildGoalFormula(Map<String, dynamic> goalFormula) {
     final theme = Theme.of(context);
+    final settingsState = app_main.settingsBloc.state;
+    final currentScore = goalFormula['currentScore'] ?? 0;
+    final goalScore = goalFormula['goalScore'] ?? 0;
+    final formula = goalFormula['goalFormula'] ?? 'No formula defined';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,29 +672,56 @@ class _GoalsScreenState extends State<GoalsScreen> {
         _buildSectionHeader('Goal Formula'),
         Card(
           child: Container(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(16.0),
             width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(color: Colors.indigo, width: 4.0),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  goalFormula['goalFormula'] ?? 'No formula defined',
-                  style: const TextStyle(fontStyle: FontStyle.italic),
-                ),
-                const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calculate, color: settingsState.activatedColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        formula,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Divider(
+                  color: Theme.of(context).colorScheme.surfaceTint,
+                  height: 24,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildScoreBox(
-                      'Current',
-                      goalFormula['currentScore'] ?? 0,
+                      'Current Score',
+                      currentScore,
                       theme,
+                      settingsState,
                     ),
-                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        Icons.arrow_forward,
+                        color: settingsState.activatedColor,
+                      ),
+                    ),
                     _buildScoreBox(
-                      'Goal',
-                      goalFormula['goalScore'] ?? 0,
+                      'Target Score',
+                      goalScore,
                       theme,
+                      settingsState,
                     ),
                   ],
                 ),
@@ -650,19 +734,34 @@ class _GoalsScreenState extends State<GoalsScreen> {
     );
   }
 
-  Widget _buildScoreBox(String label, int score, ThemeData theme) {
+  Widget _buildScoreBox(
+    String label,
+    int score,
+    ThemeData theme,
+    SettingsState settingsState,
+  ) {
     return Column(
       children: [
-        Text(label, style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: theme.textTheme.bodySmall?.color,
+          ),
+        ),
+        const SizedBox(height: 4),
         Container(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: settingsState.activatedColor.withOpacity(0.5),
+            ),
           ),
           child: Text(
             score.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
           ),
         ),
       ],
@@ -700,6 +799,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
     ThemeData theme,
   ) {
     // This is a simple chart representation, in a real app a chart library should be used
+    final settingsState = app_main.settingsBloc.state;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxScore = scores.fold(
@@ -715,7 +816,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
             scores: scores.map((s) => s as int).toList(),
             dates: dates.map((d) => d as String).toList(),
             maxScore: maxScore,
-            color: theme.colorScheme.primary,
+            color: settingsState.activatedColor,
           ),
         );
       },
@@ -729,6 +830,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
   ) {
     final theme = Theme.of(context);
     final comparisons = comparisonCard['comparisons'] as List<dynamic>? ?? [];
+    final priorityColor = _getPriorityColor(
+      7,
+      theme.colorScheme,
+    ); // Use high priority color for user
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,7 +847,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 // User's score
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: theme.colorScheme.primary,
+                    backgroundColor: priorityColor,
                     child: const Icon(Icons.person, color: Colors.white),
                   ),
                   title: const Text('You'),
@@ -753,18 +858,22 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 ),
 
                 // Divider
-                const Divider(),
+                Divider(color: Theme.of(context).colorScheme.surfaceTint),
 
                 // Competitors
                 ...comparisons.map((comparison) {
                   final name = comparison['name'] ?? 'Unknown';
                   final level = comparison['level'] ?? 'N/A';
                   final score = comparison['score'] ?? 0;
+                  final comparisonColor = _getPriorityColor(
+                    3,
+                    theme.colorScheme,
+                  ); // Use lower priority color for competitors
 
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: theme.colorScheme.surfaceVariant,
-                      child: const Icon(Icons.person_outline),
+                      child: Icon(Icons.person_outline, color: comparisonColor),
                     ),
                     title: Text(name),
                     subtitle: Text(level),
@@ -946,6 +1055,31 @@ class SimpleChartPainter extends CustomPainter {
 
       // Draw dots at each data point
       canvas.drawCircle(Offset(x, y), 4, dotPaint);
+
+      // Draw current score label on the last point
+      if (i == scores.length - 1) {
+        final scoreTextStyle = TextStyle(
+          color: color,
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+        );
+
+        final scoreSpan = TextSpan(
+          text: scores[i].toString(),
+          style: scoreTextStyle,
+        );
+
+        final scorePainter = TextPainter(
+          text: scoreSpan,
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        // Position the score above the point
+        scorePainter.paint(
+          canvas,
+          Offset(x - scorePainter.width / 2, y - scorePainter.height - 5),
+        );
+      }
     }
 
     canvas.drawPath(path, paint);
