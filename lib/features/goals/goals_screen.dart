@@ -125,16 +125,29 @@ class _GoalsScreenState extends State<GoalsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       elevation: 2,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          context.read<GoalsBloc>().add(ToggleGoalExpansion(index));
-        },
-        child: Column(
-          children: [
-            _buildGoalHeader(context, goal, priorityColor),
-            if (isExpanded) _buildExpandedContent(context, goal, index, state),
-          ],
-        ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              context.read<GoalsBloc>().add(ToggleGoalExpansion(index));
+            },
+            child: _buildGoalHeader(context, goal, priorityColor),
+          ),
+          // Use AnimatedContainer for smooth height animation
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            height:
+                isExpanded
+                    ? null
+                    : 0, // Auto height when expanded, zero when collapsed
+            child: AnimatedOpacity(
+              opacity: isExpanded ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: _buildExpandedContent(context, goal, index, state),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -294,16 +307,16 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: InkWell(
-        onTap: () {
-          context.read<GoalsBloc>().add(
-            ToggleMilestoneExpansion(goalIndex, milestoneIndex),
-          );
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              context.read<GoalsBloc>().add(
+                ToggleMilestoneExpansion(goalIndex, milestoneIndex),
+              );
+            },
+            child: ListTile(
               title: Text(milestone['milestoneName'] ?? 'Untitled Milestone'),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,20 +338,37 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   ),
                 ],
               ),
-              trailing: Icon(
-                isMilestoneExpanded ? Icons.expand_less : Icons.expand_more,
+              trailing: AnimatedRotation(
+                turns: isMilestoneExpanded ? 0.25 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: const Icon(Icons.keyboard_arrow_right),
               ),
             ),
-            if (isMilestoneExpanded && milestone['milestoneTasks'] is List)
-              _buildMilestoneTasks(
-                context,
-                goalIndex,
-                milestoneIndex,
-                milestone['milestoneTasks'],
-                state,
-              ),
-          ],
-        ),
+          ),
+          // Use AnimatedContainer for smooth height animation
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            height:
+                isMilestoneExpanded && milestone['milestoneTasks'] is List
+                    ? null // Auto height when expanded
+                    : 0, // Zero height when collapsed
+            child: AnimatedOpacity(
+              opacity: isMilestoneExpanded ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child:
+                  milestone['milestoneTasks'] is List
+                      ? _buildMilestoneTasks(
+                        context,
+                        goalIndex,
+                        milestoneIndex,
+                        milestone['milestoneTasks'],
+                        state,
+                      )
+                      : const SizedBox(),
+            ),
+          ),
+        ],
       ),
     );
   }
