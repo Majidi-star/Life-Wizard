@@ -38,6 +38,26 @@ class _GoalsScreenState extends State<GoalsScreen> {
     }
   }
 
+  // Add a color getter for the color order (green, blue, red, purple, orange, teal)
+  Color _getColorByIndex(int index) {
+    switch (index % 6) {
+      case 0:
+        return Colors.green;
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.red;
+      case 3:
+        return Colors.purple;
+      case 4:
+        return Colors.orange;
+      case 5:
+        return Colors.teal;
+      default:
+        return Colors.green;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -119,7 +139,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final priorityColor = _getPriorityColor(goal.priority, colorScheme);
+    final taskColor = _getTaskColor(index); // Use task color for consistency
+    final circleColor = _getColorByIndex(index); // Keep color order for circle
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -131,7 +152,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
             onTap: () {
               context.read<GoalsBloc>().add(ToggleGoalExpansion(index));
             },
-            child: _buildGoalHeader(context, goal, priorityColor),
+            child: _buildGoalHeader(context, goal, taskColor, index),
           ),
           // Use AnimatedContainer for smooth height animation
           AnimatedContainer(
@@ -156,7 +177,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
     BuildContext context,
     GoalsCard goal,
     Color priorityColor,
+    int? goalIndex,
   ) {
+    final circleColor =
+        goalIndex != null ? _getColorByIndex(goalIndex) : priorityColor;
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
@@ -164,7 +188,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
       ),
       child: Row(
         children: [
-          _buildPriorityCircle(goal.priority, priorityColor),
+          _buildPriorityCircle(
+            goal.priority,
+            circleColor,
+          ), // Use color order for circle
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -182,31 +209,44 @@ class _GoalsScreenState extends State<GoalsScreen> {
               ],
             ),
           ),
+          // Make the arrows and numbers clearer
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.arrow_downward, size: 14),
-                  Text('${goal.startingScore}'),
-                ],
+              _buildScoreWithLabel(
+                Icons.arrow_downward,
+                goal.startingScore,
+                'Previous',
               ),
-              Row(
-                children: [
-                  const Icon(Icons.arrow_forward, size: 14),
-                  Text('${goal.currentScore}'),
-                ],
+              _buildScoreWithLabel(
+                Icons.arrow_forward,
+                goal.currentScore,
+                'Current',
               ),
-              Row(
-                children: [
-                  const Icon(Icons.arrow_upward, size: 14),
-                  Text('${goal.futureScore}'),
-                ],
+              _buildScoreWithLabel(
+                Icons.arrow_upward,
+                goal.futureScore,
+                'Target',
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildScoreWithLabel(IconData icon, int value, String label) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14),
+            const SizedBox(width: 2),
+            Text('$value'),
+          ],
+        ),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
     );
   }
 
@@ -242,7 +282,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           // Overall Plan section
           if (decodedPlan.containsKey('overallPlan') &&
               decodedPlan['overallPlan'] is Map)
-            _buildOverallPlan(decodedPlan['overallPlan']),
+            _buildOverallPlan(decodedPlan['overallPlan'], goalIndex),
 
           // Goal Formula section
           if (decodedPlan.containsKey('goalFormula') &&
@@ -558,7 +598,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
     );
   }
 
-  Widget _buildOverallPlan(Map<String, dynamic> overallPlan) {
+  Widget _buildOverallPlan(Map<String, dynamic> overallPlan, [int? goalIndex]) {
+    final theme = Theme.of(context);
+    // Use the same color as the progress icon in _buildTaskGroup
+    final progressIconColor = theme.textTheme.bodySmall?.color;
     final settingsState = app_main.settingsBloc.state;
 
     return Column(
@@ -567,24 +610,20 @@ class _GoalsScreenState extends State<GoalsScreen> {
         _buildSectionHeader('Overall Plan'),
         if (overallPlan.containsKey('taskGroups') &&
             overallPlan['taskGroups'] is List)
-          _buildTaskGroups(overallPlan['taskGroups']),
+          _buildTaskGroups(overallPlan['taskGroups'], goalIndex),
         if (overallPlan.containsKey('deadline'))
           Card(
             margin: const EdgeInsets.symmetric(vertical: 4.0),
             child: Container(
               decoration: BoxDecoration(
                 border: Border(
-                  left: BorderSide(color: Colors.deepPurple, width: 4.0),
+                  left: BorderSide(color: _getTaskColor(2), width: 4.0),
                 ),
               ),
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.event,
-                    color: settingsState.activatedColor,
-                    size: 20,
-                  ),
+                  Icon(Icons.event, color: progressIconColor, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Deadline: ${overallPlan['deadline'] ?? 'Not set'}',
@@ -599,21 +638,26 @@ class _GoalsScreenState extends State<GoalsScreen> {
     );
   }
 
-  Widget _buildTaskGroups(List<dynamic> taskGroups) {
+  Widget _buildTaskGroups(List<dynamic> taskGroups, [int? goalIndex]) {
     return Column(
       children: List.generate(
         taskGroups.length,
-        (index) => _buildTaskGroup(taskGroups[index], index),
+        (index) => _buildTaskGroup(taskGroups[index], index, goalIndex),
       ),
     );
   }
 
-  Widget _buildTaskGroup(Map<String, dynamic> taskGroup, int index) {
+  Widget _buildTaskGroup(
+    Map<String, dynamic> taskGroup,
+    int index, [
+    int? goalIndex,
+  ]) {
     final theme = Theme.of(context);
     final progress = (taskGroup['taskGroupProgress'] as int?) ?? 0;
     final time = (taskGroup['taskGroupTime'] as int?) ?? 0;
     final timeFormat = taskGroup['taskGroupTimeFormat'] as String? ?? 'hours';
     final settingsState = app_main.settingsBloc.state;
+    // Use task color for consistency with milestone tasks
     final taskColor = _getTaskColor(index);
 
     return Card(
@@ -675,7 +719,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       child: LinearProgressIndicator(
                         value: progress / 100,
                         backgroundColor: theme.colorScheme.surfaceVariant,
-                        color: settingsState.activatedColor,
+                        color: taskColor, // Use color order for progress line
                         minHeight: 5,
                       ),
                     ),
@@ -706,7 +750,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
             width: double.infinity,
             decoration: BoxDecoration(
               border: Border(
-                left: BorderSide(color: Colors.indigo, width: 4.0),
+                left: BorderSide(
+                  color: settingsState.activatedColor,
+                  width: 4.0,
+                ),
               ),
             ),
             child: Column(
@@ -860,10 +907,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   ) {
     final theme = Theme.of(context);
     final comparisons = comparisonCard['comparisons'] as List<dynamic>? ?? [];
-    final priorityColor = _getPriorityColor(
-      7,
-      theme.colorScheme,
-    ); // Use high priority color for user
+    final settingsState = app_main.settingsBloc.state;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -877,7 +921,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 // User's score
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: priorityColor,
+                    backgroundColor: settingsState.activatedColor,
                     child: const Icon(Icons.person, color: Colors.white),
                   ),
                   title: const Text('You'),
