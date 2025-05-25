@@ -17,7 +17,7 @@ class Schedule {
   final String? todo;
   final bool timeBoxStatus;
   final int priority;
-  final int heatmapProductivity;
+  final double heatmapProductivity;
   final String? habits;
 
   Schedule({
@@ -108,13 +108,12 @@ class ScheduleRepository {
   /// Gets schedules for a specific date
   /// Returns null if no schedules exist for the date
   Future<List<Schedule>?> getSchedulesByDate(DateTime date) async {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final dateStr = date.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
 
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
-      where: 'date >= ? AND date < ?',
-      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      where: 'date = ?',
+      whereArgs: [dateStr],
       orderBy: 'startTimeHour ASC, startTimeMinute ASC',
     );
     if (maps.isEmpty) return null;
@@ -240,7 +239,7 @@ class ScheduleRepository {
   /// Updates schedule heatmap productivity
   Future<int> updateScheduleHeatmapProductivity(
     int id,
-    int productivity,
+    double productivity,
   ) async {
     return await updateScheduleFields(id, {
       'heatmapProductivity': productivity,
@@ -324,7 +323,7 @@ Future<void> testScheduleRepository() async {
     todo: 'Prepare presentation,Review agenda,Take notes',
     timeBoxStatus: true,
     priority: 1,
-    heatmapProductivity: 8,
+    heatmapProductivity: 8.0,
     habits: 'Exercise,Meditation',
   );
 
@@ -341,7 +340,7 @@ Future<void> testScheduleRepository() async {
     todo: 'Code review,Write tests,Update documentation',
     timeBoxStatus: false,
     priority: 2,
-    heatmapProductivity: 7,
+    heatmapProductivity: 7.0,
     habits: 'Focus,Deep work',
   );
 
@@ -383,7 +382,7 @@ Future<void> testScheduleRepository() async {
     'activity': 'Updated Morning Meeting',
     'notes': 'Updated team sync',
     'todo': 'Prepare presentation,Review agenda,Take notes,Follow up',
-    'heatmapProductivity': 9,
+    'heatmapProductivity': 9.0,
   });
   print('\nUpdated first schedule fields');
 
@@ -392,7 +391,7 @@ Future<void> testScheduleRepository() async {
     'activity': 'Updated Project Sprint',
     'notes': 'Updated milestone progress',
     'todo': 'Code review,Write tests,Update documentation,Deploy changes',
-    'heatmapProductivity': 8,
+    'heatmapProductivity': 8.0,
   });
   print('\nUpdated second schedule fields');
 

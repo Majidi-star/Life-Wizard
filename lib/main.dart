@@ -22,6 +22,7 @@ import 'features/goals/goals_bloc.dart';
 import 'features/goals/goals_event.dart';
 import 'features/goals/goals_state.dart';
 import 'database_initializer.dart';
+import 'features/schedule/schedule_bloc.dart';
 
 // Import all test files
 import 'features/settings/settings_test.dart' as settings_test;
@@ -50,7 +51,7 @@ void main() async {
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database
-  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
+  await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
   // Create a single SettingsBloc instance that will be used throughout the app
@@ -105,6 +106,7 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: todoBloc),
         BlocProvider.value(value: habitsBloc..add(const LoadHabits())),
         BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
+        BlocProvider<ScheduleBloc>(create: (context) => ScheduleBloc()),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {

@@ -32,7 +32,7 @@ class TimeBox {
   final bool
   timeBoxStatus; // Status of the time box (completed, not completed, etc.)
   final int priority; // Priority of the activity
-  final int
+  final double
   heatmapProductivity; // How productive you have been in this time box (1-10)
   final bool isChallenge; // Whether this is a challenge time box
 

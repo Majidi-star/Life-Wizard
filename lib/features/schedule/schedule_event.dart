@@ -6,7 +6,7 @@ abstract class ScheduleEvent extends Equatable {
   const ScheduleEvent();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class UpdateSelectedYear extends ScheduleEvent {
@@ -15,7 +15,7 @@ class UpdateSelectedYear extends ScheduleEvent {
   const UpdateSelectedYear(this.year);
 
   @override
-  List<Object> get props => [year];
+  List<Object?> get props => [year];
 }
 
 class UpdateSelectedMonth extends ScheduleEvent {
@@ -24,7 +24,7 @@ class UpdateSelectedMonth extends ScheduleEvent {
   const UpdateSelectedMonth(this.month);
 
   @override
-  List<Object> get props => [month];
+  List<Object?> get props => [month];
 }
 
 class UpdateSelectedDay extends ScheduleEvent {
@@ -33,7 +33,7 @@ class UpdateSelectedDay extends ScheduleEvent {
   const UpdateSelectedDay(this.day);
 
   @override
-  List<Object> get props => [day];
+  List<Object?> get props => [day];
 }
 
 class LoadSchedule extends ScheduleEvent {
@@ -48,5 +48,11 @@ class LoadSchedule extends ScheduleEvent {
   });
 
   @override
-  List<Object> get props => [year, month, day];
+  List<Object?> get props => [year, month, day];
 }
+
+class StartPeriodicUpdate extends ScheduleEvent {}
+
+class StopPeriodicUpdate extends ScheduleEvent {}
+
+class InitializeRepository extends ScheduleEvent {}

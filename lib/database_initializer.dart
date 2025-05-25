@@ -1,6 +1,9 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'features/mood_data/mood_data_repository.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('DatabaseInitializer');
 
 class DatabaseInitializer {
   static Database? _database;
@@ -27,11 +30,14 @@ class DatabaseInitializer {
 
   static Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'life_wizard.db');
+    _logger.info('Initializing database at: $path');
+
     return await openDatabase(path, version: 1, onCreate: _createDatabase);
   }
 
   static Future<void> _createDatabase(Database db, int version) async {
-    print("Creating the database ...");
+    _logger.info('Creating database tables');
+
     // Settings table
     await db.execute('''
       CREATE TABLE settings(
@@ -73,26 +79,108 @@ class DatabaseInitializer {
 
     // Schedule table
     await db.execute('''
-      CREATE TABLE schedule(
+      CREATE TABLE IF NOT EXISTS schedule (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date DATETIME NOT NULL,
-        challenge BOOLEAN NOT NULL,
+        date TEXT NOT NULL,
+        challenge INTEGER NOT NULL,
         startTimeHour INTEGER NOT NULL,
         startTimeMinute INTEGER NOT NULL,
         endTimeHour INTEGER NOT NULL,
         endTimeMinute INTEGER NOT NULL,
         activity TEXT NOT NULL,
-        notes TEXT NOT NULL,
-        todo TEXT NOT NULL,
-        timeBoxStatus BOOLEAN NOT NULL,
+        notes TEXT,
+        todo TEXT,
+        timeBoxStatus TEXT NOT NULL,
         priority INTEGER NOT NULL,
-        heatmapProductivity INTEGER NOT NULL,
-        habits TEXT NOT NULL
+        heatmapProductivity REAL NOT NULL,
+        habits TEXT
       )
     ''');
 
-    // Insert sample schedule items
-    await _insertSampleSchedule(db);
+    // Insert sample schedule data for today
+    final today = DateTime.now();
+    final todayStr =
+        today.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
+
+    await db.insert('schedule', {
+      'date': todayStr,
+      'challenge': 1,
+      'startTimeHour': 9,
+      'startTimeMinute': 0,
+      'endTimeHour': 10,
+      'endTimeMinute': 30,
+      'activity': 'Morning Planning Session',
+      'notes': 'Review goals and plan day',
+      'todo': '["Set daily priorities", "Check emails", "Update task list"]',
+      'timeBoxStatus': 'planned',
+      'priority': 8,
+      'heatmapProductivity': 0.85,
+      'habits': '["Morning meditation", "Journaling"]',
+    });
+
+    await db.insert('schedule', {
+      'date': todayStr,
+      'challenge': 0,
+      'startTimeHour': 10,
+      'startTimeMinute': 30,
+      'endTimeHour': 12,
+      'endTimeMinute': 0,
+      'activity': 'Project Development',
+      'notes': 'Focus on core features',
+      'todo': '["Implement new UI", "Fix bugs", "Write tests"]',
+      'timeBoxStatus': 'in_progress',
+      'priority': 9,
+      'heatmapProductivity': 0.75,
+      'habits': '["Deep work", "Pomodoro technique"]',
+    });
+
+    await db.insert('schedule', {
+      'date': todayStr,
+      'challenge': 0,
+      'startTimeHour': 13,
+      'startTimeMinute': 0,
+      'endTimeHour': 14,
+      'endTimeMinute': 0,
+      'activity': 'Learning Session',
+      'notes': 'Study new technologies',
+      'todo': '["Read documentation", "Watch tutorials", "Practice coding"]',
+      'timeBoxStatus': 'planned',
+      'priority': 7,
+      'heatmapProductivity': 0.65,
+      'habits': '["Active learning", "Note taking"]',
+    });
+
+    await db.insert('schedule', {
+      'date': todayStr,
+      'challenge': 1,
+      'startTimeHour': 15,
+      'startTimeMinute': 0,
+      'endTimeHour': 16,
+      'endTimeMinute': 0,
+      'activity': 'Exercise and Wellness',
+      'notes': 'Physical activity and mindfulness',
+      'todo': '["Workout", "Stretching", "Meditation"]',
+      'timeBoxStatus': 'planned',
+      'priority': 6,
+      'heatmapProductivity': 0.90,
+      'habits': '["Regular exercise", "Mindfulness practice"]',
+    });
+
+    await db.insert('schedule', {
+      'date': todayStr,
+      'challenge': 0,
+      'startTimeHour': 16,
+      'startTimeMinute': 30,
+      'endTimeHour': 17,
+      'endTimeMinute': 30,
+      'activity': 'Evening Review',
+      'notes': 'Reflect on day and plan tomorrow',
+      'todo': '["Review completed tasks", "Update progress", "Plan tomorrow"]',
+      'timeBoxStatus': 'planned',
+      'priority': 7,
+      'heatmapProductivity': 0.70,
+      'habits': '["Evening reflection", "Gratitude practice"]',
+    });
 
     // MoodData table
     await db.execute('''
@@ -155,6 +243,99 @@ class DatabaseInitializer {
     await _insertSampleLogs(db);
   }
 
+  static Future<void> _insertSampleScheduleData(Database db) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final sampleData = [
+      {
+        'date': today.toIso8601String().split('T')[0],
+        'challenge': true,
+        'startTimeHour': 9,
+        'startTimeMinute': 0,
+        'endTimeHour': 10,
+        'endTimeMinute': 30,
+        'activity': 'Morning Planning Session',
+        'notes': 'Review goals and plan the day',
+        'todo':
+            '["Set daily goals", "Review weekly objectives", "Plan evening activities"]',
+        'timeBoxStatus': 'pending',
+        'priority': 8,
+        'heatmapProductivity': 0.85,
+        'habits': '["Morning meditation", "Journaling"]',
+      },
+      {
+        'date': today.toIso8601String().split('T')[0],
+        'challenge': false,
+        'startTimeHour': 11,
+        'startTimeMinute': 0,
+        'endTimeHour': 12,
+        'endTimeMinute': 0,
+        'activity': 'Project Development',
+        'notes': 'Work on the main project features',
+        'todo':
+            '["Implement new feature", "Fix reported bugs", "Update documentation"]',
+        'timeBoxStatus': 'pending',
+        'priority': 7,
+        'heatmapProductivity': 0.75,
+        'habits': '["Take breaks", "Stay hydrated"]',
+      },
+      {
+        'date': today.toIso8601String().split('T')[0],
+        'challenge': true,
+        'startTimeHour': 14,
+        'startTimeMinute': 0,
+        'endTimeHour': 15,
+        'endTimeMinute': 30,
+        'activity': 'Learning Session',
+        'notes': 'Study new technologies and frameworks',
+        'todo':
+            '["Complete online course", "Practice coding exercises", "Read documentation"]',
+        'timeBoxStatus': 'pending',
+        'priority': 6,
+        'heatmapProductivity': 0.90,
+        'habits': '["Note-taking", "Practice exercises"]',
+      },
+      {
+        'date': today.toIso8601String().split('T')[0],
+        'challenge': false,
+        'startTimeHour': 16,
+        'startTimeMinute': 0,
+        'endTimeHour': 17,
+        'endTimeMinute': 0,
+        'activity': 'Exercise and Wellness',
+        'notes': 'Physical activity and mindfulness',
+        'todo': '["30 minutes workout", "Stretching", "Meditation"]',
+        'timeBoxStatus': 'pending',
+        'priority': 5,
+        'heatmapProductivity': 0.80,
+        'habits': '["Regular exercise", "Mindfulness practice"]',
+      },
+      {
+        'date': today.toIso8601String().split('T')[0],
+        'challenge': true,
+        'startTimeHour': 18,
+        'startTimeMinute': 0,
+        'endTimeHour': 19,
+        'endTimeMinute': 30,
+        'activity': 'Evening Review',
+        'notes': 'Review the day and plan for tomorrow',
+        'todo':
+            '["Review completed tasks", "Update progress", "Plan tomorrow\'s schedule"]',
+        'timeBoxStatus': 'pending',
+        'priority': 9,
+        'heatmapProductivity': 0.95,
+        'habits': '["Evening reflection", "Gratitude practice"]',
+      },
+    ];
+
+    for (var data in sampleData) {
+      await db.insert('schedule', data);
+    }
+
+    _logger.info('Sample schedule data inserted successfully');
+  }
+
   // Helper method to insert sample todos
   static Future<void> _insertSampleTodos(Database db) async {
     final now = DateTime.now();
@@ -188,60 +369,6 @@ class DatabaseInitializer {
       'todoCreatedAt': now.toIso8601String(),
       'completedAt': null,
       'priority': 0, // Low priority
-    });
-  }
-
-  // Helper method to insert sample schedule items
-  static Future<void> _insertSampleSchedule(Database db) async {
-    final today = DateTime.now();
-    final tomorrow = today.add(const Duration(days: 1));
-
-    await db.insert('schedule', {
-      'date': today.toIso8601String(),
-      'challenge': 0,
-      'startTimeHour': 9,
-      'startTimeMinute': 0,
-      'endTimeHour': 10,
-      'endTimeMinute': 30,
-      'activity': 'Morning workout',
-      'notes': 'Focus on cardio and core exercises',
-      'todo': '',
-      'timeBoxStatus': 1,
-      'priority': 1,
-      'heatmapProductivity': 3,
-      'habits': 'exercise,health',
-    });
-
-    await db.insert('schedule', {
-      'date': today.toIso8601String(),
-      'challenge': 1,
-      'startTimeHour': 14,
-      'startTimeMinute': 0,
-      'endTimeHour': 15,
-      'endTimeMinute': 0,
-      'activity': 'Client meeting',
-      'notes': 'Discuss project milestones and deliverables',
-      'todo': 'Complete project proposal',
-      'timeBoxStatus': 1,
-      'priority': 2,
-      'heatmapProductivity': 4,
-      'habits': 'work',
-    });
-
-    await db.insert('schedule', {
-      'date': tomorrow.toIso8601String(),
-      'challenge': 0,
-      'startTimeHour': 10,
-      'startTimeMinute': 0,
-      'endTimeHour': 11,
-      'endTimeMinute': 0,
-      'activity': 'Reading session',
-      'notes': 'Continue with current book',
-      'todo': '',
-      'timeBoxStatus': 0,
-      'priority': 0,
-      'heatmapProductivity': 2,
-      'habits': 'reading,learning',
     });
   }
 
