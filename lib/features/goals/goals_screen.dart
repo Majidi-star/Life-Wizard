@@ -139,8 +139,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final taskColor = _getTaskColor(index); // Use task color for consistency
-    final circleColor = _getColorByIndex(index); // Keep color order for circle
+    final priorityColor = _getPriorityColor(goal.priority, colorScheme);
+    final circleColor = _getTaskColor(index); // Use color order for circle
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -152,7 +152,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
             onTap: () {
               context.read<GoalsBloc>().add(ToggleGoalExpansion(index));
             },
-            child: _buildGoalHeader(context, goal, taskColor, index),
+            child: _buildGoalHeader(context, goal, priorityColor, index),
           ),
           // Use AnimatedContainer for smooth height animation
           AnimatedContainer(
@@ -180,11 +180,13 @@ class _GoalsScreenState extends State<GoalsScreen> {
     int? goalIndex,
   ) {
     final circleColor =
-        goalIndex != null ? _getColorByIndex(goalIndex) : priorityColor;
+        goalIndex != null ? _getTaskColor(goalIndex) : priorityColor;
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: priorityColor, width: 4.0)),
+        border: Border(
+          left: BorderSide(color: _getTaskColor(goalIndex ?? 0), width: 4.0),
+        ),
       ),
       child: Row(
         children: [
@@ -908,6 +910,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
     final theme = Theme.of(context);
     final comparisons = comparisonCard['comparisons'] as List<dynamic>? ?? [];
     final settingsState = app_main.settingsBloc.state;
+    final priorityColor = _getPriorityColor(
+      7,
+      theme.colorScheme,
+    ); // Use high priority color for user
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -922,7 +928,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor: settingsState.activatedColor,
-                    child: const Icon(Icons.person, color: Colors.white),
+                    child: Icon(
+                      Icons.person,
+                      color: settingsState.deactivatedBorderColor,
+                    ),
                   ),
                   title: const Text('You'),
                   trailing: Text(
