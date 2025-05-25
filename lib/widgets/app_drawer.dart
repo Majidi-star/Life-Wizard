@@ -47,11 +47,6 @@ class AppDrawer extends StatelessWidget {
               onTap: () => _navigateToNamed(context, '/todo'),
             ),
             _createDrawerItem(
-              icon: Icons.dashboard,
-              text: 'Progress Dashboard',
-              onTap: () => _navigateToNamed(context, '/progress'),
-            ),
-            _createDrawerItem(
               icon: Icons.timer,
               text: 'Pro Clock',
               onTap: () => _navigateToNamed(context, '/pro_clock'),

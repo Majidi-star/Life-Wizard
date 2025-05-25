@@ -10,7 +10,6 @@ import 'features/todo/todo_screen.dart';
 import 'features/goals/goals_screen.dart';
 import 'features/habits/habits_screen.dart';
 import 'features/schedule/schedule_screen.dart';
-import 'features/progress_dashboard/progress_dashboard_screen.dart';
 import 'features/pro_clock/pro_clock_screen.dart';
 import 'features/mood_data/mood_data_screen.dart';
 import 'features/mood_data/mood_data_bloc.dart';
@@ -30,8 +29,6 @@ import 'features/todo/todo_test.dart' as todo_test;
 import 'features/habits/habits_test.dart' as habits_test;
 import 'features/ai_chat/ai_chat_test.dart' as ai_chat_test;
 import 'features/schedule/schedule_test.dart' as schedule_test;
-import 'features/progress_dashboard/progress_dashboard_test.dart'
-    as progress_test;
 import 'features/pro_clock/pro_clock_test.dart' as pro_clock_test;
 import 'features/goals/goals_test.dart' as goals_test;
 import 'features/mood_data/mood_data_test.dart' as mood_data_test;
@@ -81,7 +78,6 @@ void main() async {
     habits_test.main();
     ai_chat_test.main();
     schedule_test.main();
-    progress_test.main();
     pro_clock_test.main();
     goals_test.main();
     mood_data_test.main();
@@ -223,7 +219,6 @@ class MyApp extends StatelessWidget {
               '/goals': (context) => const GoalsScreen(),
               '/habits': (context) => const HabitsScreen(),
               '/schedule': (context) => const ScheduleScreen(),
-              '/progress': (context) => const ProgressDashboardScreen(),
               '/pro_clock': (context) => const ProClockScreen(),
               '/mood': (context) => const MoodDataScreen(),
             },
@@ -287,9 +282,6 @@ Future<void> printFeatureState(String feature) async {
       break;
     case 'schedule':
       schedule_test.main();
-      break;
-    case 'progress':
-      progress_test.main();
       break;
     case 'pro_clock':
       pro_clock_test.main();
