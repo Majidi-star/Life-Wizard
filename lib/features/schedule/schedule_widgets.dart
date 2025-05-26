@@ -28,7 +28,32 @@ class ScheduleWidgets {
                 return SfDateRangePicker(
                   view: DateRangePickerView.month,
                   selectionMode: DateRangePickerSelectionMode.single,
-                  monthFormat: 'MMM',
+                  monthViewSettings: DateRangePickerMonthViewSettings(
+                    firstDayOfWeek: 1,
+                    dayFormat: 'EEE',
+                    viewHeaderStyle: DateRangePickerViewHeaderStyle(
+                      textStyle: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: settingsState.secondaryColor,
+                      ),
+                    ),
+                  ),
+                  monthCellStyle: DateRangePickerMonthCellStyle(
+                    todayTextStyle: TextStyle(
+                      color: Colors.red, // Text color for today's date
+                      fontWeight: FontWeight.bold,
+                    ),
+                    todayCellDecoration: BoxDecoration(
+                      color: Colors.red.shade100, // Background for today's date
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  selectionColor: settingsState.secondaryColor,
+                  selectionTextStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                   headerStyle: DateRangePickerHeaderStyle(
                     textStyle: TextStyle(
                       color: settingsState.secondaryColor,
@@ -36,18 +61,6 @@ class ScheduleWidgets {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  monthViewSettings: const DateRangePickerMonthViewSettings(
-                    firstDayOfWeek: 1,
-                    dayFormat: 'EEE',
-                    viewHeaderStyle: DateRangePickerViewHeaderStyle(
-                      textStyle: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  selectionColor: settingsState.secondaryColor,
-                  todayHighlightColor: settingsState.thirdlyColor,
                   onSelectionChanged: (args) {
                     if (args.value is DateTime) {
                       final date = args.value as DateTime;
