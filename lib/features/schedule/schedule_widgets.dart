@@ -10,6 +10,8 @@ import 'schedule_model.dart';
 class ScheduleWidgets {
   static Widget buildDateSelector(BuildContext context) {
     final settingsState = app_main.settingsBloc.state;
+    final scheduleBloc = context.read<ScheduleBloc>();
+    final state = scheduleBloc.state;
 
     return Card(
       color: settingsState.primaryColor,
@@ -61,13 +63,17 @@ class ScheduleWidgets {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  onSelectionChanged: (args) {
+                  onSelectionChanged: (
+                    DateRangePickerSelectionChangedArgs args,
+                  ) {
                     if (args.value is DateTime) {
-                      final date = args.value as DateTime;
-                      context.read<ScheduleBloc>()
-                        ..add(UpdateSelectedYear(date.year))
-                        ..add(UpdateSelectedMonth(date.month))
-                        ..add(UpdateSelectedDay(date.day));
+                      final selectedDate = args.value as DateTime;
+                      scheduleBloc
+                        ..add(UpdateSelectedYear(selectedDate.year))
+                        ..add(UpdateSelectedMonth(selectedDate.month))
+                        ..add(UpdateSelectedDay(selectedDate.day));
+                      // Close the popup immediately after selection
+                      Navigator.of(context).pop();
                     }
                   },
                   initialSelectedDate: DateTime(
