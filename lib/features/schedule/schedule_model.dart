@@ -35,6 +35,7 @@ class TimeBox {
   final double
   heatmapProductivity; // How productive you have been in this time box (1-10)
   final bool isChallenge; // Whether this is a challenge time box
+  final String habits; // JSON string containing associated habits
 
   TimeBox({
     required this.startTimeHour,
@@ -48,6 +49,7 @@ class TimeBox {
     required this.priority,
     required this.heatmapProductivity,
     required this.isChallenge,
+    this.habits = '', // Default to empty string
   });
 }
 

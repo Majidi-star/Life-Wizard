@@ -121,7 +121,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     Emitter<ScheduleState> emit,
   ) {
     _updateTimer?.cancel();
-    _updateTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       add(
         LoadSchedule(
           year: state.selectedYear,

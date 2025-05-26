@@ -7,6 +7,11 @@ import 'schedule_bloc.dart';
 import 'schedule_event.dart';
 import 'schedule_state.dart';
 import 'schedule_widgets.dart';
+import '../habits/habits_bloc.dart';
+import '../habits/habits_event.dart';
+import '../habits/habits_state.dart';
+import '../habits/habits_repository.dart';
+import 'dart:convert';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -16,15 +21,58 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
+  // Add ValueNotifier as class property instead of local variable in build
+  final ValueNotifier<Set<String>> completedHabits = ValueNotifier<Set<String>>(
+    {},
+  );
+
   @override
   void initState() {
     super.initState();
     context.read<ScheduleBloc>().add(StartPeriodicUpdate());
+
+    // Make sure habits are loaded
+    app_main.habitsBloc.add(const LoadHabits());
+
+    // Debug prints for habits state
+    print('\n===== SCHEDULE SCREEN - HABITS DEBUG =====');
+    print('Habits Status: ${app_main.habitsBloc.state.status}');
+    print(
+      'Habits Model exists: ${app_main.habitsBloc.state.habitsModel != null}',
+    );
+    print(
+      'Habits count: ${app_main.habitsBloc.state.habitsModel?.habits.length ?? 0}',
+    );
+
+    if (app_main.habitsBloc.state.habitsModel != null &&
+        app_main.habitsBloc.state.habitsModel!.habits.isNotEmpty) {
+      print('Available Habits:');
+      for (var habit in app_main.habitsBloc.state.habitsModel!.habits) {
+        print(
+          '- ${habit.habitName} (Progress: ${habit.habitConsecutiveProgress})',
+        );
+      }
+    } else {
+      print('No habits data available at screen initialization');
+    }
+    print('======================================\n');
+
+    // Add a delayed print to see if habits are loaded after initialization
+    Future.delayed(const Duration(seconds: 2), () {
+      print('\n===== SCHEDULE SCREEN - DELAYED HABITS CHECK =====');
+      print('Habits Status after delay: ${app_main.habitsBloc.state.status}');
+      print(
+        'Habits count after delay: ${app_main.habitsBloc.state.habitsModel?.habits.length ?? 0}',
+      );
+      print('======================================\n');
+    });
   }
 
   @override
   void dispose() {
     context.read<ScheduleBloc>().add(StopPeriodicUpdate());
+    // Dispose of ValueNotifier when widget is disposed
+    completedHabits.dispose();
     super.dispose();
   }
 
@@ -65,223 +113,419 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               );
             }
 
-            return ListView.builder(
-              itemCount: state.scheduleModel?.timeBoxes.length ?? 0,
-              itemBuilder: (context, index) {
-                final timeBox = state.scheduleModel!.timeBoxes[index];
-                final taskColor = _getTaskColor(index);
+            return BlocBuilder<HabitsBloc, HabitsState>(
+              bloc: app_main.habitsBloc,
+              builder: (context, habitsState) {
+                // Log the habits state for debugging
+                print('Habits Status: ${habitsState.status}');
+                print(
+                  'Habits count: ${habitsState.habitsModel?.habits.length ?? 0}',
+                );
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 8.0,
-                    vertical: 4.0,
-                  ),
-                  elevation: 2,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext dialogContext) {
-                          return Dialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                // Get all habits if available
+                List<dynamic> allHabits = [];
+                if (habitsState.status == HabitsStatus.loaded &&
+                    habitsState.habitsModel != null &&
+                    habitsState.habitsModel!.habits.isNotEmpty) {
+                  // Use actual habits from the database
+                  allHabits =
+                      habitsState.habitsModel!.habits
+                          .map((h) => h.habitName)
+                          .toList();
+                } else {
+                  // Use sample habits if none available
+                  allHabits = [
+                    "Morning meditation",
+                    "Exercise",
+                    "Reading",
+                    "Journaling",
+                  ];
+                }
+
+                return ListView(
+                  children: [
+                    // First, display all timeboxes
+                    ...List.generate(state.scheduleModel?.timeBoxes.length ?? 0, (
+                      index,
+                    ) {
+                      final timeBox = state.scheduleModel!.timeBoxes[index];
+                      final taskColor = _getTaskColor(index);
+
+                      // Parse habits JSON string (just for debug)
+                      List<dynamic> timeboxHabits = [];
+                      try {
+                        if (timeBox.habits.isNotEmpty) {
+                          timeboxHabits = json.decode(timeBox.habits);
+                          print(
+                            'Parsed habits for timeBox $index: $timeboxHabits',
+                          );
+                        } else {
+                          print('No habits string for timeBox $index');
+                        }
+                      } catch (e) {
+                        print('Error parsing habits JSON: $e');
+                      }
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 8.0,
+                          vertical: 4.0,
+                        ),
+                        elevation: 2,
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext dialogContext) {
+                                return Dialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              timeBox.activity,
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color:
+                                                    settingsState
+                                                        .secondaryColor,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.close),
+                                              onPressed:
+                                                  () =>
+                                                      Navigator.of(
+                                                        dialogContext,
+                                                      ).pop(),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '${timeBox.startTimeHour.toString().padLeft(2, '0')}:${timeBox.startTimeMinute.toString().padLeft(2, '0')} - ${timeBox.endTimeHour.toString().padLeft(2, '0')}:${timeBox.endTimeMinute.toString().padLeft(2, '0')}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (timeBox.notes.isNotEmpty) ...[
+                                          const SizedBox(height: 16),
+                                          const Text(
+                                            'Notes:',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            timeBox.notes,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                        if (timeBox.todos.isNotEmpty) ...[
+                                          const SizedBox(height: 16),
+                                          const Text(
+                                            'Todos:',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 4,
+                                            children:
+                                                timeBox.todos.map((todo) {
+                                                  return Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.grey
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      _formatTodo(todo),
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                          ),
+                                        ],
+                                        // Show habits in dialog if there are any to show
+                                        if (timeboxHabits.isNotEmpty) ...[
+                                          const SizedBox(height: 16),
+                                          const Text(
+                                            'Related Habits:',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          // Use ValueListenableBuilder for the dialog habits too
+                                          ValueListenableBuilder<Set<String>>(
+                                            valueListenable: completedHabits,
+                                            builder: (context, completed, _) {
+                                              return Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  for (
+                                                    var i = 0;
+                                                    i < timeboxHabits.length;
+                                                    i++
+                                                  )
+                                                    _buildHabitItem(
+                                                      timeboxHabits[i]
+                                                          .toString(),
+                                                      settingsState
+                                                          .secondaryColor,
+                                                      dialogContext,
+                                                      habitsState,
+                                                      isCompleted: completed
+                                                          .contains(
+                                                            timeboxHabits[i]
+                                                                .toString(),
+                                                          ),
+                                                      onToggle: (value) {
+                                                        if (value == true) {
+                                                          completedHabits
+                                                              .value = Set.from(
+                                                            completed,
+                                                          )..add(
+                                                            timeboxHabits[i]
+                                                                .toString(),
+                                                          );
+                                                        } else {
+                                                          completedHabits
+                                                              .value = Set.from(
+                                                            completed,
+                                                          )..remove(
+                                                            timeboxHabits[i]
+                                                                .toString(),
+                                                          );
+                                                        }
+                                                      },
+                                                      index: i,
+                                                    ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(color: taskColor, width: 4.0),
+                              ),
                             ),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
                               child: Column(
-                                mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        timeBox.activity,
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: settingsState.secondaryColor,
+                                      _buildPriorityCircle(
+                                        timeBox.priority,
+                                        taskColor,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${timeBox.startTimeHour.toString().padLeft(2, '0')}:${timeBox.startTimeMinute.toString().padLeft(2, '0')} - ${timeBox.endTimeHour.toString().padLeft(2, '0')}:${timeBox.endTimeMinute.toString().padLeft(2, '0')}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              timeBox.activity,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      IconButton(
-                                        icon: const Icon(Icons.close),
-                                        onPressed:
-                                            () =>
-                                                Navigator.of(
-                                                  dialogContext,
-                                                ).pop(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              timeBox.isChallenge
+                                                  ? const Color(0xFFFFD700)
+                                                  : settingsState
+                                                      .secondaryColor,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          timeBox.isChallenge
+                                              ? 'Challenge'
+                                              : 'Regular',
+                                          style: TextStyle(
+                                            color:
+                                                timeBox.isChallenge
+                                                    ? Colors.black87
+                                                    : Colors.white,
+                                            fontSize: 12,
+                                            fontWeight:
+                                                timeBox.isChallenge
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    '${timeBox.startTimeHour.toString().padLeft(2, '0')}:${timeBox.startTimeMinute.toString().padLeft(2, '0')} - ${timeBox.endTimeHour.toString().padLeft(2, '0')}:${timeBox.endTimeMinute.toString().padLeft(2, '0')}',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  if (timeBox.notes.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Notes:',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      timeBox.notes,
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  ],
-                                  if (timeBox.todos.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Todos:',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 4,
-                                      children:
-                                          timeBox.todos.map((todo) {
-                                            return Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.withOpacity(
-                                                  0.1,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                _formatTodo(todo),
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: taskColor, width: 4.0),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                _buildPriorityCircle(
-                                  timeBox.priority,
-                                  taskColor,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        '${timeBox.startTimeHour.toString().padLeft(2, '0')}:${timeBox.startTimeMinute.toString().padLeft(2, '0')} - ${timeBox.endTimeHour.toString().padLeft(2, '0')}:${timeBox.endTimeMinute.toString().padLeft(2, '0')}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        timeBox.activity,
-                                        style: const TextStyle(fontSize: 14),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.trending_up,
+                                            color: settingsState.secondaryColor,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Productivity: ${(timeBox.heatmapProductivity * 100).toInt()}%',
+                                            style: TextStyle(
+                                              color:
+                                                  settingsState.secondaryColor,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    // Then, add the habits section after all timeboxes
+                    if (allHabits.isNotEmpty)
+                      Card(
+                        margin: const EdgeInsets.all(8),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.repeat,
+                                    size: 24,
+                                    color: settingsState.secondaryColor,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        timeBox.isChallenge
-                                            ? const Color(
-                                              0xFFFFD700,
-                                            ) // Golden color for challenge
-                                            : settingsState.secondaryColor,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    timeBox.isChallenge
-                                        ? 'Challenge'
-                                        : 'Regular',
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Habits',
                                     style: TextStyle(
-                                      color:
-                                          timeBox.isChallenge
-                                              ? Colors.black87
-                                              : Colors.white,
-                                      fontSize: 12,
-                                      fontWeight:
-                                          timeBox.isChallenge
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: settingsState.secondaryColor,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.trending_up,
-                                      color: settingsState.secondaryColor,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Productivity: ${(timeBox.heatmapProductivity * 100).toInt()}%',
-                                      style: TextStyle(
-                                        color: settingsState.secondaryColor,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // Use ValueListenableBuilder for checkboxes
+                              ValueListenableBuilder<Set<String>>(
+                                valueListenable: completedHabits,
+                                builder: (context, completed, _) {
+                                  return Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      for (var i = 0; i < allHabits.length; i++)
+                                        _buildHabitListItem(
+                                          allHabits[i].toString(),
+                                          settingsState.secondaryColor,
+                                          habitsState,
+                                          isCompleted: completed.contains(
+                                            allHabits[i].toString(),
+                                          ),
+                                          onToggle: (value) {
+                                            if (value == true) {
+                                              completedHabits.value = Set.from(
+                                                completed,
+                                              )..add(allHabits[i].toString());
+                                            } else {
+                                              completedHabits.value = Set.from(
+                                                completed,
+                                              )..remove(
+                                                allHabits[i].toString(),
+                                              );
+                                            }
+                                          },
+                                          index: i,
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    // Add some bottom padding
+                    const SizedBox(height: 16),
+                  ],
                 );
               },
             );
@@ -362,8 +606,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 print('  Priority: ${timeBox.priority}');
                 print('  Heatmap Productivity: ${timeBox.heatmapProductivity}');
                 print('  Is Challenge: ${timeBox.isChallenge}');
+                print('  Habits: ${timeBox.habits}');
               }
             }
+
+            // Debug habits state
+            app_main.habitsBloc.add(const DebugHabitsState());
+
             print('\n==========================\n');
           },
           style: ElevatedButton.styleFrom(
@@ -386,65 +635,208 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  Color _getTaskColor(int index) {
-    switch (index % 6) {
-      case 0:
-        return Colors.green;
-      case 1:
-        return Colors.blue;
-      case 2:
-        return Colors.red;
-      case 3:
-        return Colors.purple;
-      case 4:
-        return Colors.orange;
-      case 5:
-        return Colors.teal;
-      default:
-        return Colors.green;
-    }
-  }
+  Widget _buildHabitListItem(
+    String habitName,
+    Color taskColor,
+    HabitsState habitsState, {
+    required bool isCompleted,
+    required void Function(bool?) onToggle,
+    required int index,
+  }) {
+    print('Building habit list item: $habitName');
 
-  Widget _buildPriorityCircle(int priority, Color color) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-      child: Center(
-        child: Text(
-          priority.toString(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+    // Default consecutive progress if habit not found
+    int consecutiveProgress = 0;
+
+    // Find the matching habit by name if habitsModel is available
+    if (habitsState.status == HabitsStatus.loaded &&
+        habitsState.habitsModel != null &&
+        habitsState.habitsModel!.habits.isNotEmpty) {
+      final matchingHabitList = habitsState.habitsModel!.habits.where(
+        (h) => h.habitName == habitName,
+      );
+
+      if (matchingHabitList.isNotEmpty) {
+        final matchingHabit = matchingHabitList.first;
+        consecutiveProgress = matchingHabit.habitConsecutiveProgress;
+        print('Found habit: $habitName with progress: $consecutiveProgress');
+      } else {
+        print('Habit not found: $habitName');
+        // Use a default value for testing visibility
+        consecutiveProgress = 5;
+      }
+    } else {
+      print('Habits not loaded yet, using default values');
+      // Use a default value for testing visibility
+      consecutiveProgress = 3;
+    }
+
+    // Get the color using the same pattern as timeboxes
+    final borderColor = _getTaskColor(index);
+
+    // Return a card that matches the timebox cards appearance
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          // Toggle the checkbox when the card is tapped
+          onToggle(!isCompleted);
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: borderColor, width: 4.0)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                // Circle with consecutive days count
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: borderColor, // Match the left border color
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$consecutiveProgress',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Habit name
+                Expanded(
+                  child: Text(
+                    habitName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                // Checkbox
+                Checkbox(
+                  value: isCompleted,
+                  onChanged: onToggle,
+                  activeColor:
+                      borderColor, // Match the left border color for the checkbox too
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _buildHabitItem(
+    String habitName,
+    Color accentColor,
+    BuildContext context,
+    HabitsState habitsState, {
+    required bool isCompleted,
+    required void Function(bool?) onToggle,
+    required int index,
+  }) {
+    // Default consecutive progress if habit not found
+    int consecutiveProgress = 0;
+
+    // Find the matching habit by name if habitsModel is available
+    if (habitsState.status == HabitsStatus.loaded &&
+        habitsState.habitsModel != null &&
+        habitsState.habitsModel!.habits.isNotEmpty) {
+      final matchingHabitList = habitsState.habitsModel!.habits.where(
+        (h) => h.habitName == habitName,
+      );
+
+      if (matchingHabitList.isNotEmpty) {
+        final matchingHabit = matchingHabitList.first;
+        consecutiveProgress = matchingHabit.habitConsecutiveProgress;
+      }
+    }
+
+    // Get the color using the same pattern as timeboxes
+    final borderColor = _getTaskColor(index);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () {
+          // Toggle the checkbox when the card is tapped
+          onToggle(!isCompleted);
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: borderColor, width: 4.0)),
+          ),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: borderColor, // Match the left border color
+              child: Text(
+                '$consecutiveProgress',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Text(habitName),
+            trailing: Checkbox(
+              value: isCompleted,
+              onChanged: onToggle,
+              activeColor:
+                  borderColor, // Match the left border color for the checkbox too
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getTaskColor(int index) {
+    switch (index % 5) {
+      case 0:
+        return Colors.blue;
+      case 1:
+        return Colors.green;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.purple;
+      case 4:
+        return Colors.teal;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  Widget _buildPriorityCircle(int priority, Color baseColor) {
+    // Convert priority (1-10) to a size between 8-16
+    double size = 8.0 + (priority / 10.0) * 8.0;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: baseColor, shape: BoxShape.circle),
+    );
+  }
+
   String _formatTodo(String todo) {
-    // Debug print to see the exact format
-    print('Original todo: $todo');
-
-    // Trim whitespace first
-    todo = todo.trim();
-
-    // Characters to remove from the start and end of the string
-    const forbiddenCharacters = ['[', ']', '"', "'"];
-
-    // Remove all forbidden characters from the start
-    while (todo.isNotEmpty && forbiddenCharacters.contains(todo[0])) {
-      todo = todo.substring(1);
+    // Remove quotes if present
+    String formattedTodo = todo;
+    if (formattedTodo.startsWith('"') && formattedTodo.endsWith('"')) {
+      formattedTodo = formattedTodo.substring(1, formattedTodo.length - 1);
     }
-
-    // Remove all forbidden characters from the end
-    while (todo.isNotEmpty &&
-        forbiddenCharacters.contains(todo[todo.length - 1])) {
-      todo = todo.substring(0, todo.length - 1);
-    }
-
-    // Debug print the result
-    print('Formatted todo: $todo');
-    return todo;
+    return formattedTodo;
   }
 }
