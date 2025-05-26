@@ -128,7 +128,7 @@ class DatabaseInitializer {
       'activity': 'Project Development',
       'notes': 'Focus on core features',
       'todo': '["Implement new UI", "Fix bugs", "Write tests"]',
-      'timeBoxStatus': 'in_progress',
+      'timeBoxStatus': 'planned',
       'priority': 9,
       'heatmapProductivity': 0.75,
       'habits': '[]',

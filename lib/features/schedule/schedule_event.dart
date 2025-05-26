@@ -72,3 +72,16 @@ class ToggleHabitCompletion extends ScheduleEvent {
   @override
   List<Object?> get props => [habitName, isCompleted, timeBoxId];
 }
+
+class ToggleTimeBoxCompletion extends ScheduleEvent {
+  final int timeBoxIndex; // Index in the timeBoxes array (not database ID)
+  final bool isCompleted;
+
+  const ToggleTimeBoxCompletion({
+    required this.timeBoxIndex,
+    required this.isCompleted,
+  });
+
+  @override
+  List<Object?> get props => [timeBoxIndex, isCompleted];
+}

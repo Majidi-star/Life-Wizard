@@ -39,6 +39,12 @@ class Schedule {
   });
 
   Map<String, dynamic> toMap() {
+    // Convert boolean to correct string status value for the database
+    final timeBoxStatusText = timeBoxStatus ? 'completed' : 'planned';
+    print(
+      'Schedule.toMap - Converting timeBoxStatus $timeBoxStatus to DB value: $timeBoxStatusText (as TEXT)',
+    );
+
     return {
       'id': id,
       'date': date.toIso8601String(),
@@ -50,7 +56,8 @@ class Schedule {
       'activity': activity,
       'notes': notes,
       'todo': todo,
-      'timeBoxStatus': timeBoxStatus ? 1 : 0,
+      'timeBoxStatus':
+          timeBoxStatusText, // Use the actual string value expected by the database
       'priority': priority,
       'heatmapProductivity': heatmapProductivity,
       'habits': habits,
@@ -58,6 +65,23 @@ class Schedule {
   }
 
   factory Schedule.fromMap(Map<String, dynamic> map) {
+    // Add debug print to show the raw timeBoxStatus from database
+    print(
+      'Schedule.fromMap - Raw timeBoxStatus from DB: ${map['timeBoxStatus']} (type: ${map['timeBoxStatus'].runtimeType})',
+    );
+
+    // Convert string status to boolean - only 'completed' is considered true
+    // Handle legacy values: '1', 1, true, 'true' are also considered completed
+    final rawStatus = map['timeBoxStatus'];
+    final timeBoxStatus =
+        rawStatus == 'completed' ||
+        rawStatus == '1' ||
+        rawStatus == 1 ||
+        rawStatus == true ||
+        rawStatus == 'true';
+
+    print('Schedule.fromMap - Converted timeBoxStatus: $timeBoxStatus');
+
     return Schedule(
       id: map['id'],
       date: DateTime.parse(map['date']),
@@ -69,7 +93,7 @@ class Schedule {
       activity: map['activity'],
       notes: map['notes'],
       todo: map['todo'],
-      timeBoxStatus: map['timeBoxStatus'] == 1,
+      timeBoxStatus: timeBoxStatus,
       priority: map['priority'],
       heatmapProductivity: map['heatmapProductivity'],
       habits: map['habits'],
@@ -183,12 +207,32 @@ class ScheduleRepository {
 
   /// Updates specific fields of a schedule
   Future<int> updateScheduleFields(int id, Map<String, dynamic> fields) async {
-    return await _db.update(
-      _tableName,
-      fields,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    print('Update fields for schedule $id: $fields');
+    try {
+      // Print current values before update
+      final before = await getScheduleById(id);
+      if (before != null) {
+        print('Before update: $id - TimeBoxStatus: ${before.timeBoxStatus}');
+      }
+
+      final result = await _db.update(
+        _tableName,
+        fields,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      // Print values after update
+      final after = await getScheduleById(id);
+      if (after != null) {
+        print('After update: $id - TimeBoxStatus: ${after.timeBoxStatus}');
+      }
+
+      return result;
+    } catch (e) {
+      print('Error in updateScheduleFields: $e');
+      return 0;
+    }
   }
 
   /// Updates schedule date
@@ -229,7 +273,56 @@ class ScheduleRepository {
 
   /// Updates schedule timebox status
   Future<int> updateScheduleTimeBoxStatus(int id, bool status) async {
-    return await updateScheduleFields(id, {'timeBoxStatus': status ? 1 : 0});
+    print('\n===== DATABASE UPDATE: TimeBox Status =====');
+
+    // Convert boolean to string value expected by the database
+    final textStatus = status ? 'completed' : 'planned';
+    print(
+      'Repository: Updating timeBoxStatus for ID $id to $status (DB value: "$textStatus")',
+    );
+
+    // First, verify current status in DB
+    final schedule = await getScheduleById(id);
+    if (schedule != null) {
+      print(
+        'Current status in DB before update: ${schedule.timeBoxStatus} (raw value: "${schedule.timeBoxStatus ? "completed" : "planned"}")',
+      );
+    }
+
+    // Direct raw SQL for maximum clarity
+    try {
+      final db = _db;
+      final result = await db.rawUpdate(
+        'UPDATE $_tableName SET timeBoxStatus = ? WHERE id = ?',
+        [textStatus, id],
+      );
+
+      print('Direct SQL update result: $result rows affected');
+
+      // Verify the update worked
+      final updatedSchedule = await getScheduleById(id);
+      if (updatedSchedule != null) {
+        print(
+          'Status in DB after update: ${updatedSchedule.timeBoxStatus} (raw value: "${updatedSchedule.timeBoxStatus ? "completed" : "planned"}")',
+        );
+
+        // Check if the update succeeded
+        if (updatedSchedule.timeBoxStatus != status) {
+          print(
+            'WARNING: Database update appears to have failed! Values don\'t match.',
+          );
+        } else {
+          print('Database update SUCCESSFUL! Values match.');
+        }
+      }
+
+      print('===========================================\n');
+      return result;
+    } catch (e) {
+      print('ERROR updating database: $e');
+      print('===========================================\n');
+      return 0;
+    }
   }
 
   /// Updates schedule priority

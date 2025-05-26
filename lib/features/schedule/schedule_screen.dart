@@ -178,174 +178,238 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         ),
                         elevation: 2,
                         clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: InkWell(
                           onTap: () {
                             showDialog(
                               context: context,
                               builder: (BuildContext dialogContext) {
-                                return Dialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
+                                // Use StatefulBuilder to allow updating dialog state independently
+                                return StatefulBuilder(
+                                  builder: (context, setDialogState) {
+                                    return Dialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    timeBox.activity,
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          settingsState
+                                                              .secondaryColor,
+                                                      decoration:
+                                                          timeBox.timeBoxStatus
+                                                              ? TextDecoration
+                                                                  .lineThrough
+                                                              : null,
+                                                    ),
+                                                  ),
+                                                ),
+                                                // Completion status checkbox in dialog
+                                                Checkbox(
+                                                  value: timeBox.timeBoxStatus,
+                                                  activeColor:
+                                                      settingsState
+                                                          .activatedColor,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                  ),
+                                                  onChanged: (value) {
+                                                    if (value != null) {
+                                                      // First update the local state for immediate feedback
+                                                      setDialogState(() {});
+
+                                                      // Update timebox completion status
+                                                      context
+                                                          .read<ScheduleBloc>()
+                                                          .add(
+                                                            ToggleTimeBoxCompletion(
+                                                              timeBoxIndex:
+                                                                  index,
+                                                              isCompleted:
+                                                                  value,
+                                                            ),
+                                                          );
+
+                                                      // Close dialog after checking/unchecking
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                      );
+                                                    }
+                                                  },
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.close),
+                                                  onPressed:
+                                                      () =>
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop(),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
                                             Text(
-                                              timeBox.activity,
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color:
-                                                    settingsState
-                                                        .secondaryColor,
+                                              '${timeBox.startTimeHour.toString().padLeft(2, '0')}:${timeBox.startTimeMinute.toString().padLeft(2, '0')} - ${timeBox.endTimeHour.toString().padLeft(2, '0')}:${timeBox.endTimeMinute.toString().padLeft(2, '0')}',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
                                               ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(Icons.close),
-                                              onPressed:
-                                                  () =>
-                                                      Navigator.of(
-                                                        dialogContext,
-                                                      ).pop(),
-                                            ),
+                                            if (timeBox.notes.isNotEmpty) ...[
+                                              const SizedBox(height: 16),
+                                              const Text(
+                                                'Notes:',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                timeBox.notes,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                            if (timeBox.todos.isNotEmpty) ...[
+                                              const SizedBox(height: 16),
+                                              const Text(
+                                                'Todos:',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 4,
+                                                children:
+                                                    timeBox.todos.map((todo) {
+                                                      return Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 4,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.grey
+                                                              .withOpacity(0.1),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                        ),
+                                                        child: Text(
+                                                          _formatTodo(todo),
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 12,
+                                                              ),
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                              ),
+                                            ],
+                                            // Show habits in dialog if there are any to show
+                                            if (timeboxHabits.isNotEmpty) ...[
+                                              const SizedBox(height: 16),
+                                              const Text(
+                                                'Related Habits:',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              // Use ValueListenableBuilder for the dialog habits too
+                                              ValueListenableBuilder<
+                                                Set<String>
+                                              >(
+                                                valueListenable:
+                                                    completedHabits,
+                                                builder: (
+                                                  context,
+                                                  completed,
+                                                  _,
+                                                ) {
+                                                  return Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      for (
+                                                        var i = 0;
+                                                        i <
+                                                            timeboxHabits
+                                                                .length;
+                                                        i++
+                                                      )
+                                                        _buildHabitItem(
+                                                          timeboxHabits[i]
+                                                              .toString(),
+                                                          settingsState
+                                                              .secondaryColor,
+                                                          dialogContext,
+                                                          habitsState,
+                                                          isCompleted: completed
+                                                              .contains(
+                                                                timeboxHabits[i]
+                                                                    .toString(),
+                                                              ),
+                                                          onToggle: (value) {
+                                                            if (value == true) {
+                                                              completedHabits
+                                                                  .value = Set.from(
+                                                                completed,
+                                                              )..add(
+                                                                timeboxHabits[i]
+                                                                    .toString(),
+                                                              );
+                                                            } else {
+                                                              completedHabits
+                                                                  .value = Set.from(
+                                                                completed,
+                                                              )..remove(
+                                                                timeboxHabits[i]
+                                                                    .toString(),
+                                                              );
+                                                            }
+                                                          },
+                                                          index: i,
+                                                        ),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ],
                                           ],
                                         ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          '${timeBox.startTimeHour.toString().padLeft(2, '0')}:${timeBox.startTimeMinute.toString().padLeft(2, '0')} - ${timeBox.endTimeHour.toString().padLeft(2, '0')}:${timeBox.endTimeMinute.toString().padLeft(2, '0')}',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        if (timeBox.notes.isNotEmpty) ...[
-                                          const SizedBox(height: 16),
-                                          const Text(
-                                            'Notes:',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            timeBox.notes,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                        if (timeBox.todos.isNotEmpty) ...[
-                                          const SizedBox(height: 16),
-                                          const Text(
-                                            'Todos:',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 4,
-                                            children:
-                                                timeBox.todos.map((todo) {
-                                                  return Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 4,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.grey
-                                                          .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      _formatTodo(todo),
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                  );
-                                                }).toList(),
-                                          ),
-                                        ],
-                                        // Show habits in dialog if there are any to show
-                                        if (timeboxHabits.isNotEmpty) ...[
-                                          const SizedBox(height: 16),
-                                          const Text(
-                                            'Related Habits:',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          // Use ValueListenableBuilder for the dialog habits too
-                                          ValueListenableBuilder<Set<String>>(
-                                            valueListenable: completedHabits,
-                                            builder: (context, completed, _) {
-                                              return Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  for (
-                                                    var i = 0;
-                                                    i < timeboxHabits.length;
-                                                    i++
-                                                  )
-                                                    _buildHabitItem(
-                                                      timeboxHabits[i]
-                                                          .toString(),
-                                                      settingsState
-                                                          .secondaryColor,
-                                                      dialogContext,
-                                                      habitsState,
-                                                      isCompleted: completed
-                                                          .contains(
-                                                            timeboxHabits[i]
-                                                                .toString(),
-                                                          ),
-                                                      onToggle: (value) {
-                                                        if (value == true) {
-                                                          completedHabits
-                                                              .value = Set.from(
-                                                            completed,
-                                                          )..add(
-                                                            timeboxHabits[i]
-                                                                .toString(),
-                                                          );
-                                                        } else {
-                                                          completedHabits
-                                                              .value = Set.from(
-                                                            completed,
-                                                          )..remove(
-                                                            timeboxHabits[i]
-                                                                .toString(),
-                                                          );
-                                                        }
-                                                      },
-                                                      index: i,
-                                                    ),
-                                                ],
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
+                                      ),
+                                    );
+                                  },
                                 );
                               },
                             );
@@ -383,8 +447,17 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                             const SizedBox(height: 4),
                                             Text(
                                               timeBox.activity,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 14,
+                                                decoration:
+                                                    timeBox.timeBoxStatus
+                                                        ? TextDecoration
+                                                            .lineThrough
+                                                        : null,
+                                                color:
+                                                    timeBox.timeBoxStatus
+                                                        ? Colors.grey
+                                                        : null,
                                               ),
                                             ),
                                           ],
@@ -421,6 +494,33 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                                     : FontWeight.normal,
                                           ),
                                         ),
+                                      ),
+                                      // Completion checkbox
+                                      Checkbox(
+                                        value: timeBox.timeBoxStatus,
+                                        activeColor:
+                                            settingsState.activatedColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            print(
+                                              'Checkbox clicked! Old value: ${timeBox.timeBoxStatus}, New value: $value',
+                                            );
+
+                                            // Update timebox completion status without scrolling reset
+                                            // CRITICAL: Dispatch the event synchronously for immediate UI feedback
+                                            context.read<ScheduleBloc>().add(
+                                              ToggleTimeBoxCompletion(
+                                                timeBoxIndex: index,
+                                                isCompleted: value,
+                                              ),
+                                            );
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),
@@ -684,6 +784,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       elevation: 2,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           // Toggle the checkbox when the card is tapped
