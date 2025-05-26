@@ -115,7 +115,7 @@ class DatabaseInitializer {
       'timeBoxStatus': 'planned',
       'priority': 8,
       'heatmapProductivity': 0.85,
-      'habits': '["Morning meditation", "Journaling"]',
+      'habits': '[]',
     });
 
     await db.insert('schedule', {
@@ -131,7 +131,7 @@ class DatabaseInitializer {
       'timeBoxStatus': 'in_progress',
       'priority': 9,
       'heatmapProductivity': 0.75,
-      'habits': '["Deep work", "Pomodoro technique"]',
+      'habits': '[]',
     });
 
     await db.insert('schedule', {
@@ -147,7 +147,7 @@ class DatabaseInitializer {
       'timeBoxStatus': 'planned',
       'priority': 7,
       'heatmapProductivity': 0.65,
-      'habits': '["Active learning", "Note taking"]',
+      'habits': '[]',
     });
 
     await db.insert('schedule', {
@@ -163,7 +163,7 @@ class DatabaseInitializer {
       'timeBoxStatus': 'planned',
       'priority': 6,
       'heatmapProductivity': 0.90,
-      'habits': '["Regular exercise", "Mindfulness practice"]',
+      'habits': '[]',
     });
 
     await db.insert('schedule', {
@@ -179,7 +179,7 @@ class DatabaseInitializer {
       'timeBoxStatus': 'planned',
       'priority': 7,
       'heatmapProductivity': 0.70,
-      'habits': '["Evening reflection", "Gratitude practice"]',
+      'habits': '[]',
     });
 
     // MoodData table

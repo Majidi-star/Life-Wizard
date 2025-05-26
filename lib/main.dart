@@ -51,7 +51,7 @@ void main() async {
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database
-  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
+  await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
   // Create a single SettingsBloc instance that will be used throughout the app

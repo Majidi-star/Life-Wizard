@@ -56,3 +56,19 @@ class StartPeriodicUpdate extends ScheduleEvent {}
 class StopPeriodicUpdate extends ScheduleEvent {}
 
 class InitializeRepository extends ScheduleEvent {}
+
+class ToggleHabitCompletion extends ScheduleEvent {
+  final String habitName;
+  final bool isCompleted;
+  final int?
+  timeBoxId; // null means it's from the consolidated habits section at the bottom
+
+  const ToggleHabitCompletion({
+    required this.habitName,
+    required this.isCompleted,
+    this.timeBoxId,
+  });
+
+  @override
+  List<Object?> get props => [habitName, isCompleted, timeBoxId];
+}

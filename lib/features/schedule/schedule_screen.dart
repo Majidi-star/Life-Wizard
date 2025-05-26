@@ -25,6 +25,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   final ValueNotifier<Set<String>> completedHabits = ValueNotifier<Set<String>>(
     {},
   );
+  // Add a ScrollController to maintain scroll position
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -73,6 +75,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     context.read<ScheduleBloc>().add(StopPeriodicUpdate());
     // Dispose of ValueNotifier when widget is disposed
     completedHabits.dispose();
+    // Dispose of ScrollController
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -143,6 +147,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 }
 
                 return ListView(
+                  controller: _scrollController,
                   children: [
                     // First, display all timeboxes
                     ...List.generate(state.scheduleModel?.timeBoxes.length ?? 0, (
@@ -682,7 +687,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       child: InkWell(
         onTap: () {
           // Toggle the checkbox when the card is tapped
-          onToggle(!isCompleted);
+          final newValue = !isCompleted;
+          onToggle(newValue);
+
+          // Update database without causing scroll reset
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<ScheduleBloc>().add(
+              ToggleHabitCompletion(
+                habitName: habitName,
+                isCompleted: newValue,
+                timeBoxId:
+                    null, // This indicates it's from the consolidated habits section
+              ),
+            );
+          });
         },
         child: Container(
           decoration: BoxDecoration(
@@ -725,7 +743,23 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 // Checkbox
                 Checkbox(
                   value: isCompleted,
-                  onChanged: onToggle,
+                  onChanged: (value) {
+                    onToggle(value);
+
+                    if (value != null) {
+                      // Update database without causing scroll reset
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        context.read<ScheduleBloc>().add(
+                          ToggleHabitCompletion(
+                            habitName: habitName,
+                            isCompleted: value,
+                            timeBoxId:
+                                null, // This indicates it's from the consolidated habits section
+                          ),
+                        );
+                      });
+                    }
+                  },
                   activeColor:
                       borderColor, // Match the left border color for the checkbox too
                 ),
@@ -766,6 +800,35 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     // Get the color using the same pattern as timeboxes
     final borderColor = _getTaskColor(index);
 
+    // Find the timeBox ID from the dialog context
+    int? timeBoxId;
+    try {
+      // In a dialog, try to get the timeBox from the currently displayed timebox
+      final scheduleModel = context.read<ScheduleBloc>().state.scheduleModel;
+      if (scheduleModel != null && scheduleModel.timeBoxes.isNotEmpty) {
+        final timeboxes = scheduleModel.timeBoxes;
+        final matchingTimebox = timeboxes.firstWhere(
+          (tb) =>
+              tb.activity.contains(habitName) ||
+              (tb.habits.isNotEmpty && tb.habits.contains(habitName)),
+          orElse: () => timeboxes.first,
+        );
+
+        // Use the index as a proxy for the ID
+        timeBoxId = timeboxes.indexOf(matchingTimebox);
+        if (timeBoxId != null && timeBoxId >= 0) {
+          print(
+            'In dialog - using timeBox index: $timeBoxId for habit $habitName',
+          );
+        } else {
+          timeBoxId = null;
+        }
+      }
+    } catch (e) {
+      print('Error finding timeBox ID for habit $habitName: $e');
+      timeBoxId = null;
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 2,
@@ -774,7 +837,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       child: InkWell(
         onTap: () {
           // Toggle the checkbox when the card is tapped
-          onToggle(!isCompleted);
+          final newValue = !isCompleted;
+          onToggle(newValue);
+
+          // Update database without causing scroll reset
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<ScheduleBloc>().add(
+              ToggleHabitCompletion(
+                habitName: habitName,
+                isCompleted: newValue,
+                timeBoxId: timeBoxId,
+              ),
+            );
+          });
         },
         child: Container(
           decoration: BoxDecoration(
@@ -794,7 +869,22 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             title: Text(habitName),
             trailing: Checkbox(
               value: isCompleted,
-              onChanged: onToggle,
+              onChanged: (value) {
+                onToggle(value);
+
+                if (value != null) {
+                  // Update database without causing scroll reset
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    context.read<ScheduleBloc>().add(
+                      ToggleHabitCompletion(
+                        habitName: habitName,
+                        isCompleted: value,
+                        timeBoxId: timeBoxId,
+                      ),
+                    );
+                  });
+                }
+              },
               activeColor:
                   borderColor, // Match the left border color for the checkbox too
             ),

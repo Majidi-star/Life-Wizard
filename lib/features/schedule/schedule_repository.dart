@@ -3,6 +3,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'schedule_model.dart';
+import 'dart:convert';
 
 class Schedule {
   final int? id;
@@ -256,6 +257,24 @@ class ScheduleRepository {
     final List<TimeBox> timeBoxes = [];
 
     for (var schedule in schedules) {
+      // Parse the todo string
+      List<String> todoList = [];
+      if (schedule.todo != null && schedule.todo!.isNotEmpty) {
+        try {
+          // Try to parse as JSON
+          final todos = jsonDecode(schedule.todo!);
+          if (todos is List) {
+            todoList = todos.map((item) => item.toString()).toList();
+          }
+        } catch (e) {
+          // If JSON parsing fails, fall back to comma-separated
+          todoList = schedule.todo?.split(',') ?? [];
+          print(
+            'Failed to parse todos as JSON: ${e.toString()}. Using fallback.',
+          );
+        }
+      }
+
       final timeBox = TimeBox(
         startTimeHour: schedule.startTimeHour,
         startTimeMinute: schedule.startTimeMinute,
@@ -263,17 +282,36 @@ class ScheduleRepository {
         endTimeMinute: schedule.endTimeMinute,
         activity: schedule.activity ?? '',
         notes: schedule.notes ?? '',
-        todos: schedule.todo?.split(',') ?? [],
+        todos: todoList,
         timeBoxStatus: schedule.timeBoxStatus,
         priority: schedule.priority,
         heatmapProductivity: schedule.heatmapProductivity,
         isChallenge: schedule.challenge,
+        habits: schedule.habits ?? '', // Make sure habits is properly passed
       );
 
       timeBoxes.add(timeBox);
     }
 
-    return ScheduleModel(timeBoxes: timeBoxes, currentTimeBox: null);
+    // Find current time box based on current time
+    TimeBox? currentTimeBox;
+    final now = DateTime.now();
+    final currentHour = now.hour;
+    final currentMinute = now.minute;
+
+    for (var timeBox in timeBoxes) {
+      if ((timeBox.startTimeHour < currentHour ||
+              (timeBox.startTimeHour == currentHour &&
+                  timeBox.startTimeMinute <= currentMinute)) &&
+          (timeBox.endTimeHour > currentHour ||
+              (timeBox.endTimeHour == currentHour &&
+                  timeBox.endTimeMinute >= currentMinute))) {
+        currentTimeBox = timeBox;
+        break;
+      }
+    }
+
+    return ScheduleModel(timeBoxes: timeBoxes, currentTimeBox: currentTimeBox);
   }
 
   /// Prints all objects and their nested properties recursively
