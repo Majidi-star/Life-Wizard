@@ -22,7 +22,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     on<StopPeriodicUpdate>(_onStopPeriodicUpdate);
     on<InitializeRepository>(_onInitializeRepository);
 
-    // Initialize repository when bloc is created
+    // Initialize repository and load initial data
     add(InitializeRepository());
   }
 
@@ -32,6 +32,15 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   ) async {
     final db = await DatabaseInitializer.database;
     _repository = ScheduleRepository(db);
+
+    // Load initial data after repository is initialized
+    add(
+      LoadSchedule(
+        year: state.selectedYear,
+        month: state.selectedMonth,
+        day: state.selectedDay,
+      ),
+    );
   }
 
   void _onUpdateSelectedYear(

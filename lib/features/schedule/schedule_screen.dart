@@ -19,26 +19,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    final bloc = context.read<ScheduleBloc>();
-    final state = bloc.state;
-
-    // First initialize the repository
-    bloc.add(InitializeRepository());
-
-    // Then load the schedule after a short delay to ensure repository is ready
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        bloc
-          ..add(
-            LoadSchedule(
-              year: state.selectedYear,
-              month: state.selectedMonth,
-              day: state.selectedDay,
-            ),
-          )
-          ..add(StartPeriodicUpdate());
-      }
-    });
+    context.read<ScheduleBloc>().add(StartPeriodicUpdate());
   }
 
   @override
