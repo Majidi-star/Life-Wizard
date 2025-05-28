@@ -215,37 +215,58 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     Emitter<TodoState> emit,
   ) async {
     try {
-      await _repository.updateTodoStatus(event.id, event.completed);
+      // Log the event for debugging
+      print(
+        'TodoBloc: Toggling todo status for ID: ${event.id} to: ${event.completed}',
+      );
 
-      final updatedTodos =
-          state.todos.map((todo) {
-            if (todo.id == event.id) {
-              return Todo(
-                id: todo.id,
-                todoName: todo.todoName,
-                todoDescription: todo.todoDescription,
-                todoStatus: event.completed,
-                todoCreatedAt: todo.todoCreatedAt,
-                completedAt: event.completed ? DateTime.now() : null,
-                priority: todo.priority,
-              );
-            }
-            return todo;
-          }).toList();
+      // Find the todo by ID - log if not found
+      final todoIndex = state.todos.indexWhere((todo) => todo.id == event.id);
+      if (todoIndex == -1) {
+        print('TodoBloc: ERROR - Could not find todo with ID: ${event.id}');
+        emit(state.copyWith(error: 'Could not find todo with ID: ${event.id}'));
+        return;
+      }
 
-      // Sort todos by completion status first, then by priority (highest first)
-      updatedTodos.sort((a, b) {
-        // First sort by completion status (incomplete first)
-        if (a.todoStatus != b.todoStatus) {
-          return a.todoStatus
-              ? 1
-              : -1; // false (incomplete) comes before true (complete)
-        }
-        // Then sort by priority (highest first)
-        return b.priority.compareTo(a.priority);
-      });
+      final todo = state.todos[todoIndex];
+      print('TodoBloc: Found todo: "${todo.todoName}" at index $todoIndex');
 
-      emit(state.copyWith(todos: updatedTodos));
+      // Create an updated todo with the new status
+      final updatedTodo = Todo(
+        id: todo.id,
+        todoName: todo.todoName,
+        todoDescription: todo.todoDescription,
+        todoStatus: event.completed,
+        todoCreatedAt: todo.todoCreatedAt,
+        priority: todo.priority,
+        completedAt: event.completed ? DateTime.now() : null,
+      );
+
+      // Get a copy of the todos list
+      final updatedTodos = List<Todo>.from(state.todos);
+
+      // Replace the old todo with the updated one
+      updatedTodos[todoIndex] = updatedTodo;
+
+      // Save to the database
+      final todoEntity = TodoEntity(
+        id: updatedTodo.id,
+        todoName: updatedTodo.todoName,
+        todoDescription: updatedTodo.todoDescription,
+        todoStatus: updatedTodo.todoStatus,
+        todoCreatedAt: updatedTodo.todoCreatedAt,
+        completedAt: updatedTodo.completedAt,
+        priority: updatedTodo.priority,
+      );
+
+      await _repository.updateTodo(todoEntity);
+
+      print(
+        'TodoBloc: Successfully updated todo status. New list has ${updatedTodos.length} todos',
+      );
+
+      // Update the state with the new todos list
+      emit(state.copyWith(todos: updatedTodos, error: null));
     } catch (e) {
       emit(state.copyWith(error: 'Failed to toggle todo status: $e'));
     }

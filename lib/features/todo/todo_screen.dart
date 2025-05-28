@@ -11,146 +11,59 @@ import 'todo_event.dart';
 import 'todo_state.dart';
 import 'todo_model.dart';
 
-class TodoScreen extends StatefulWidget {
-  const TodoScreen({super.key});
+/// A dedicated widget for each todo item to ensure proper state management
+class TodoItemCard extends StatelessWidget {
+  final Todo todo;
+  final int index;
+  final SettingsState settingsState;
 
-  @override
-  State<TodoScreen> createState() => _TodoScreenState();
-}
+  const TodoItemCard({
+    Key? key,
+    required this.todo,
+    required this.index,
+    required this.settingsState,
+  }) : super(key: key);
 
-class _TodoScreenState extends State<TodoScreen> {
-  Timer? _refreshTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Start periodic refresh when the screen is loaded
-    _startPeriodicRefresh();
+  // Get the color based on index in the list
+  Color _getCircleColor(int index) {
+    switch (index % 6) {
+      case 0:
+        return Colors.green;
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.red;
+      case 3:
+        return Colors.purple;
+      case 4:
+        return Colors.orange;
+      case 5:
+        return Colors.teal;
+      default:
+        return Colors.green;
+    }
   }
 
-  @override
-  void dispose() {
-    // Cancel timer when leaving the screen
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
 
-  void _startPeriodicRefresh() {
-    // Refresh data every 2 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted) {
-        context.read<TodoBloc>().add(const LoadTodos());
-      }
-    });
+    if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'just now';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final settingsState = app_main.settingsBloc.state;
-
-    return Scaffold(
-      backgroundColor: settingsState.primaryColor,
-      appBar: AppBar(
-        title: const Text('Todo'),
-        backgroundColor: settingsState.thirdlyColor,
-      ),
-      drawer: const AppDrawer(),
-      // Add floating action button
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTodoDialog(context),
-        backgroundColor: settingsState.secondaryColor,
-        child: const Icon(Icons.add),
-      ),
-      body: BlocBuilder<TodoBloc, TodoState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return Center(
-              child: CircularProgressIndicator(
-                color: settingsState.secondaryColor,
-              ),
-            );
-          }
-
-          if (state.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Error: ${state.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<TodoBloc>().add(const LoadTodos());
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (state.todos.isEmpty) {
-            return Center(
-              child: Text('No todos found. Tap the + button to add one.'),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: state.todos.length,
-                    itemBuilder: (context, index) {
-                      final todo = state.todos[index];
-                      return _buildTodoItem(context, todo, settingsState);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Replace with debug button only
-                ElevatedButton(
-                  onPressed: () async {
-                    await app_main.printFeatureState('todo');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Todo state printed to console'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[700],
-                  ),
-                  child: const Text('Debug Todo State'),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTodoItem(
-    BuildContext context,
-    Todo todo,
-    SettingsState settingsState,
-  ) {
-    // Generate a random color for the priority circle
-    final random = Random(
-      todo.priority * 100,
-    ); // Using priority as seed for consistent colors
-    final randomColor = Color.fromRGBO(
-      random.nextInt(200) + 55, // Avoid too dark colors
-      random.nextInt(200) + 55,
-      random.nextInt(200) + 55,
-      1.0,
-    );
-
-    // Calculate time difference for displaying "created X days/hours/minutes ago"
-    String timeAgo = _getTimeAgo(todo.todoCreatedAt);
+    final circleColor = _getCircleColor(index);
+    final timeAgo = _getTimeAgo(todo.todoCreatedAt);
+    final todoId = todo.id;
 
     return Card(
       color: settingsState.fourthlyColor,
@@ -166,7 +79,7 @@ class _TodoScreenState extends State<TodoScreen> {
         ),
       ),
       child: InkWell(
-        onTap: () => _showTodoDetailsDialog(context, todo),
+        onTap: () => _showTodoDetailsDialog(context),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
           child: Row(
@@ -177,7 +90,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: randomColor,
+                  color: circleColor,
                 ),
                 child: Center(
                   child: Text(
@@ -214,17 +127,22 @@ class _TodoScreenState extends State<TodoScreen> {
                   ],
                 ),
               ),
-              // Checkbox for completion
+              // Checkbox for completion with explicit todo ID
               Checkbox(
                 value: todo.todoStatus,
                 activeColor: settingsState.activatedColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
-                onChanged: (value) {
+                onChanged: (bool? value) {
                   if (value != null) {
+                    print(
+                      'Toggling todo ID $todoId (${todo.todoName}) to $value',
+                    );
+
+                    // Update the todo in the bloc - explicitly toggle this specific todo
                     context.read<TodoBloc>().add(
-                      ToggleTodoStatus(id: todo.id, completed: value),
+                      ToggleTodoStatus(id: todoId, completed: value),
                     );
                   }
                 },
@@ -236,22 +154,7 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
-  String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-    } else {
-      return 'just now';
-    }
-  }
-
-  void _showTodoDetailsDialog(BuildContext context, Todo todo) {
+  void _showTodoDetailsDialog(BuildContext context) {
     final settingsState = app_main.settingsBloc.state;
 
     showDialog(
@@ -298,7 +201,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 onPressed: () {
                   // Show edit dialog
                   Navigator.of(context).pop();
-                  _showEditTodoDialog(context, todo);
+                  _showEditTodoDialog(context);
                 },
                 child: Text(
                   'Edit',
@@ -309,7 +212,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 onPressed: () {
                   // Show delete confirmation
                   Navigator.of(context).pop();
-                  _showDeleteConfirmation(context, todo);
+                  _showDeleteConfirmation(context);
                 },
                 child: const Text(
                   'Delete',
@@ -325,127 +228,7 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
-  void _showAddTodoDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final priorityController = TextEditingController(text: '1');
-    final settingsState = app_main.settingsBloc.state;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: settingsState.primaryColor,
-            title: const Text('Add New Todo'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Todo Name',
-                      floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: settingsState.secondaryColor,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: InputDecoration(
-                      labelText: 'Description',
-                      floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: settingsState.secondaryColor,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: priorityController,
-                    decoration: InputDecoration(
-                      labelText: 'Priority (1-9)',
-                      floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: settingsState.secondaryColor,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Validate and add todo
-                  final name = nameController.text.trim();
-                  final description = descriptionController.text.trim();
-                  final priorityText = priorityController.text.trim();
-
-                  if (name.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Todo name cannot be empty'),
-                      ),
-                    );
-                    return;
-                  }
-
-                  int priority = 1;
-                  try {
-                    priority = int.parse(priorityText);
-                    if (priority < 1) priority = 1;
-                    if (priority > 9) priority = 9;
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Priority must be a number between 1-9'),
-                      ),
-                    );
-                    return;
-                  }
-
-                  context.read<TodoBloc>().add(
-                    AddTodo(
-                      name: name,
-                      description: description,
-                      priority: priority,
-                    ),
-                  );
-
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  'Add',
-                  style: TextStyle(color: settingsState.secondaryColor),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showEditTodoDialog(BuildContext context, Todo todo) {
+  void _showEditTodoDialog(BuildContext context) {
     final nameController = TextEditingController(text: todo.todoName);
     final descriptionController = TextEditingController(
       text: todo.todoDescription,
@@ -587,7 +370,7 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, Todo todo) {
+  void _showDeleteConfirmation(BuildContext context) {
     final settingsState = app_main.settingsBloc.state;
 
     showDialog(
@@ -612,6 +395,255 @@ class _TodoScreenState extends State<TodoScreen> {
                 child: const Text(
                   'Delete',
                   style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+}
+
+class TodoScreen extends StatefulWidget {
+  const TodoScreen({super.key});
+
+  @override
+  State<TodoScreen> createState() => _TodoScreenState();
+}
+
+class _TodoScreenState extends State<TodoScreen> {
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start periodic refresh when the screen is loaded
+    _startPeriodicRefresh();
+  }
+
+  @override
+  void dispose() {
+    // Cancel timer when leaving the screen
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startPeriodicRefresh() {
+    // Refresh data every 2 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        context.read<TodoBloc>().add(const LoadTodos());
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settingsState = app_main.settingsBloc.state;
+
+    return Scaffold(
+      backgroundColor: settingsState.primaryColor,
+      appBar: AppBar(
+        title: const Text('Todo'),
+        backgroundColor: settingsState.thirdlyColor,
+      ),
+      drawer: const AppDrawer(),
+      // Add floating action button
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddTodoDialog(context),
+        backgroundColor: settingsState.secondaryColor,
+        child: const Icon(Icons.add),
+      ),
+      body: BlocBuilder<TodoBloc, TodoState>(
+        builder: (context, state) {
+          if (state.isLoading) {
+            return Center(
+              child: CircularProgressIndicator(
+                color: settingsState.secondaryColor,
+              ),
+            );
+          }
+
+          if (state.error != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Error: ${state.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<TodoBloc>().add(const LoadTodos());
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (state.todos.isEmpty) {
+            return Center(
+              child: Text('No todos found. Tap the + button to add one.'),
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: state.todos.length,
+                    itemBuilder: (context, index) {
+                      final todo = state.todos[index];
+                      // Add a unique key based on the todo ID
+                      return TodoItemCard(
+                        key: ValueKey('todo_${todo.id}'),
+                        todo: todo,
+                        index: index,
+                        settingsState: settingsState,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Replace with debug button only
+                ElevatedButton(
+                  onPressed: () async {
+                    await app_main.printFeatureState('todo');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Todo state printed to console'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[700],
+                  ),
+                  child: const Text('Debug Todo State'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAddTodoDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final priorityController = TextEditingController(text: '1');
+    final settingsState = app_main.settingsBloc.state;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: settingsState.primaryColor,
+            title: const Text('Add New Todo'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Todo Name',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      border: OutlineInputBorder(),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: settingsState.secondaryColor,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      labelText: 'Description',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      border: OutlineInputBorder(),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: settingsState.secondaryColor,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: priorityController,
+                    decoration: InputDecoration(
+                      labelText: 'Priority (1-9)',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      border: OutlineInputBorder(),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: settingsState.secondaryColor,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Validate and add todo
+                  final name = nameController.text.trim();
+                  final description = descriptionController.text.trim();
+                  final priorityText = priorityController.text.trim();
+
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Todo name cannot be empty'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  int priority = 1;
+                  try {
+                    priority = int.parse(priorityText);
+                    if (priority < 1) priority = 1;
+                    if (priority > 9) priority = 9;
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Priority must be a number between 1-9'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  context.read<TodoBloc>().add(
+                    AddTodo(
+                      name: name,
+                      description: description,
+                      priority: priority,
+                    ),
+                  );
+
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  'Add',
+                  style: TextStyle(color: settingsState.secondaryColor),
                 ),
               ),
             ],
