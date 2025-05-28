@@ -23,6 +23,7 @@ import 'features/goals/goals_event.dart';
 import 'features/goals/goals_state.dart';
 import 'database_initializer.dart';
 import 'features/schedule/schedule_bloc.dart';
+import 'features/pro_clock/pro_clock_bloc.dart';
 
 // Import all test files
 import 'features/settings/settings_test.dart' as settings_test;
@@ -45,13 +46,15 @@ late TodoBloc todoBloc;
 late HabitsBloc habitsBloc;
 // Global singleton for GoalsBloc to ensure single source of truth
 late GoalsBloc goalsBloc;
+// Global singleton for ProClockBloc to ensure single source of truth
+late ProClockBloc proClockBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database
-  await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
+  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
   // Create a single SettingsBloc instance that will be used throughout the app
@@ -68,6 +71,9 @@ void main() async {
 
   // Create a single GoalsBloc instance that will be used throughout the app
   goalsBloc = GoalsBloc();
+
+  // Create a single ProClockBloc instance that will be used throughout the app
+  proClockBloc = ProClockBloc();
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -107,6 +113,7 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: habitsBloc..add(const LoadHabits())),
         BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
         BlocProvider<ScheduleBloc>(create: (context) => ScheduleBloc()),
+        BlocProvider.value(value: proClockBloc),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
@@ -286,7 +293,33 @@ Future<void> printFeatureState(String feature) async {
       schedule_test.main();
       break;
     case 'pro_clock':
-      pro_clock_test.main();
+      // Use the actual proClockBloc state instead of running the test
+      final state = proClockBloc.state;
+      print('===== PRO CLOCK STATE =====');
+      print('Selected Date: ${state.selectedDate}');
+      print('Timer Mode: ${state.timerMode}');
+      print('Timer Status: ${state.timerStatus}');
+      print('Remaining Time: ${state.timerDisplay}');
+      print('Phase: ${state.phaseDisplay}');
+      print('Is Work Phase: ${state.isWorkPhase}');
+      print('Pomodoro Count: ${state.pomodoroCount}');
+      print('Work Minutes: ${state.workMinutes}');
+      print('Rest Minutes: ${state.restMinutes}');
+
+      print('\nTasks (${state.tasks.length}):');
+      for (int i = 0; i < state.tasks.length; i++) {
+        final task = state.tasks[i];
+        print('  Task $i:');
+        print('    Name: ${task.currentTask}');
+        print('    Description: ${task.currentTaskDescription}');
+        print('    Notes: ${task.currentTaskNotes}');
+        print('    Todos: ${task.currentTaskTodos.join(', ')}');
+        print(
+          '    Status: ${task.currentTaskStatus ? 'Completed' : 'Not Completed'}',
+        );
+      }
+
+      print('Current Task Index: ${state.currentTaskIndex}');
       break;
     case 'goals':
       // Use the actual goalsBloc state instead of running the test

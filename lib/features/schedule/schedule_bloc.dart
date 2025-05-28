@@ -24,6 +24,9 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     on<InitializeRepository>(_onInitializeRepository);
     on<ToggleHabitCompletion>(_onToggleHabitCompletion);
     on<ToggleTimeBoxCompletion>(_onToggleTimeBoxCompletion);
+    on<AddTimeBox>(_onAddTimeBox);
+    on<UpdateTimeBox>(_onUpdateTimeBox);
+    on<DeleteTimeBox>(_onDeleteTimeBox);
 
     // Initialize repository and load initial data
     add(InitializeRepository());
@@ -442,5 +445,293 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   Future<void> close() {
     _updateTimer?.cancel();
     return super.close();
+  }
+
+  Future<void> _onAddTimeBox(
+    AddTimeBox event,
+    Emitter<ScheduleState> emit,
+  ) async {
+    if (_repository == null) {
+      emit(state.copyWith(error: 'Repository not initialized'));
+      return;
+    }
+
+    emit(state.copyWith(isLoading: true, error: null));
+
+    try {
+      print('\n===== ADDING NEW TIMEBOX =====');
+      print('Activity: ${event.activity}');
+      print(
+        'Time: ${event.startTimeHour}:${event.startTimeMinute} - ${event.endTimeHour}:${event.endTimeMinute}',
+      );
+      print('Notes: ${event.notes}');
+      print('Todos: ${event.todos}');
+      print('Priority: ${event.priority}');
+      print('Is Challenge: ${event.isChallenge}');
+
+      // Create a new Schedule object
+      final date = DateTime(
+        state.selectedYear,
+        state.selectedMonth,
+        state.selectedDay,
+      );
+
+      final dateStr = date.toIso8601String().split('T')[0];
+      print('Date: $dateStr');
+
+      final todoJson = jsonEncode(event.todos);
+
+      // Instead of using repository, go directly to the database for better debugging
+      final db = await DatabaseInitializer.database;
+
+      // First create a map of the values
+      final scheduleMap = {
+        'date': dateStr,
+        'challenge': event.isChallenge ? 1 : 0,
+        'startTimeHour': event.startTimeHour,
+        'startTimeMinute': event.startTimeMinute,
+        'endTimeHour': event.endTimeHour,
+        'endTimeMinute': event.endTimeMinute,
+        'activity': event.activity,
+        'notes': event.notes,
+        'todo': todoJson,
+        'timeBoxStatus':
+            'planned', // New timeboxes are not completed by default
+        'priority': event.priority,
+        'heatmapProductivity': 0.0, // Default productivity
+        'habits': '[]', // Empty habits array as JSON string
+      };
+
+      // Print the exact values being inserted
+      print('Inserting into database: $scheduleMap');
+
+      // Insert the schedule
+      final id = await db.insert('schedule', scheduleMap);
+
+      print('Insert result: ID $id');
+
+      if (id > 0) {
+        // Verify the insert worked by fetching the inserted record
+        final insertedRecord = await _repository!.getScheduleById(id);
+        if (insertedRecord != null) {
+          print(
+            'Insert verified: ${insertedRecord.activity} at ${insertedRecord.startTimeHour}:${insertedRecord.startTimeMinute}',
+          );
+        } else {
+          print('ERROR: Record not found after insert!');
+        }
+      } else {
+        print('ERROR: Insert failed, no ID returned');
+      }
+
+      // Reload the schedule
+      add(
+        LoadSchedule(
+          year: state.selectedYear,
+          month: state.selectedMonth,
+          day: state.selectedDay,
+        ),
+      );
+
+      print('===== ADD COMPLETE =====\n');
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to add timebox: ${e.toString()}',
+        ),
+      );
+      print('Error adding timebox: $e');
+      print('Stack trace:');
+      print('$e');
+    }
+  }
+
+  Future<void> _onUpdateTimeBox(
+    UpdateTimeBox event,
+    Emitter<ScheduleState> emit,
+  ) async {
+    if (_repository == null) {
+      emit(state.copyWith(error: 'Repository not initialized'));
+      return;
+    }
+
+    emit(state.copyWith(isLoading: true, error: null));
+
+    try {
+      // Get the current date
+      final date = DateTime(
+        state.selectedYear,
+        state.selectedMonth,
+        state.selectedDay,
+      );
+
+      // Get the schedules for the current date
+      final schedules = await _repository!.getSchedulesByDate(date);
+
+      if (schedules != null &&
+          event.timeBoxIndex >= 0 &&
+          event.timeBoxIndex < schedules.length) {
+        // Get the schedule to update
+        final existingSchedule = schedules[event.timeBoxIndex];
+
+        // Make sure it has an ID
+        if (existingSchedule.id == null) {
+          throw Exception('Schedule ID not found');
+        }
+
+        // Parse todo list if provided
+        String todoJson = existingSchedule.todo ?? '[]';
+        if (event.todos != null) {
+          todoJson = jsonEncode(event.todos);
+        }
+
+        // Debug the update operation
+        print('\n===== UPDATING TIMEBOX =====');
+        print('ID: ${existingSchedule.id}');
+        print('Original activity: ${existingSchedule.activity}');
+        print('New activity: ${event.activity}');
+        print('Original timeBoxStatus: ${existingSchedule.timeBoxStatus}');
+
+        // Create updated schedule with new values or existing ones
+        final updatedSchedule = Schedule(
+          id: existingSchedule.id,
+          date: date,
+          challenge: event.isChallenge ?? existingSchedule.challenge,
+          startTimeHour: event.startTimeHour ?? existingSchedule.startTimeHour,
+          startTimeMinute:
+              event.startTimeMinute ?? existingSchedule.startTimeMinute,
+          endTimeHour: event.endTimeHour ?? existingSchedule.endTimeHour,
+          endTimeMinute: event.endTimeMinute ?? existingSchedule.endTimeMinute,
+          activity: event.activity ?? existingSchedule.activity,
+          notes: event.notes ?? existingSchedule.notes,
+          todo: todoJson,
+          timeBoxStatus: existingSchedule.timeBoxStatus,
+          priority: event.priority ?? existingSchedule.priority,
+          heatmapProductivity: existingSchedule.heatmapProductivity,
+          habits: existingSchedule.habits,
+        );
+
+        // Try using a more direct approach with field updates
+        final db = await DatabaseInitializer.database;
+        final result = await db.rawUpdate(
+          '''
+          UPDATE schedule SET 
+          challenge = ?, 
+          startTimeHour = ?, 
+          startTimeMinute = ?, 
+          endTimeHour = ?, 
+          endTimeMinute = ?,
+          activity = ?,
+          notes = ?,
+          todo = ?,
+          priority = ?
+          WHERE id = ?
+          ''',
+          [
+            updatedSchedule.challenge ? 1 : 0,
+            updatedSchedule.startTimeHour,
+            updatedSchedule.startTimeMinute,
+            updatedSchedule.endTimeHour,
+            updatedSchedule.endTimeMinute,
+            updatedSchedule.activity,
+            updatedSchedule.notes,
+            updatedSchedule.todo,
+            updatedSchedule.priority,
+            existingSchedule.id,
+          ],
+        );
+
+        print('Update result: $result rows affected');
+
+        // Verify the update worked by fetching the updated record
+        final updatedRecord = await _repository!.getScheduleById(
+          existingSchedule.id!,
+        );
+        if (updatedRecord != null) {
+          print('Updated successfully: ${updatedRecord.activity}');
+        } else {
+          print('ERROR: Record not found after update!');
+        }
+
+        // Reload the schedule
+        add(
+          LoadSchedule(
+            year: state.selectedYear,
+            month: state.selectedMonth,
+            day: state.selectedDay,
+          ),
+        );
+        print('===== UPDATE COMPLETE =====\n');
+      } else {
+        emit(state.copyWith(isLoading: false, error: 'Invalid timebox index'));
+      }
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to update timebox: ${e.toString()}',
+        ),
+      );
+      print('Error updating timebox: $e');
+      print('Stack trace:');
+      print('$e');
+    }
+  }
+
+  Future<void> _onDeleteTimeBox(
+    DeleteTimeBox event,
+    Emitter<ScheduleState> emit,
+  ) async {
+    if (_repository == null) {
+      emit(state.copyWith(error: 'Repository not initialized'));
+      return;
+    }
+
+    emit(state.copyWith(isLoading: true, error: null));
+
+    try {
+      // Get the current date
+      final date = DateTime(
+        state.selectedYear,
+        state.selectedMonth,
+        state.selectedDay,
+      );
+
+      // Get the schedules for the current date
+      final schedules = await _repository!.getSchedulesByDate(date);
+
+      if (schedules != null &&
+          event.timeBoxIndex >= 0 &&
+          event.timeBoxIndex < schedules.length) {
+        // Get the schedule to delete
+        final scheduleToDelete = schedules[event.timeBoxIndex];
+
+        // Make sure it has an ID
+        if (scheduleToDelete.id == null) {
+          throw Exception('Schedule ID not found');
+        }
+
+        await _repository!.deleteSchedule(scheduleToDelete.id!);
+
+        // Reload the schedule
+        add(
+          LoadSchedule(
+            year: state.selectedYear,
+            month: state.selectedMonth,
+            day: state.selectedDay,
+          ),
+        );
+      } else {
+        emit(state.copyWith(isLoading: false, error: 'Invalid timebox index'));
+      }
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to delete timebox: ${e.toString()}',
+        ),
+      );
+    }
   }
 }

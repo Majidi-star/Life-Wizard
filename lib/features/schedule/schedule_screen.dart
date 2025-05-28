@@ -183,6 +183,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         ),
                         child: InkWell(
                           onTap: () {
+                            // Show the details dialog on tap
                             showDialog(
                               context: context,
                               builder: (BuildContext dialogContext) {
@@ -334,77 +335,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                                     }).toList(),
                                               ),
                                             ],
-                                            // Show habits in dialog if there are any to show
-                                            if (timeboxHabits.isNotEmpty) ...[
-                                              const SizedBox(height: 16),
-                                              const Text(
-                                                'Related Habits:',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              // Use ValueListenableBuilder for the dialog habits too
-                                              ValueListenableBuilder<
-                                                Set<String>
-                                              >(
-                                                valueListenable:
-                                                    completedHabits,
-                                                builder: (
-                                                  context,
-                                                  completed,
-                                                  _,
-                                                ) {
-                                                  return Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      for (
-                                                        var i = 0;
-                                                        i <
-                                                            timeboxHabits
-                                                                .length;
-                                                        i++
-                                                      )
-                                                        _buildHabitItem(
-                                                          timeboxHabits[i]
-                                                              .toString(),
-                                                          settingsState
-                                                              .secondaryColor,
-                                                          dialogContext,
-                                                          habitsState,
-                                                          isCompleted: completed
-                                                              .contains(
-                                                                timeboxHabits[i]
-                                                                    .toString(),
-                                                              ),
-                                                          onToggle: (value) {
-                                                            if (value == true) {
-                                                              completedHabits
-                                                                  .value = Set.from(
-                                                                completed,
-                                                              )..add(
-                                                                timeboxHabits[i]
-                                                                    .toString(),
-                                                              );
-                                                            } else {
-                                                              completedHabits
-                                                                  .value = Set.from(
-                                                                completed,
-                                                              )..remove(
-                                                                timeboxHabits[i]
-                                                                    .toString(),
-                                                              );
-                                                            }
-                                                          },
-                                                          index: i,
-                                                        ),
-                                                    ],
-                                                  );
-                                                },
-                                              ),
-                                            ],
+                                            // Removed Related Habits section
                                           ],
                                         ),
                                       ),
@@ -413,6 +344,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 );
                               },
                             );
+                          },
+                          onLongPress: () {
+                            // Open the edit dialog on long press
+                            _showEditTimeBoxDialog(context, index);
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -637,53 +572,69 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final bloc = context.read<ScheduleBloc>();
-          showDialog(
-            context: context,
-            builder: (BuildContext dialogContext) {
-              return BlocProvider.value(
-                value: bloc,
-                child: Dialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Add TimeBox Button
+          FloatingActionButton(
+            heroTag: 'addTimeBox',
+            onPressed: () => _showAddTimeBoxDialog(context),
+            backgroundColor: settingsState.secondaryColor,
+            mini: true,
+            child: const Icon(Icons.add),
+          ),
+          const SizedBox(height: 8),
+          // Select Date Button
+          FloatingActionButton(
+            heroTag: 'selectDate',
+            onPressed: () {
+              final bloc = context.read<ScheduleBloc>();
+              showDialog(
+                context: context,
+                builder: (BuildContext dialogContext) {
+                  return BlocProvider.value(
+                    value: bloc,
+                    child: Dialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              'Select Date',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: settingsState.secondaryColor,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Select Date',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: settingsState.secondaryColor,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed:
+                                      () => Navigator.of(dialogContext).pop(),
+                                ),
+                              ],
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed:
-                                  () => Navigator.of(dialogContext).pop(),
-                            ),
+                            const SizedBox(height: 16),
+                            ScheduleWidgets.buildDateSelector(dialogContext),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        ScheduleWidgets.buildDateSelector(dialogContext),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             },
-          );
-        },
-        backgroundColor: settingsState.secondaryColor,
-        child: const Icon(Icons.calendar_today, color: Colors.white),
+            backgroundColor: settingsState.secondaryColor,
+            child: const Icon(Icons.calendar_today, color: Colors.white),
+          ),
+        ],
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1029,5 +980,752 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       formattedTodo = formattedTodo.substring(1, formattedTodo.length - 1);
     }
     return formattedTodo;
+  }
+
+  // Method to show the dialog for adding a new timebox
+  void _showAddTimeBoxDialog(BuildContext context) {
+    final settingsState = app_main.settingsBloc.state;
+
+    // Controllers for text fields
+    final activityController = TextEditingController();
+    final notesController = TextEditingController();
+    final todoController = TextEditingController();
+
+    // Default values for time
+    int startHour = 9;
+    int startMinute = 0;
+    int endHour = 10;
+    int endMinute = 0;
+    int priority = 5;
+    bool isChallenge = false;
+
+    showDialog(
+      context: context,
+      builder:
+          (dialogContext) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                backgroundColor: settingsState.primaryColor,
+                title: const Text('Add New TimeBox'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Activity name field
+                      TextField(
+                        controller: activityController,
+                        decoration: InputDecoration(
+                          labelText: 'Activity Name',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: settingsState.secondaryColor,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Notes field
+                      TextField(
+                        controller: notesController,
+                        decoration: InputDecoration(
+                          labelText: 'Notes',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: settingsState.secondaryColor,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Todo items field
+                      TextField(
+                        controller: todoController,
+                        decoration: InputDecoration(
+                          labelText: 'Todo Items (comma separated)',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: settingsState.secondaryColor,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Time selection - Using a Column layout instead of Row to prevent overflow
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Start time section
+                          const Text(
+                            'Start Time',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              // Start Hour
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: startHour,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Hour',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(24, (i) => i).map((hour) {
+                                        return DropdownMenuItem<int>(
+                                          value: hour,
+                                          child: Text(
+                                            hour.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        startHour = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Start Minute
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: startMinute,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Minute',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(60, (i) => i).map((minute) {
+                                        return DropdownMenuItem<int>(
+                                          value: minute,
+                                          child: Text(
+                                            minute.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        startMinute = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // End time section
+                          const Text(
+                            'End Time',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              // End Hour
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: endHour,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Hour',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(24, (i) => i).map((hour) {
+                                        return DropdownMenuItem<int>(
+                                          value: hour,
+                                          child: Text(
+                                            hour.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        endHour = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // End Minute
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: endMinute,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Minute',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(60, (i) => i).map((minute) {
+                                        return DropdownMenuItem<int>(
+                                          value: minute,
+                                          child: Text(
+                                            minute.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        endMinute = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Priority slider
+                      Row(
+                        children: [
+                          const Text('Priority: '),
+                          Expanded(
+                            child: Slider(
+                              value: priority.toDouble(),
+                              min: 1,
+                              max: 10,
+                              divisions: 9,
+                              label: priority.toString(),
+                              activeColor: settingsState.secondaryColor,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  priority = value.toInt();
+                                });
+                              },
+                            ),
+                          ),
+                          Text(priority.toString()),
+                        ],
+                      ),
+
+                      // Challenge checkbox
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: isChallenge,
+                            activeColor: settingsState.secondaryColor,
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(() {
+                                  isChallenge = value;
+                                });
+                              }
+                            },
+                          ),
+                          const Text('Mark as Challenge'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      final activity = activityController.text.trim();
+                      final notes = notesController.text.trim();
+                      final todoText = todoController.text.trim();
+
+                      if (activity.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Activity name cannot be empty'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Parse todos from comma-separated string
+                      final List<String> todos =
+                          todoText.isNotEmpty
+                              ? todoText
+                                  .split(',')
+                                  .map((t) => t.trim())
+                                  .toList()
+                              : [];
+
+                      // Add timebox using the bloc
+                      context.read<ScheduleBloc>().add(
+                        AddTimeBox(
+                          startTimeHour: startHour,
+                          startTimeMinute: startMinute,
+                          endTimeHour: endHour,
+                          endTimeMinute: endMinute,
+                          activity: activity,
+                          notes: notes,
+                          todos: todos,
+                          priority: priority,
+                          isChallenge: isChallenge,
+                        ),
+                      );
+
+                      Navigator.of(context).pop();
+                    },
+                    child: Text(
+                      'Add',
+                      style: TextStyle(color: settingsState.secondaryColor),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+  // Method to show the dialog for editing an existing timebox
+  void _showEditTimeBoxDialog(BuildContext context, int timeBoxIndex) {
+    final settingsState = app_main.settingsBloc.state;
+    final state = context.read<ScheduleBloc>().state;
+
+    if (state.scheduleModel == null ||
+        timeBoxIndex < 0 ||
+        timeBoxIndex >= state.scheduleModel!.timeBoxes.length) {
+      return;
+    }
+
+    final timeBox = state.scheduleModel!.timeBoxes[timeBoxIndex];
+
+    // Controllers for text fields
+    final activityController = TextEditingController(text: timeBox.activity);
+    final notesController = TextEditingController(text: timeBox.notes);
+    final todoController = TextEditingController(
+      text: timeBox.todos.join(', '),
+    );
+
+    // Initial values
+    int startHour = timeBox.startTimeHour;
+    int startMinute = timeBox.startTimeMinute;
+    int endHour = timeBox.endTimeHour;
+    int endMinute = timeBox.endTimeMinute;
+    int priority = timeBox.priority;
+    bool isChallenge = timeBox.isChallenge;
+
+    showDialog(
+      context: context,
+      builder:
+          (dialogContext) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                backgroundColor: settingsState.primaryColor,
+                title: const Text('Edit TimeBox'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Activity name field
+                      TextField(
+                        controller: activityController,
+                        decoration: InputDecoration(
+                          labelText: 'Activity Name',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: settingsState.secondaryColor,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Notes field
+                      TextField(
+                        controller: notesController,
+                        decoration: InputDecoration(
+                          labelText: 'Notes',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: settingsState.secondaryColor,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Todo items field
+                      TextField(
+                        controller: todoController,
+                        decoration: InputDecoration(
+                          labelText: 'Todo Items (comma separated)',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: settingsState.secondaryColor,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Time selection - Using a Column layout instead of Row to prevent overflow
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Start time section
+                          const Text(
+                            'Start Time',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              // Start Hour
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: startHour,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Hour',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(24, (i) => i).map((hour) {
+                                        return DropdownMenuItem<int>(
+                                          value: hour,
+                                          child: Text(
+                                            hour.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        startHour = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Start Minute
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: startMinute,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Minute',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(60, (i) => i).map((minute) {
+                                        return DropdownMenuItem<int>(
+                                          value: minute,
+                                          child: Text(
+                                            minute.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        startMinute = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // End time section
+                          const Text(
+                            'End Time',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              // End Hour
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: endHour,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Hour',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(24, (i) => i).map((hour) {
+                                        return DropdownMenuItem<int>(
+                                          value: hour,
+                                          child: Text(
+                                            hour.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        endHour = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // End Minute
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  isDense: true,
+                                  value: endMinute,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Minute',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items:
+                                      List.generate(60, (i) => i).map((minute) {
+                                        return DropdownMenuItem<int>(
+                                          value: minute,
+                                          child: Text(
+                                            minute.toString().padLeft(2, '0'),
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        endMinute = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Priority slider
+                      Row(
+                        children: [
+                          const Text('Priority: '),
+                          Expanded(
+                            child: Slider(
+                              value: priority.toDouble(),
+                              min: 1,
+                              max: 10,
+                              divisions: 9,
+                              label: priority.toString(),
+                              activeColor: settingsState.secondaryColor,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  priority = value.toInt();
+                                });
+                              },
+                            ),
+                          ),
+                          Text(priority.toString()),
+                        ],
+                      ),
+
+                      // Challenge checkbox
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: isChallenge,
+                            activeColor: settingsState.secondaryColor,
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(() {
+                                  isChallenge = value;
+                                });
+                              }
+                            },
+                          ),
+                          const Text('Mark as Challenge'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Show delete confirmation
+                      _showDeleteConfirmation(context, timeBoxIndex);
+                    },
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      final activity = activityController.text.trim();
+                      final notes = notesController.text.trim();
+                      final todoText = todoController.text.trim();
+
+                      if (activity.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Activity name cannot be empty'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Parse todos from comma-separated string
+                      final List<String> todos =
+                          todoText.isNotEmpty
+                              ? todoText
+                                  .split(',')
+                                  .map((t) => t.trim())
+                                  .toList()
+                              : [];
+
+                      // Update timebox using the bloc
+                      context.read<ScheduleBloc>().add(
+                        UpdateTimeBox(
+                          timeBoxIndex: timeBoxIndex,
+                          startTimeHour: startHour,
+                          startTimeMinute: startMinute,
+                          endTimeHour: endHour,
+                          endTimeMinute: endMinute,
+                          activity: activity,
+                          notes: notes,
+                          todos: todos,
+                          priority: priority,
+                          isChallenge: isChallenge,
+                        ),
+                      );
+
+                      Navigator.of(context).pop();
+                    },
+                    child: Text(
+                      'Update',
+                      style: TextStyle(color: settingsState.secondaryColor),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+  // Method to show confirmation dialog for deleting a timebox
+  void _showDeleteConfirmation(BuildContext context, int timeBoxIndex) {
+    final state = context.read<ScheduleBloc>().state;
+
+    if (state.scheduleModel == null ||
+        timeBoxIndex < 0 ||
+        timeBoxIndex >= state.scheduleModel!.timeBoxes.length) {
+      return;
+    }
+
+    final timeBox = state.scheduleModel!.timeBoxes[timeBoxIndex];
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: app_main.settingsBloc.state.primaryColor,
+            title: const Text('Delete TimeBox'),
+            content: Text(
+              'Are you sure you want to delete "${timeBox.activity}"?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  context.read<ScheduleBloc>().add(
+                    DeleteTimeBox(timeBoxIndex: timeBoxIndex),
+                  );
+                  // Close both dialogs
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                },
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 }

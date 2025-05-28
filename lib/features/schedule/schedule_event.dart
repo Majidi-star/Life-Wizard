@@ -85,3 +85,91 @@ class ToggleTimeBoxCompletion extends ScheduleEvent {
   @override
   List<Object?> get props => [timeBoxIndex, isCompleted];
 }
+
+// New events for timebox CRUD operations
+
+class AddTimeBox extends ScheduleEvent {
+  final int startTimeHour;
+  final int startTimeMinute;
+  final int endTimeHour;
+  final int endTimeMinute;
+  final String activity;
+  final String notes;
+  final List<String> todos;
+  final int priority;
+  final bool isChallenge;
+
+  const AddTimeBox({
+    required this.startTimeHour,
+    required this.startTimeMinute,
+    required this.endTimeHour,
+    required this.endTimeMinute,
+    required this.activity,
+    required this.notes,
+    required this.todos,
+    required this.priority,
+    required this.isChallenge,
+  });
+
+  @override
+  List<Object?> get props => [
+    startTimeHour,
+    startTimeMinute,
+    endTimeHour,
+    endTimeMinute,
+    activity,
+    notes,
+    todos,
+    priority,
+    isChallenge,
+  ];
+}
+
+class UpdateTimeBox extends ScheduleEvent {
+  final int timeBoxIndex;
+  final int? startTimeHour;
+  final int? startTimeMinute;
+  final int? endTimeHour;
+  final int? endTimeMinute;
+  final String? activity;
+  final String? notes;
+  final List<String>? todos;
+  final int? priority;
+  final bool? isChallenge;
+
+  const UpdateTimeBox({
+    required this.timeBoxIndex,
+    this.startTimeHour,
+    this.startTimeMinute,
+    this.endTimeHour,
+    this.endTimeMinute,
+    this.activity,
+    this.notes,
+    this.todos,
+    this.priority,
+    this.isChallenge,
+  });
+
+  @override
+  List<Object?> get props => [
+    timeBoxIndex,
+    startTimeHour,
+    startTimeMinute,
+    endTimeHour,
+    endTimeMinute,
+    activity,
+    notes,
+    todos,
+    priority,
+    isChallenge,
+  ];
+}
+
+class DeleteTimeBox extends ScheduleEvent {
+  final int timeBoxIndex;
+
+  const DeleteTimeBox({required this.timeBoxIndex});
+
+  @override
+  List<Object?> get props => [timeBoxIndex];
+}
