@@ -21,6 +21,13 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
   ProClockBloc({ProClockRepository? repository})
     : repository = repository ?? ProClockRepository(),
       super(ProClockState(selectedDate: DateTime.now())) {
+    // Initialize member variables
+    _scheduleRemainingSeconds = 0;
+    _pomodoroRemainingSeconds = 0;
+    _pomodoroIsWorkPhase = true;
+    _scheduleTimerStatus = TimerStatus.idle;
+    _pomodoroTimerStatus = TimerStatus.idle;
+
     on<LoadTasks>(_onLoadTasks);
     on<ChangeDate>(_onChangeDate);
     on<StartTimer>(_onStartTimer);
@@ -285,25 +292,48 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
 
   void _onCompletePhase(CompletePhase event, Emitter<ProClockState> emit) {
     if (state.timerMode == TimerMode.pomodoro) {
-      // In pomodoro mode, toggle between work and rest
-      _pomodoroIsWorkPhase = !_pomodoroIsWorkPhase;
-      final newPomodoroCount =
-          _pomodoroIsWorkPhase ? state.pomodoroCount + 1 : state.pomodoroCount;
+      // Important: Mark the phase change BEFORE emitting state
+      final bool newPhaseIsWork = !state.isWorkPhase;
+      _pomodoroIsWorkPhase = newPhaseIsWork;
 
+      // Log phase transition
+      print(
+        'EXPLICIT PHASE TRANSITION TO: ${newPhaseIsWork ? "WORK" : "REST"}',
+      );
+
+      // Update pomodoro count when completing a work phase
+      final newPomodoroCount =
+          newPhaseIsWork ? state.pomodoroCount + 1 : state.pomodoroCount;
+
+      // Use a simpler state update for smoother UI transitions
       emit(
         state.copyWith(
-          isWorkPhase: _pomodoroIsWorkPhase,
+          isWorkPhase: newPhaseIsWork,
           pomodoroCount: newPomodoroCount,
+          timerStatus: TimerStatus.idle, // Reset to idle to force UI update
+          remainingSeconds: 0, // Reset timer
         ),
       );
 
-      // Initialize timer for the new phase
-      _initializeTimer();
+      // Print detailed debug information to help diagnose issues
+      print('NEW STATE EMITTED:');
+      print('- isWorkPhase: $newPhaseIsWork');
+      print('- pomodoroCount: $newPomodoroCount');
+      print('- timerStatus: ${TimerStatus.idle}');
 
-      // Automatically start the next phase
-      add(const StartTimer());
+      // Initialize timer after a very short delay
+      Future.delayed(const Duration(milliseconds: 10), () {
+        _initializeTimer();
+
+        // Start the timer after a short delay to ensure UI renders first
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (!isClosed) {
+            add(const StartTimer());
+          }
+        });
+      });
     } else {
-      // In schedule mode, mark current task as completed and move to next if available
+      // Schedule mode
       if (state.currentTask != null) {
         add(
           MarkTaskAsCompleted(
@@ -325,6 +355,14 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
     final modeTimerStatus =
         isScheduleMode ? _scheduleTimerStatus : _pomodoroTimerStatus;
 
+    print('Changing to ${isScheduleMode ? "SCHEDULE" : "POMODORO"} mode');
+    print(
+      'Current work phase: ${isScheduleMode ? "true" : _pomodoroIsWorkPhase.toString()}',
+    );
+
+    // Debug verification
+    _debugVerifyPhaseState();
+
     // Switch to the target mode while maintaining its own state
     emit(
       state.copyWith(
@@ -344,6 +382,18 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
     } else if (modeTimerStatus != TimerStatus.running && _timer != null) {
       _stopTimer();
     }
+
+    // Debug verification after state update
+    _debugVerifyPhaseState();
+  }
+
+  // Debug helper method to verify phase state
+  void _debugVerifyPhaseState() {
+    print('>>> DEBUG STATE INFO:');
+    print('>>> _pomodoroIsWorkPhase: $_pomodoroIsWorkPhase');
+    print('>>> state.isWorkPhase: ${state.isWorkPhase}');
+    print('>>> state.timerMode: ${state.timerMode}');
+    print('>>> state.timerStatus: ${state.timerStatus}');
   }
 
   void _onUpdateTimerSettings(

@@ -116,13 +116,25 @@ class CircularTimerDisplay extends StatelessWidget {
 
     return BlocBuilder<ProClockBloc, ProClockState>(
       builder: (context, state) {
-        // Use activatedColor consistently for both modes
-        Color timerColor = settingsState.activatedColor;
+        // Force the phase to match the state every time we build
+        final bool isWorkPhase = state.isWorkPhase;
+        final bool isPomodoro = state.timerMode == TimerMode.pomodoro;
 
-        // Only change for rest phase in pomodoro mode
-        if (!state.isWorkPhase && state.timerMode == TimerMode.pomodoro) {
-          timerColor = theme.colorScheme.tertiary;
+        // Use color based on current mode and phase
+        Color timerColor = settingsState.activatedColor;
+        if (isPomodoro && !isWorkPhase) {
+          // Use red color for the rest phase
+          timerColor = Colors.red;
         }
+
+        // Get explicit phase text and icon based on mode and phase
+        final String phaseText =
+            isPomodoro ? (isWorkPhase ? 'WORK' : 'REST') : 'SCHEDULE';
+
+        final IconData phaseIcon =
+            isPomodoro
+                ? (isWorkPhase ? Icons.work : Icons.bedtime)
+                : Icons.calendar_today;
 
         // Text color based on theme mode
         final textColor =
@@ -132,11 +144,9 @@ class CircularTimerDisplay extends StatelessWidget {
         double progress = 0.0;
         int totalSeconds = 0;
 
-        if (state.timerMode == TimerMode.pomodoro) {
+        if (isPomodoro) {
           totalSeconds =
-              state.isWorkPhase
-                  ? state.workMinutes * 60
-                  : state.restMinutes * 60;
+              isWorkPhase ? state.workMinutes * 60 : state.restMinutes * 60;
         } else if (state.currentTask != null &&
             state.currentTask!.durationInMinutes > 0) {
           totalSeconds = state.currentTask!.durationInMinutes * 60;
@@ -191,13 +201,20 @@ class CircularTimerDisplay extends StatelessWidget {
                       color: timerColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      state.phaseDisplay,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: timerColor,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(phaseIcon, size: 16, color: timerColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          phaseText,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: timerColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -213,7 +230,7 @@ class CircularTimerDisplay extends StatelessWidget {
                   ),
 
                   // Pomodoro count (only in pomodoro mode)
-                  if (state.timerMode == TimerMode.pomodoro) ...[
+                  if (isPomodoro) ...[
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -261,6 +278,27 @@ class TimerControls extends StatelessWidget {
         final textColor =
             settingsState.theme == 'dark' ? Colors.white : Colors.black;
 
+        // Determine label for skip button based on mode and phase
+        final skipButtonLabel =
+            state.timerMode == TimerMode.pomodoro
+                ? state.isWorkPhase
+                    ? 'Rest'
+                    : 'Work'
+                : 'Skip';
+
+        final skipButtonIcon =
+            state.timerMode == TimerMode.pomodoro
+                ? state.isWorkPhase
+                    ? Icons.nights_stay
+                    : Icons.work_outline
+                : Icons.skip_next;
+
+        // Use red for rest phase skip button
+        final skipButtonColor =
+            (state.timerMode == TimerMode.pomodoro && !state.isWorkPhase)
+                ? Colors.red
+                : activatedColor;
+
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
@@ -294,9 +332,9 @@ class TimerControls extends StatelessWidget {
               const SizedBox(width: 32),
               _buildControlButton(
                 context,
-                Icons.skip_next,
-                'Skip',
-                activatedColor,
+                skipButtonIcon,
+                skipButtonLabel,
+                skipButtonColor,
                 () => context.read<ProClockBloc>().add(const CompletePhase()),
               ),
             ],
@@ -575,9 +613,39 @@ class TaskNavigation extends StatelessWidget {
   }
 }
 
-/// Pomodoro display for Pomodoro mode
-class PomodoroDisplay extends StatelessWidget {
-  const PomodoroDisplay({Key? key}) : super(key: key);
+/// Dedicated widget to show pomodoro information with proper work/rest phase display
+class PomodoroInfo extends StatelessWidget {
+  const PomodoroInfo({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProClockBloc, ProClockState>(
+      builder: (context, state) {
+        print('Building PomodoroInfo with isWorkPhase: ${state.isWorkPhase}');
+
+        // Always render both cards, but only show the one that matches the phase
+        // This ensures there's always a card visible during transitions
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            );
+          },
+          child:
+              state.isWorkPhase
+                  ? WorkPhaseCard(key: const ValueKey('work'))
+                  : RestPhaseCard(key: const ValueKey('rest')),
+        );
+      },
+    );
+  }
+}
+
+/// Work Phase Card - Always shows work phase information
+class WorkPhaseCard extends StatelessWidget {
+  const WorkPhaseCard({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -587,74 +655,62 @@ class PomodoroDisplay extends StatelessWidget {
     final textColor =
         settingsState.theme == 'dark' ? Colors.white : Colors.black;
 
-    return BlocBuilder<ProClockBloc, ProClockState>(
-      builder: (context, state) {
-        final isWorkPhase = state.isWorkPhase;
-        // Always use activatedColor for consistency
-        final phaseColor =
-            isWorkPhase ? activatedColor : theme.colorScheme.tertiary;
-
-        return Card(
-          elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: phaseColor.withOpacity(0.3), width: 2),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Current phase header with icon
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: phaseColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        isWorkPhase ? Icons.work : Icons.bedtime,
-                        color: phaseColor,
-                        size: 24,
-                      ),
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: activatedColor.withOpacity(0.5), width: 2),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Work phase header with icon
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: activatedColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.work, color: activatedColor, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    'WORK PHASE',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: activatedColor,
+                      letterSpacing: 1,
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      isWorkPhase ? 'Work Phase' : 'Rest Phase',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: phaseColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Phase description
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: phaseColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Column(
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Work duration
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: activatedColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: BlocBuilder<ProClockBloc, ProClockState>(
+                builder: (context, state) {
+                  return Column(
                     children: [
-                      Icon(
-                        isWorkPhase ? Icons.timer : Icons.nightlight_round,
-                        color: phaseColor,
-                        size: 36,
-                      ),
-                      const SizedBox(height: 8),
+                      Icon(Icons.timer, color: activatedColor, size: 36),
+                      const SizedBox(height: 12),
                       Text(
-                        isWorkPhase
-                            ? 'Focus on your task for ${state.workMinutes} minutes'
-                            : 'Take a break for ${state.restMinutes} minutes',
+                        'Focus on your task for ${state.workMinutes} minutes',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
@@ -662,16 +718,30 @@ class PomodoroDisplay extends StatelessWidget {
                           color: textColor,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Then take a ${state.restMinutes} minute break',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: textColor.withOpacity(0.7),
+                        ),
+                      ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
 
-                // Pomodoro count
-                Container(
+            // Pomodoro counter
+            BlocBuilder<ProClockBloc, ProClockState>(
+              builder: (context, state) {
+                return Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    vertical: 8,
+                    horizontal: 16,
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.secondary.withOpacity(0.15),
@@ -682,26 +752,160 @@ class PomodoroDisplay extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.check_circle,
-                        size: 16,
+                        size: 18,
                         color: theme.colorScheme.secondary,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text(
-                        'Completed Pomodoros: ${state.pomodoroCount}',
+                        'Pomodoros Completed: ${state.pomodoroCount}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Rest Phase Card - Always shows rest phase information
+class RestPhaseCard extends StatelessWidget {
+  const RestPhaseCard({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settingsState = main_app.settingsBloc.state;
+    // Use red color for rest phase
+    final restColor = Colors.red;
+    final textColor =
+        settingsState.theme == 'dark' ? Colors.white : Colors.black;
+
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: restColor.withOpacity(0.5), width: 2),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Rest phase header with icon
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: restColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bedtime, color: restColor, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    'REST PHASE',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: restColor,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Rest duration
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: restColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: BlocBuilder<ProClockBloc, ProClockState>(
+                builder: (context, state) {
+                  return Column(
+                    children: [
+                      Icon(Icons.nights_stay, color: restColor, size: 36),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Relax and recharge for ${state.restMinutes} minutes',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                           color: textColor,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Prepare for your next productive session.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: textColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Pomodoro counter
+            BlocBuilder<ProClockBloc, ProClockState>(
+              builder: (context, state) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        size: 18,
+                        color: theme.colorScheme.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Pomodoros Completed: ${state.pomodoroCount}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1079,8 +1283,8 @@ void showTimerSettings(BuildContext context) {
                   min: 1,
                   max: 30,
                   divisions: 29,
-                  activeColor: theme.colorScheme.tertiary,
-                  inactiveColor: theme.colorScheme.tertiary.withOpacity(0.3),
+                  activeColor: Colors.red,
+                  inactiveColor: Colors.red.withOpacity(0.3),
                   label: '$restMinutes min',
                   onChanged: (value) {
                     setState(() {

@@ -95,7 +95,8 @@ class ProClockScreen extends StatelessWidget {
                                 const TaskNavigation(),
                             ] else ...[
                               // Display pomodoro info for pomodoro mode
-                              const PomodoroDisplay(),
+                              // Explicitly handle work/rest phases with a dedicated widget
+                              const PomodoroInfo(),
                             ],
                           ],
                         ),
