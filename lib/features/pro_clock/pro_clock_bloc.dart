@@ -69,18 +69,29 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
   void _initializeTimer() {
     int durationInMinutes;
     if (state.timerMode == TimerMode.schedule && state.currentTask != null) {
-      // Calculate remaining time instead of total time for schedule mode
+      // Calculate time for schedule mode activities
       if (state.currentTask!.durationInMinutes > 0) {
         final now = DateTime.now();
 
-        // Convert end time string "HH:MM" to actual DateTime
+        // Convert start time and end time strings "HH:MM" to actual DateTime
+        final startTimeParts = state.currentTask!.startTime.split(':');
         final endTimeParts = state.currentTask!.endTime.split(':');
-        if (endTimeParts.length == 2) {
+
+        if (startTimeParts.length == 2 && endTimeParts.length == 2) {
           try {
+            final startHour = int.parse(startTimeParts[0]);
+            final startMinute = int.parse(startTimeParts[1]);
             final endHour = int.parse(endTimeParts[0]);
             final endMinute = int.parse(endTimeParts[1]);
 
-            // Create a DateTime for today with the end time
+            // Create DateTime objects for today with the activity times
+            final taskStartTime = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              startHour,
+              startMinute,
+            );
             final taskEndTime = DateTime(
               now.year,
               now.month,
@@ -89,26 +100,28 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
               endMinute,
             );
 
-            // If the end time is in the past for today, no time remains
-            if (taskEndTime.isBefore(now)) {
-              durationInMinutes = 1; // Set minimum duration
-            } else {
-              // Calculate minutes remaining until the end time
+            // Check if the activity is current (happening right now)
+            final isCurrentActivity =
+                now.isAfter(taskStartTime) && now.isBefore(taskEndTime);
+
+            if (isCurrentActivity) {
+              // Activity is happening now - show remaining time
               final remainingMinutes = taskEndTime.difference(now).inMinutes;
-
-              // Make sure we have at least 1 minute remaining
               durationInMinutes = remainingMinutes > 0 ? remainingMinutes : 1;
-
-              print(
-                'Task end time: $taskEndTime, Current time: $now, Minutes remaining: $durationInMinutes',
-              );
+              print('Current activity: ${state.currentTask!.currentTask}');
+              print('Time remaining: $durationInMinutes minutes');
+            } else {
+              // Activity is past or future - show full duration
+              durationInMinutes = state.currentTask!.durationInMinutes;
+              print('Non-current activity: ${state.currentTask!.currentTask}');
+              print('Full duration: $durationInMinutes minutes');
             }
           } catch (e) {
-            durationInMinutes = state.workMinutes;
-            print('Error parsing end time: $e');
+            durationInMinutes = state.currentTask!.durationInMinutes;
+            print('Error parsing activity times: $e');
           }
         } else {
-          durationInMinutes = state.workMinutes;
+          durationInMinutes = state.currentTask!.durationInMinutes;
         }
       } else {
         durationInMinutes = state.workMinutes; // Use the customizable duration
@@ -163,9 +176,8 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
         }
       }
 
-      // If no tasks found for selected date, try sample data
-      final tasksToUse =
-          tasks.isEmpty ? await _getSampleTasksIfNeeded(event.date) : tasks;
+      // Use the actual tasks from the database, don't use sample data
+      final tasksToUse = tasks;
 
       emit(
         state.copyWith(
@@ -185,21 +197,9 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
     }
   }
 
-  // Helper to get sample tasks if needed (for development only)
+  // Helper to get sample tasks if needed (not used anymore, kept for reference)
   Future<List<ProClockModel>> _getSampleTasksIfNeeded(DateTime date) async {
-    // Only show sample data for today or when debugging
-    final isToday =
-        date.year == DateTime.now().year &&
-        date.month == DateTime.now().month &&
-        date.day == DateTime.now().day;
-
-    // In a real app, you might check for a debug flag here
-    const bool isDebugging = true;
-
-    if (isToday || isDebugging) {
-      return await repository.getSampleTasks();
-    }
-
+    // We no longer use sample data
     return [];
   }
 
@@ -226,10 +226,9 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
       }
       _scheduleTimerStatus = TimerStatus.running;
     } else {
-      // Pomodoro mode
-      if (_pomodoroRemainingSeconds == 0) {
-        _initializeTimer();
-      }
+      // Pomodoro mode - always reinitialize to ensure current settings are used
+      // This ensures the timer uses the most recent settings
+      _initializeTimer();
       _pomodoroTimerStatus = TimerStatus.running;
     }
 
@@ -443,6 +442,7 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
     UpdateTimerSettings event,
     Emitter<ProClockState> emit,
   ) {
+    // Update state with new timer settings
     emit(
       state.copyWith(
         workMinutes: event.workMinutes,
@@ -450,10 +450,27 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
       ),
     );
 
-    // If in pomodoro mode and timer is idle, initialize with new settings
-    if (state.timerMode == TimerMode.pomodoro &&
-        _pomodoroTimerStatus == TimerStatus.idle) {
+    // Print debug info to verify settings are updated
+    print('TIMER SETTINGS UPDATED:');
+    print('- Work minutes: ${event.workMinutes}');
+    print('- Rest minutes: ${event.restMinutes}');
+
+    // Always reset the timer when settings change
+    if (state.timerMode == TimerMode.pomodoro) {
+      // Reset pomodoro timer to ensure it uses the new settings
+      _pomodoroRemainingSeconds = 0;
+      _pomodoroTimerStatus = TimerStatus.idle;
+
+      // Reinitialize timer with new settings
       _initializeTimer();
+
+      // Update the UI to reflect the new timer values
+      emit(
+        state.copyWith(
+          timerStatus: TimerStatus.idle,
+          remainingSeconds: _pomodoroRemainingSeconds,
+        ),
+      );
     }
   }
 

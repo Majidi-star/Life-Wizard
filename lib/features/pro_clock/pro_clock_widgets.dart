@@ -7,6 +7,7 @@ import 'pro_clock_event.dart';
 import 'pro_clock_state.dart';
 import 'pro_clock_model.dart';
 import '../../main.dart' as main_app;
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 
 /// Widget for selecting between Schedule and Pomodoro mode
 class TimerModeSelector extends StatelessWidget {
@@ -129,7 +130,7 @@ class CircularTimerDisplay extends StatelessWidget {
 
         // Get explicit phase text and icon based on mode and phase
         final String phaseText =
-            isPomodoro ? (isWorkPhase ? 'WORK' : 'REST') : 'SCHEDULE';
+            isPomodoro ? (isWorkPhase ? 'WORK' : 'REST') : '';
 
         final IconData phaseIcon =
             isPomodoro
@@ -191,33 +192,35 @@ class CircularTimerDisplay extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Phase label (Schedule/Work/Rest)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: timerColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(phaseIcon, size: 16, color: timerColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          phaseText,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: timerColor,
+                  // Phase label (Work/Rest) - Only show in Pomodoro mode
+                  if (isPomodoro) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: timerColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(phaseIcon, size: 16, color: timerColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            phaseText,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: timerColor,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Timer display (MM:SS)
                   Text(
@@ -382,8 +385,57 @@ class TaskDisplay extends StatelessWidget {
 
     return BlocBuilder<ProClockBloc, ProClockState>(
       builder: (context, state) {
+        // No tasks at all for the selected date
+        if (state.tasks.isEmpty) {
+          return Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: activatedColor.withOpacity(0.3)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.calendar_month_outlined,
+                    size: 48,
+                    color: activatedColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No activities scheduled for ${_formatDate(state.selectedDate)}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: textColor),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select another date or add activities from the Schedule screen',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    icon: Icon(Icons.calendar_today, color: activatedColor),
+                    label: Text(
+                      'Select another date',
+                      style: TextStyle(color: activatedColor),
+                    ),
+                    onPressed: () => selectDate(context),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         final task = state.currentTask;
 
+        // Has tasks but current task is null
         if (task == null) {
           return Center(
             child: Container(
@@ -399,10 +451,18 @@ class TaskDisplay extends StatelessWidget {
                   Icon(Icons.event_busy, size: 48, color: activatedColor),
                   const SizedBox(height: 16),
                   Text(
-                    'No tasks available for this time',
+                    'No current activity for this time',
                     style: TextStyle(fontSize: 16, color: textColor),
                   ),
                   const SizedBox(height: 8),
+                  Text(
+                    'There are ${state.tasks.length} activities on this date',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TextButton.icon(
                     icon: Icon(Icons.calendar_today, color: activatedColor),
                     label: Text(
@@ -1125,247 +1185,385 @@ void _showTaskDetails(BuildContext context, ProClockModel task) {
 
 /// Shows timer settings in a modal bottom sheet
 void showTimerSettings(BuildContext context) {
-  final theme = Theme.of(context);
-  final settingsState = main_app.settingsBloc.state;
-  final state = context.read<ProClockBloc>().state;
-  final textColor = settingsState.theme == 'dark' ? Colors.white : Colors.black;
-
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: theme.colorScheme.surface,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          int workMinutes = state.workMinutes;
-          int restMinutes = state.restMinutes;
-
-          // Common pomodoro ratios
-          final Map<String, List<int>> presetRatios = {
-            '25:5 (Standard)': [25, 5],
-            '50:10 (Extended)': [50, 10],
-            '45:15 (Balanced)': [45, 15],
-            '20:10 (Short)': [20, 10],
-            '30:5 (Intense)': [30, 5],
-          };
-
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Timer Settings',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: settingsState.activatedColor,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: textColor),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Preset ratios
-                Text(
-                  'Preset Ratios',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Preset ratio chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children:
-                      presetRatios.entries.map((entry) {
-                        final bool isSelected =
-                            workMinutes == entry.value[0] &&
-                            restMinutes == entry.value[1];
-                        return FilterChip(
-                          selected: isSelected,
-                          label: Text(entry.key),
-                          selectedColor: settingsState.activatedColor
-                              .withOpacity(0.2),
-                          checkmarkColor: settingsState.activatedColor,
-                          labelStyle: TextStyle(
-                            color:
-                                isSelected
-                                    ? settingsState.activatedColor
-                                    : textColor,
-                            fontWeight:
-                                isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                          ),
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                workMinutes = entry.value[0];
-                                restMinutes = entry.value[1];
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
-                ),
-
-                const SizedBox(height: 24),
-                const Divider(),
-                const SizedBox(height: 16),
-
-                // Custom settings
-                Text(
-                  'Custom Settings',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Work duration slider
-                Text(
-                  'Work Duration: $workMinutes minutes',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Slider(
-                  value: workMinutes.toDouble(),
-                  min: 1,
-                  max: 60,
-                  divisions: 59,
-                  activeColor: settingsState.activatedColor,
-                  inactiveColor: settingsState.activatedColor.withOpacity(0.3),
-                  label: '$workMinutes min',
-                  onChanged: (value) {
-                    setState(() {
-                      workMinutes = value.round();
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Rest duration slider
-                Text(
-                  'Rest Duration: $restMinutes minutes',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Slider(
-                  value: restMinutes.toDouble(),
-                  min: 1,
-                  max: 30,
-                  divisions: 29,
-                  activeColor: Colors.red,
-                  inactiveColor: Colors.red.withOpacity(0.3),
-                  label: '$restMinutes min',
-                  onChanged: (value) {
-                    setState(() {
-                      restMinutes = value.round();
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 24),
-
-                // Current ratio display
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.background,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: settingsState.activatedColor.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Text(
-                    'Current Ratio: $workMinutes:$restMinutes',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: settingsState.activatedColor,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Save button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: settingsState.activatedColor,
-                    foregroundColor:
-                        settingsState.theme == 'dark'
-                            ? Colors.white
-                            : Colors.black,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    context.read<ProClockBloc>().add(
-                      UpdateTimerSettings(
-                        workMinutes: workMinutes,
-                        restMinutes: restMinutes,
-                      ),
-                    );
-                    Navigator.pop(context);
-                  },
-                  child: const Text(
-                    'Save Settings',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
+    builder: (context) => const TimerSettingsSheet(),
   );
+}
+
+/// Dedicated StatefulWidget for timer settings to ensure proper state management
+class TimerSettingsSheet extends StatefulWidget {
+  const TimerSettingsSheet({Key? key}) : super(key: key);
+
+  @override
+  State<TimerSettingsSheet> createState() => _TimerSettingsSheetState();
+}
+
+class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
+  late int workMinutes;
+  late int restMinutes;
+  String? selectedPreset;
+
+  @override
+  void initState() {
+    super.initState();
+    // Get initial values from the bloc
+    final state = context.read<ProClockBloc>().state;
+    workMinutes = state.workMinutes;
+    restMinutes = state.restMinutes;
+
+    // Determine if current values match a preset
+    _checkForMatchingPreset();
+  }
+
+  // Map of preset timer ratios
+  final Map<String, List<int>> presetRatios = {
+    '25:5 (Standard)': [25, 5],
+    '50:10 (Extended)': [50, 10],
+    '45:15 (Balanced)': [45, 15],
+    '20:10 (Short)': [20, 10],
+    '30:5 (Intense)': [30, 5],
+  };
+
+  // Check if current values match a preset and set selectedPreset accordingly
+  void _checkForMatchingPreset() {
+    for (final entry in presetRatios.entries) {
+      if (workMinutes == entry.value[0] && restMinutes == entry.value[1]) {
+        selectedPreset = entry.key;
+        return;
+      }
+    }
+    selectedPreset = null; // No matching preset
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settingsState = main_app.settingsBloc.state;
+    final textColor =
+        settingsState.theme == 'dark' ? Colors.white : Colors.black;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Timer Settings',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: settingsState.activatedColor,
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, color: textColor),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Preset ratios
+          Text(
+            'Preset Ratios',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Preset ratio chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                presetRatios.entries.map((entry) {
+                  final bool isSelected = selectedPreset == entry.key;
+                  return FilterChip(
+                    selected: isSelected,
+                    label: Text(entry.key),
+                    selectedColor: settingsState.activatedColor.withOpacity(
+                      0.2,
+                    ),
+                    checkmarkColor: settingsState.activatedColor,
+                    labelStyle: TextStyle(
+                      color:
+                          isSelected ? settingsState.activatedColor : textColor,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          workMinutes = entry.value[0];
+                          restMinutes = entry.value[1];
+                          selectedPreset = entry.key;
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+          ),
+
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+
+          // Custom settings
+          Text(
+            'Custom Settings',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Work duration slider
+          Text(
+            'Work Duration: $workMinutes minutes',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Slider(
+            value: workMinutes.toDouble(),
+            min: 1,
+            max: 60,
+            divisions: 59,
+            activeColor: settingsState.activatedColor,
+            inactiveColor: settingsState.activatedColor.withOpacity(0.3),
+            label: '$workMinutes min',
+            onChanged: (value) {
+              setState(() {
+                workMinutes = value.round();
+                _checkForMatchingPreset(); // Check if new values match a preset
+              });
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // Rest duration slider
+          Text(
+            'Rest Duration: $restMinutes minutes',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Slider(
+            value: restMinutes.toDouble(),
+            min: 1,
+            max: 30,
+            divisions: 29,
+            activeColor: Colors.red,
+            inactiveColor: Colors.red.withOpacity(0.3),
+            label: '$restMinutes min',
+            onChanged: (value) {
+              setState(() {
+                restMinutes = value.round();
+                _checkForMatchingPreset(); // Check if new values match a preset
+              });
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          // Current ratio display
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: settingsState.activatedColor.withOpacity(0.3),
+              ),
+            ),
+            child: Text(
+              'Current Ratio: $workMinutes:$restMinutes',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: settingsState.activatedColor,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Save button
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: settingsState.activatedColor,
+              foregroundColor:
+                  settingsState.theme == 'dark' ? Colors.white : Colors.black,
+              minimumSize: const Size.fromHeight(50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              context.read<ProClockBloc>().add(
+                UpdateTimerSettings(
+                  workMinutes: workMinutes,
+                  restMinutes: restMinutes,
+                ),
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Save Settings', style: TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Date selection dialog
 Future<void> selectDate(BuildContext context) async {
   final state = context.read<ProClockBloc>().state;
-  final DateTime? picked = await showDatePicker(
-    context: context,
-    initialDate: state.selectedDate,
-    firstDate: DateTime(2020),
-    lastDate: DateTime(2025),
-  );
+  final settingsState = main_app.settingsBloc.state;
+  final textColor = settingsState.theme == 'dark' ? Colors.white : Colors.black;
 
-  if (picked != null && picked != state.selectedDate) {
-    context.read<ProClockBloc>().add(ChangeDate(date: picked));
-  }
+  // Use the same date picker as in schedule screen
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with title and close button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Select Date',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: settingsState.activatedColor,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: textColor),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Date picker
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(
+                    color: settingsState.activatedColor,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SfDateRangePicker(
+                    view: DateRangePickerView.month,
+                    selectionMode: DateRangePickerSelectionMode.single,
+                    monthViewSettings: DateRangePickerMonthViewSettings(
+                      firstDayOfWeek: 1,
+                      dayFormat: 'EEE',
+                      viewHeaderStyle: DateRangePickerViewHeaderStyle(
+                        textStyle: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: settingsState.activatedColor,
+                        ),
+                      ),
+                    ),
+                    monthCellStyle: DateRangePickerMonthCellStyle(
+                      todayTextStyle: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      todayCellDecoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    selectionColor: settingsState.activatedColor,
+                    selectionTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    headerStyle: DateRangePickerHeaderStyle(
+                      textStyle: TextStyle(
+                        color: settingsState.activatedColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onSelectionChanged: (args) {
+                      if (args.value is DateTime) {
+                        final selectedDate = args.value as DateTime;
+                        context.read<ProClockBloc>().add(
+                          ChangeDate(date: selectedDate),
+                        );
+                        // Close the popup immediately after selection
+                        Navigator.of(dialogContext).pop();
+                      }
+                    },
+                    initialSelectedDate: state.selectedDate,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+// Helper method to format the date in a readable way
+String _formatDate(DateTime date) {
+  final months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
