@@ -8,8 +8,30 @@ import 'pro_clock_event.dart';
 import 'pro_clock_state.dart';
 import 'pro_clock_widgets.dart';
 
-class ProClockScreen extends StatelessWidget {
+class ProClockScreen extends StatefulWidget {
   const ProClockScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ProClockScreen> createState() => _ProClockScreenState();
+}
+
+class _ProClockScreenState extends State<ProClockScreen> {
+  bool _isInitialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Reload tasks whenever the screen is displayed
+    final bloc = context.read<ProClockBloc>();
+    if (!_isInitialized) {
+      _isInitialized = true;
+    } else {
+      // This will be called when returning to this screen
+      // Reload today's tasks to get any updates
+      bloc.add(LoadTasks(date: bloc.state.selectedDate));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -69,9 +69,47 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
   void _initializeTimer() {
     int durationInMinutes;
     if (state.timerMode == TimerMode.schedule && state.currentTask != null) {
-      // Calculate duration based on schedule - use the task's actual duration if available
+      // Calculate remaining time instead of total time for schedule mode
       if (state.currentTask!.durationInMinutes > 0) {
-        durationInMinutes = state.currentTask!.durationInMinutes;
+        final now = DateTime.now();
+
+        // Convert end time string "HH:MM" to actual DateTime
+        final endTimeParts = state.currentTask!.endTime.split(':');
+        if (endTimeParts.length == 2) {
+          try {
+            final endHour = int.parse(endTimeParts[0]);
+            final endMinute = int.parse(endTimeParts[1]);
+
+            // Create a DateTime for today with the end time
+            final taskEndTime = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              endHour,
+              endMinute,
+            );
+
+            // If the end time is in the past for today, no time remains
+            if (taskEndTime.isBefore(now)) {
+              durationInMinutes = 1; // Set minimum duration
+            } else {
+              // Calculate minutes remaining until the end time
+              final remainingMinutes = taskEndTime.difference(now).inMinutes;
+
+              // Make sure we have at least 1 minute remaining
+              durationInMinutes = remainingMinutes > 0 ? remainingMinutes : 1;
+
+              print(
+                'Task end time: $taskEndTime, Current time: $now, Minutes remaining: $durationInMinutes',
+              );
+            }
+          } catch (e) {
+            durationInMinutes = state.workMinutes;
+            print('Error parsing end time: $e');
+          }
+        } else {
+          durationInMinutes = state.workMinutes;
+        }
       } else {
         durationInMinutes = state.workMinutes; // Use the customizable duration
       }
@@ -362,6 +400,11 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
 
     // Debug verification
     _debugVerifyPhaseState();
+
+    // If switching to schedule mode, re-initialize timer to get accurate remaining time
+    if (isScheduleMode) {
+      _initializeTimer();
+    }
 
     // Switch to the target mode while maintaining its own state
     emit(
