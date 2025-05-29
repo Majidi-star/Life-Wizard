@@ -5,7 +5,6 @@ import 'features/settings/settings_bloc.dart';
 import 'features/settings/settings_event.dart';
 import 'features/settings/settings_state.dart';
 import 'features/ai_chat/ai_chat_screen.dart';
-import 'features/ai_chat/ai_chat_bloc.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/todo/todo_screen.dart';
 import 'features/goals/goals_screen.dart';
@@ -49,8 +48,6 @@ late HabitsBloc habitsBloc;
 late GoalsBloc goalsBloc;
 // Global singleton for ProClockBloc to ensure single source of truth
 late ProClockBloc proClockBloc;
-// Global singleton for AIChatBloc to ensure single source of truth
-late AIChatBloc aiChatBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,9 +74,6 @@ void main() async {
 
   // Create a single ProClockBloc instance that will be used throughout the app
   proClockBloc = ProClockBloc();
-
-  // Create a single AIChatBloc instance that will be used throughout the app
-  aiChatBloc = AIChatBloc();
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -120,7 +114,6 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
         BlocProvider<ScheduleBloc>(create: (context) => ScheduleBloc()),
         BlocProvider.value(value: proClockBloc),
-        BlocProvider.value(value: aiChatBloc),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
