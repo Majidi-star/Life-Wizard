@@ -47,7 +47,8 @@ class DatabaseInitializer {
         notifications BOOLEAN NOT NULL,
         moodTracking BOOLEAN NOT NULL,
         feedbackFrequency INTEGER NOT NULL,
-        AIGuideLines TEXT NOT NULL
+        AIGuideLines TEXT NOT NULL,
+        geminiApiKey TEXT
       )
     ''');
 
@@ -59,6 +60,7 @@ class DatabaseInitializer {
       'moodTracking': 1,
       'feedbackFrequency': 7,
       'AIGuideLines': '',
+      'geminiApiKey': '',
     });
 
     // Todo table

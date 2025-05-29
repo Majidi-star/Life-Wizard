@@ -8,6 +8,7 @@ class SettingsModel {
   final bool moodTrackingOn;
   final int feedbackFrequency;
   final String AIGuidelines;
+  final String geminiApiKey;
 
   SettingsModel({
     required this.isDarkMode,
@@ -16,5 +17,6 @@ class SettingsModel {
     required this.moodTrackingOn,
     required this.feedbackFrequency,
     required this.AIGuidelines,
+    this.geminiApiKey = '',
   });
 }

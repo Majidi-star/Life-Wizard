@@ -8,6 +8,7 @@ class SettingsState extends Equatable {
   final bool moodTracking;
   final int feedbackFrequency;
   final String aiGuideLines;
+  final String geminiApiKey;
 
   const SettingsState({
     required this.theme,
@@ -16,6 +17,7 @@ class SettingsState extends Equatable {
     required this.moodTracking,
     required this.feedbackFrequency,
     required this.aiGuideLines,
+    this.geminiApiKey = '',
   });
 
   // Get theme-based colors
@@ -68,6 +70,7 @@ class SettingsState extends Equatable {
     bool? moodTracking,
     int? feedbackFrequency,
     String? aiGuideLines,
+    String? geminiApiKey,
   }) {
     return SettingsState(
       theme: theme ?? this.theme,
@@ -76,6 +79,7 @@ class SettingsState extends Equatable {
       moodTracking: moodTracking ?? this.moodTracking,
       feedbackFrequency: feedbackFrequency ?? this.feedbackFrequency,
       aiGuideLines: aiGuideLines ?? this.aiGuideLines,
+      geminiApiKey: geminiApiKey ?? this.geminiApiKey,
     );
   }
 
@@ -87,5 +91,6 @@ class SettingsState extends Equatable {
     moodTracking,
     feedbackFrequency,
     aiGuideLines,
+    geminiApiKey,
   ];
 }

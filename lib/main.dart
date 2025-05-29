@@ -260,6 +260,9 @@ Future<void> printFeatureState(String feature) async {
       print('Mood Tracking: ${state.moodTracking}');
       print('Feedback Frequency: ${state.feedbackFrequency}');
       print('AI Guidelines: ${state.aiGuideLines}');
+      print(
+        'Gemini API Key: ${state.geminiApiKey.isEmpty ? "(Not set)" : "********"}',
+      );
       print('Calculated Colors:');
       print('  primaryColor: ${state.primaryColor}');
       print('  secondaryColor: ${state.secondaryColor}');

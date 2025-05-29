@@ -21,6 +21,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           moodTracking: _preferences.getBool('moodTracking') ?? true,
           feedbackFrequency: _preferences.getInt('feedbackFrequency') ?? 7,
           aiGuideLines: _preferences.getString('aiGuideLines') ?? 'default',
+          geminiApiKey: _preferences.getString('geminiApiKey') ?? '',
         ),
       ) {
     _initRepository();
@@ -31,6 +32,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateMoodTracking>(_onUpdateMoodTracking);
     on<UpdateFeedbackFrequency>(_onUpdateFeedbackFrequency);
     on<UpdateAiGuideLines>(_onUpdateAiGuideLines);
+    on<UpdateGeminiApiKey>(_onUpdateGeminiApiKey);
     on<LoadSettingsFromDatabase>(_onLoadSettingsFromDatabase);
     on<SyncSettingsWithDatabase>(_onSyncSettingsWithDatabase);
   }
@@ -75,6 +77,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           settingsModel.feedbackFrequency,
         );
         _preferences.setString('aiGuideLines', settingsModel.AIGuidelines);
+        _preferences.setString('geminiApiKey', settingsModel.geminiApiKey);
 
         // Emit new state
         emit(
@@ -85,6 +88,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
             moodTracking: settingsModel.moodTrackingOn,
             feedbackFrequency: settingsModel.feedbackFrequency,
             aiGuideLines: settingsModel.AIGuidelines,
+            geminiApiKey: settingsModel.geminiApiKey,
           ),
         );
       }
@@ -138,6 +142,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         moodTracking: state.moodTracking,
         feedbackFrequency: state.feedbackFrequency,
         aiGuidelines: state.aiGuideLines,
+        geminiApiKey: state.geminiApiKey,
       );
 
       if (_settingsId == null) {
@@ -163,6 +168,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         moodTracking: _preferences.getBool('moodTracking') ?? true,
         feedbackFrequency: _preferences.getInt('feedbackFrequency') ?? 7,
         aiGuideLines: _preferences.getString('aiGuideLines') ?? 'default',
+        geminiApiKey: _preferences.getString('geminiApiKey') ?? '',
       ),
     );
   }
@@ -222,6 +228,15 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     _preferences.setString('aiGuideLines', event.aiGuideLines);
     emit(state.copyWith(aiGuideLines: event.aiGuideLines));
+    add(SyncSettingsWithDatabase());
+  }
+
+  Future<void> _onUpdateGeminiApiKey(
+    UpdateGeminiApiKey event,
+    Emitter<SettingsState> emit,
+  ) async {
+    _preferences.setString('geminiApiKey', event.geminiApiKey);
+    emit(state.copyWith(geminiApiKey: event.geminiApiKey));
     add(SyncSettingsWithDatabase());
   }
 }

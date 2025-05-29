@@ -32,6 +32,8 @@ class SettingsScreen extends StatelessWidget {
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
               SettingsWidgets.buildAiGuidelinesSection(context, state),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              SettingsWidgets.buildGeminiApiKeySection(context, state),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
               // Debug section
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),

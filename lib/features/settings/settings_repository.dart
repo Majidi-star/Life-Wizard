@@ -10,6 +10,7 @@ class Settings {
   final bool moodTracking;
   final int feedbackFrequency;
   final String? aiGuidelines;
+  final String? geminiApiKey;
 
   Settings({
     this.id,
@@ -19,6 +20,7 @@ class Settings {
     required this.moodTracking,
     required this.feedbackFrequency,
     this.aiGuidelines,
+    this.geminiApiKey,
   });
 
   Map<String, dynamic> toMap() {
@@ -30,6 +32,7 @@ class Settings {
       'moodTracking': moodTracking ? 1 : 0,
       'feedbackFrequency': feedbackFrequency,
       'AIGuideLines': aiGuidelines,
+      'geminiApiKey': geminiApiKey,
     };
   }
 
@@ -42,6 +45,7 @@ class Settings {
       moodTracking: map['moodTracking'] == 1,
       feedbackFrequency: map['feedbackFrequency'],
       aiGuidelines: map['AIGuideLines'],
+      geminiApiKey: map['geminiApiKey'],
     );
   }
 }
@@ -103,6 +107,7 @@ class SettingsRepository {
       moodTrackingOn: settings.moodTracking,
       feedbackFrequency: settings.feedbackFrequency,
       AIGuidelines: settings.aiGuidelines ?? '',
+      geminiApiKey: settings.geminiApiKey ?? '',
     );
   }
 
@@ -115,6 +120,9 @@ class SettingsRepository {
     print('Mood Tracking: ${model.moodTrackingOn}');
     print('Feedback Frequency: ${model.feedbackFrequency}');
     print('AI Guidelines: ${model.AIGuidelines}');
+    print(
+      'Gemini API Key: ${model.geminiApiKey.isEmpty ? "(Not set)" : "********"}',
+    );
     print('=== End of Settings Model Structure ===\n');
   }
 }
@@ -132,6 +140,7 @@ Future<void> testSettingsRepository() async {
     moodTracking: true,
     feedbackFrequency: 7,
     aiGuidelines: 'Be helpful and friendly',
+    geminiApiKey: 'key1',
   );
 
   // Create second test settings
@@ -142,6 +151,7 @@ Future<void> testSettingsRepository() async {
     moodTracking: true,
     feedbackFrequency: 14,
     aiGuidelines: 'Be concise and professional',
+    geminiApiKey: 'key2',
   );
 
   // Test insert both entries

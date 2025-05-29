@@ -68,3 +68,12 @@ class UpdateAiGuideLines extends SettingsEvent {
   @override
   List<Object> get props => [aiGuideLines];
 }
+
+class UpdateGeminiApiKey extends SettingsEvent {
+  final String geminiApiKey;
+
+  const UpdateGeminiApiKey(this.geminiApiKey);
+
+  @override
+  List<Object> get props => [geminiApiKey];
+}
