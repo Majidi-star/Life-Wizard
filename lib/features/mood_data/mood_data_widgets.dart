@@ -44,44 +44,14 @@ class MoodDataWidgets {
                 );
               })
             else if (question.type == QuestionType.textInput)
-              _buildTextInput(context, question.id, response, settingsState),
+              MoodTextInput(
+                questionId: question.id,
+                initialValue: response ?? '',
+                settingsState: settingsState,
+              ),
           ],
         ),
       ),
-    );
-  }
-
-  static Widget _buildTextInput(
-    BuildContext context,
-    String questionId,
-    String? currentValue,
-    SettingsState settingsState,
-  ) {
-    final controller = TextEditingController(text: currentValue ?? '');
-
-    return TextField(
-      controller: controller,
-      maxLines: 2,
-      decoration: InputDecoration(
-        hintText: 'Enter your answer here',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: settingsState.fourthlyColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: settingsState.secondaryColor, width: 2),
-        ),
-      ),
-      onChanged: (value) {
-        context.read<MoodDataBloc>().add(
-          UpdateMoodResponse(
-            questionId: questionId,
-            response: value,
-            questionType: QuestionType.textInput,
-          ),
-        );
-      },
     );
   }
 
@@ -140,6 +110,93 @@ class MoodDataWidgets {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: const Text('Debug Mood Data State'),
+    );
+  }
+}
+
+// Dedicated stateful widget for text input to properly handle cursor position
+class MoodTextInput extends StatefulWidget {
+  final String questionId;
+  final String initialValue;
+  final SettingsState settingsState;
+
+  const MoodTextInput({
+    Key? key,
+    required this.questionId,
+    required this.initialValue,
+    required this.settingsState,
+  }) : super(key: key);
+
+  @override
+  State<MoodTextInput> createState() => _MoodTextInputState();
+}
+
+class _MoodTextInputState extends State<MoodTextInput> {
+  late TextEditingController _controller;
+  late String _lastKnownValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastKnownValue = widget.initialValue;
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(MoodTextInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only update the text if it's coming from outside and is different
+    // This prevents cursor position issues when typing
+    if (widget.initialValue != _lastKnownValue &&
+        widget.initialValue != _controller.text) {
+      final cursorPosition = _controller.selection.extentOffset;
+      _controller.text = widget.initialValue;
+
+      // Try to restore cursor position if possible
+      if (cursorPosition >= 0 && cursorPosition <= _controller.text.length) {
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: cursorPosition),
+        );
+      }
+      _lastKnownValue = widget.initialValue;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      maxLines: 2,
+      decoration: InputDecoration(
+        hintText: 'Enter your answer here',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: widget.settingsState.fourthlyColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: widget.settingsState.secondaryColor,
+            width: 2,
+          ),
+        ),
+      ),
+      onChanged: (value) {
+        _lastKnownValue = value; // Update our tracking of the value
+        context.read<MoodDataBloc>().add(
+          UpdateMoodResponse(
+            questionId: widget.questionId,
+            response: value,
+            questionType: QuestionType.textInput,
+          ),
+        );
+      },
     );
   }
 }
