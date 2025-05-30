@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:flutter/material.dart';
 import '../settings/settings_bloc.dart';
+import '../ai_prompting/sys_prompt.dart';
 import '../../main.dart' as app_main;
 
 class GeminiChatService {
@@ -16,11 +17,18 @@ class GeminiChatService {
   Gemini? _gemini;
   List<Map<String, String>> _history = [];
 
+  /// Debug mode - when true, print detailed information about requests and responses
+  final bool debugMode;
+
   // Previous messages to provide context
   String _contextPrompt = '';
-  int _maxContextLength = 2000; // Character limit for context
+  int _maxContextLength = 20000; // Character limit for context
 
-  GeminiChatService(this.apiKey, {this.model = 'gemini-pro'}) {
+  GeminiChatService(
+    this.apiKey, {
+    this.model = 'gemini-pro',
+    this.debugMode = true, // Default to true for debugging
+  }) {
     if (apiKey.isNotEmpty) {
       _initialize();
     }
@@ -29,7 +37,7 @@ class GeminiChatService {
   Future<void> _initialize() async {
     try {
       // Keep using Gemini package only for model listing
-      Gemini.init(apiKey: apiKey, enableDebugging: true);
+      Gemini.init(apiKey: apiKey, enableDebugging: debugMode);
 
       // We don't need _gemini instance for chat anymore, only for listing models
       _gemini = Gemini.instance;
@@ -37,14 +45,41 @@ class GeminiChatService {
       // Check connectivity by making a test request
       final isConnected = await _checkConnectivity();
       if (!isConnected) {
-        debugPrint('Connectivity check failed during initialization');
+        if (debugMode) {
+          debugPrint('========== INITIALIZATION ERROR ==========');
+          debugPrint('Connectivity check failed during initialization');
+          debugPrint('==========================================');
+        } else {
+          debugPrint('Connectivity check failed during initialization');
+        }
         throw Exception('Network connectivity issue');
       }
 
       _isInitialized = true;
-      debugPrint('Gemini service initialized successfully with model: $model');
+      if (debugMode) {
+        debugPrint('========== INITIALIZATION SUCCESS ==========');
+        debugPrint(
+          'Gemini service initialized successfully with model: $model',
+        );
+        debugPrint(
+          'API Key: ${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}',
+        );
+        debugPrint('===========================================');
+      } else {
+        debugPrint(
+          'Gemini service initialized successfully with model: $model',
+        );
+      }
     } catch (e) {
-      debugPrint('Error initializing Gemini service: $e');
+      if (debugMode) {
+        debugPrint('========== INITIALIZATION ERROR ==========');
+        debugPrint('Error initializing Gemini service: $e');
+        debugPrint('Retry count: $_retryCount / $_maxRetries');
+        debugPrint('==========================================');
+      } else {
+        debugPrint('Error initializing Gemini service: $e');
+      }
+
       if (_retryCount < _maxRetries) {
         _retryCount++;
         debugPrint('Retrying initialization (${_retryCount}/${_maxRetries})');
@@ -227,6 +262,10 @@ class GeminiChatService {
 
   Future<String?> _attemptSendMessage(String message) async {
     try {
+      // Format the message with <user_request> tags
+      final String formattedUserMessage =
+          '<user_request>$message</user_request>';
+
       // Add user message to history
       _history.add({'role': 'user', 'message': message});
 
@@ -250,13 +289,33 @@ class GeminiChatService {
       // Format conversation history for the API
       List<Map<String, dynamic>> contents = [];
 
-      // If we have history, format it as a conversation
-      if (_history.length > 1) {
+      // If no history, just send the current message with system prompt
+      if (_history.length <= 1) {
+        contents = [
+          {
+            'role': 'user',
+            'parts': [
+              {'text': formattedUserMessage},
+            ],
+          },
+        ];
+
+        // Add system prompt after user message
+        if (SystemPrompt.prompt.isNotEmpty) {
+          contents.add({
+            'role': 'user',
+            'parts': [
+              {'text': '<system_prompt>${SystemPrompt.prompt}</system_prompt>'},
+            ],
+          });
+        }
+      } else {
         // Create a single content object with multiple message parts
         Map<String, dynamic> contentObj = {'role': 'user', 'parts': []};
 
         // Add all history messages as parts
-        for (int i = 0; i < _history.length; i++) {
+        for (int i = 0; i < _history.length - 1; i++) {
+          // Skip the last message (current one)
           final entry = _history[i];
           final role = entry['role'] == 'user' ? 'user' : 'model';
           final text = entry['message'] ?? '';
@@ -272,28 +331,43 @@ class GeminiChatService {
             }
           }
 
-          // Add this message as a part
+          // Add this message as a part (normal formatting for history)
           contentObj['parts'].add({'text': text});
         }
 
-        // Add the final content object
+        // Add the final history content object
         contents.add(contentObj);
-      } else {
-        // Just use the single message if no history
-        contents = [
-          {
+
+        // Now add the current message with <user_request> tags
+        contents.add({
+          'role': 'user',
+          'parts': [
+            {'text': formattedUserMessage},
+          ],
+        });
+
+        // Add system prompt after the user message
+        if (SystemPrompt.prompt.isNotEmpty) {
+          contents.add({
             'role': 'user',
             'parts': [
-              {'text': message},
+              {'text': '<system_prompt>${SystemPrompt.prompt}</system_prompt>'},
             ],
-          },
-        ];
+          });
+        }
       }
 
       // Create the request body
       final requestBody = {'contents': contents};
+      final bodys = jsonEncode(requestBody);
 
-      debugPrint('Sending request to model: $modelName');
+      if (debugMode) {
+        debugPrint('========== DEBUG INFO ==========');
+        debugPrint('Sending request to model: $modelName');
+        debugPrint('The header: $headers');
+        debugPrint('The body: $bodys');
+        debugPrint('================================');
+      }
 
       final response = await http.post(
         url,
@@ -309,12 +383,28 @@ class GeminiChatService {
         // Add response to history
         _history.add({'role': 'model', 'message': generatedText});
 
+        if (debugMode) {
+          debugPrint('========== RESPONSE ==========');
+          debugPrint('Response status: ${response.statusCode}');
+          debugPrint('Generated text: $generatedText');
+          debugPrint('==============================');
+        }
+
         return generatedText;
       } else {
-        debugPrint(
-          'API request failed with status code: ${response.statusCode}',
-        );
-        debugPrint('Response body: ${response.body}');
+        if (debugMode) {
+          debugPrint('========== ERROR RESPONSE ==========');
+          debugPrint(
+            'API request failed with status code: ${response.statusCode}',
+          );
+          debugPrint('Response body: ${response.body}');
+          debugPrint('====================================');
+        } else {
+          debugPrint(
+            'API request failed with status code: ${response.statusCode}',
+          );
+          debugPrint('Response body: ${response.body}');
+        }
 
         if (response.statusCode == 400 &&
             response.body.contains('API key not valid')) {
@@ -327,8 +417,20 @@ class GeminiChatService {
         }
       }
     } on SocketException catch (_) {
+      if (debugMode) {
+        debugPrint('========== NETWORK ERROR ==========');
+        debugPrint('Network connection error detected');
+        debugPrint('===================================');
+      }
       return "Network error: Please check your internet connection and try again.";
     } catch (e) {
+      if (debugMode) {
+        debugPrint('========== EXCEPTION ==========');
+        debugPrint('Error: $e');
+        debugPrint('Attempt: ${_retryCount + 1} of $_maxRetries');
+        debugPrint('===============================');
+      }
+
       if (_retryCount < _maxRetries) {
         _retryCount++;
         debugPrint('Error occurred, retrying (${_retryCount}/${_maxRetries})');
