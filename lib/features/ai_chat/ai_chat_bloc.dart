@@ -18,6 +18,17 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
     // Initialize the current model
     _currentModel = app_main.settingsBloc.state.geminiModel;
 
+    // Listen for settings changes to update the model
+    app_main.settingsBloc.stream.listen((settings) {
+      if (settings.geminiModel != _currentModel) {
+        _currentModel = settings.geminiModel;
+        _geminiService.updateModel(_currentModel);
+        add(
+          StartNewConversation(),
+        ); // Optionally start a new conversation when model changes
+      }
+    });
+
     on<SendMessage>(_onSendMessage);
     on<ClearMessages>(_onClearMessages);
     on<StartNewConversation>(_onStartNewConversation);
@@ -97,28 +108,28 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
     emit(state.copyWith(messages: []));
   }
 
-  /// Handle the StartNewConversation event by keeping history but starting a new conversation
+  /// Handle the StartNewConversation event by clearing history and starting a new conversation
   void _onStartNewConversation(
     StartNewConversation event,
     Emitter<AIChatState> emit,
   ) {
-    // Clear conversation history in the Gemini service but keep the UI history
+    // Clear conversation history in the Gemini service
     _geminiService.clearConversation();
 
     // Update state to indicate a new conversation has started
     final modelName = app_main.settingsBloc.state.geminiModel;
     _currentModel = modelName;
 
-    // Add a system message to indicate a new conversation has started
+    // Clear all previous messages and add a system message
     final systemMessage = ChatMessage(
-      text: "Starting a new conversation with model: $_currentModel",
+      text: "New conversation started with model: $_currentModel",
       isUser: false,
       isSystemMessage: true,
     );
 
-    final updatedMessages = List<ChatMessage>.from(state.messages)
-      ..add(systemMessage);
+    // Create a new messages list with only the system message
+    final newMessages = [systemMessage];
 
-    emit(state.copyWith(messages: updatedMessages, currentModel: modelName));
+    emit(state.copyWith(messages: newMessages, currentModel: modelName));
   }
 }

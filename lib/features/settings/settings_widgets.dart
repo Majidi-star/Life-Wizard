@@ -695,12 +695,16 @@ class SettingsWidgets {
                     // Map the API response to our format
                     modelsList =
                         snapshot.data!.map<Map<String, String>>((model) {
+                          // Extract model ID without the "models/" prefix
+                          String modelId = model.name ?? 'unknown';
+                          if (modelId.startsWith('models/')) {
+                            modelId = modelId.substring('models/'.length);
+                          }
+
                           return {
-                            'id': model.name ?? 'unknown',
+                            'id': modelId,
                             'name':
-                                model.displayName ??
-                                model.name ??
-                                'Unknown Model',
+                                model.displayName ?? modelId ?? 'Unknown Model',
                             'description':
                                 model.description ?? 'No description available',
                           };

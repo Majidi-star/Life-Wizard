@@ -91,31 +91,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 );
               },
             ),
-            // Clear conversation button
-            BlocBuilder<AIChatBloc, AIChatState>(
-              builder: (context, state) {
-                return PopupMenuButton(
-                  icon: const Icon(Icons.more_vert),
-                  tooltip: 'More options',
-                  itemBuilder:
-                      (context) => [
-                        PopupMenuItem(
-                          child: Row(
-                            children: [
-                              const Icon(Icons.delete),
-                              const SizedBox(width: 8),
-                              const Text('Clear Chat History'),
-                            ],
-                          ),
-                          onTap:
-                              () => context.read<AIChatBloc>().add(
-                                ClearMessages(),
-                              ),
-                        ),
-                      ],
-                );
-              },
-            ),
           ],
         ),
         drawer: const AppDrawer(),
