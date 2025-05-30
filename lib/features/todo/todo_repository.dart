@@ -198,24 +198,7 @@ class TodoRepository {
 
   /// Prints all objects and their nested properties recursively
   void printTodoModelStructure(TodoModel model) {
-    print('\n=== Todo Model Structure ===');
-
-    print('\nTodos:');
-    for (var i = 0; i < model.todos.length; i++) {
-      final todo = model.todos[i];
-      print('\nTodo ${i + 1}:');
-      print('  ID: ${todo.id}');
-      print('  Name: ${todo.todoName}');
-      print('  Description: ${todo.todoDescription}');
-      print('  Status: ${todo.todoStatus}');
-      print('  Created At: ${todo.todoCreatedAt}');
-      if (todo.todoStatus && todo.completedAt != null) {
-        print('  Completed At: ${todo.completedAt}');
-      }
-      print('  Priority: ${todo.priority}');
-    }
-
-    print('\n=== End of Todo Model Structure ===\n');
+    // Debug function removed for production
   }
 
   /// Gets all todos from the last day
@@ -262,13 +245,11 @@ Future<void> testTodoRepository() async {
   // Test insert both entries
   final id1 = await repository.insertTodo(testTodo1);
   final id2 = await repository.insertTodo(testTodo2);
-  print('Created todo entries with IDs: $id1, $id2');
 
   // Test get all and transform to model
   final allTodos = await repository.getAllTodos();
   if (allTodos != null) {
     final todoModel = repository.transformToTodoModel(allTodos);
-    print('\nAll Todos Model:');
     repository.printTodoModelStructure(todoModel);
   }
 
@@ -276,7 +257,6 @@ Future<void> testTodoRepository() async {
   final retrievedTodo1 = await repository.getTodoById(id1);
   if (retrievedTodo1 != null) {
     final singleTodoModel = repository.transformToTodoModel([retrievedTodo1]);
-    print('\nRetrieved First Todo Model:');
     repository.printTodoModelStructure(singleTodoModel);
   }
 
@@ -284,7 +264,6 @@ Future<void> testTodoRepository() async {
   final retrievedTodo2 = await repository.getTodoById(id2);
   if (retrievedTodo2 != null) {
     final singleTodoModel = repository.transformToTodoModel([retrievedTodo2]);
-    print('\nRetrieved Second Todo Model:');
     repository.printTodoModelStructure(singleTodoModel);
   }
 
@@ -294,7 +273,6 @@ Future<void> testTodoRepository() async {
     'todoDescription': 'Updated project description',
     'priority': 3,
   });
-  print('\nUpdated first todo fields');
 
   // Test update by field for second entry
   await repository.updateTodoFields(id2, {
@@ -302,7 +280,6 @@ Future<void> testTodoRepository() async {
     'todoDescription': 'Updated documentation description',
     'priority': 1,
   });
-  print('\nUpdated second todo fields');
 
   // Test get by ID after updates
   final updatedTodo1 = await repository.getTodoById(id1);
@@ -312,7 +289,6 @@ Future<void> testTodoRepository() async {
       updatedTodo1,
       updatedTodo2,
     ]);
-    print('\nUpdated Todo Model:');
     repository.printTodoModelStructure(updatedTodoModel);
   }
 
@@ -320,7 +296,6 @@ Future<void> testTodoRepository() async {
   final activeTodos = await repository.getTodosByStatus(false);
   if (activeTodos != null) {
     final activeTodoModel = repository.transformToTodoModel(activeTodos);
-    print('\nActive Todos Model:');
     repository.printTodoModelStructure(activeTodoModel);
   }
 
@@ -330,12 +305,10 @@ Future<void> testTodoRepository() async {
     final priorityTodoModel = repository.transformToTodoModel(
       highPriorityTodos,
     );
-    print('\nHigh Priority Todos Model:');
     repository.printTodoModelStructure(priorityTodoModel);
   }
 
   // Test delete both entries
   await repository.deleteTodo(id1);
   await repository.deleteTodo(id2);
-  print('\nDeleted test todo entries');
 }

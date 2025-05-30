@@ -68,21 +68,6 @@ class GeminiChatService {
       final models = await Gemini.instance.listModels();
       debugPrint('Successfully fetched ${models.length} Gemini models');
 
-      // Print detailed information about each model
-      debugPrint('===== GEMINI MODELS LIST =====');
-      for (var model in models) {
-        debugPrint('Model: ${model.name}');
-        debugPrint('Display Name: ${model.displayName}');
-        debugPrint('Description: ${model.description}');
-        debugPrint('Input Token Limit: ${model.inputTokenLimit}');
-        debugPrint('Output Token Limit: ${model.outputTokenLimit}');
-        debugPrint(
-          'Supported Generation Methods: ${model.supportedGenerationMethods}',
-        );
-        debugPrint('----------------------------');
-      }
-      debugPrint('==============================');
-
       return models;
     } on SocketException catch (_) {
       throw Exception(
@@ -309,14 +294,6 @@ class GeminiChatService {
       final requestBody = {'contents': contents};
 
       debugPrint('Sending request to model: $modelName');
-      // Print the full request for debugging
-      debugPrint('====== FULL GEMINI API REQUEST ======');
-      debugPrint('URL: $url');
-      debugPrint('Headers: $headers');
-      debugPrint(
-        'Body: ${const JsonEncoder.withIndent('  ').convert(requestBody)}',
-      );
-      debugPrint('====================================');
 
       final response = await http.post(
         url,
@@ -326,12 +303,6 @@ class GeminiChatService {
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-
-        // Print the full response for debugging
-        debugPrint('====== FULL GEMINI API RESPONSE ======');
-        debugPrint(const JsonEncoder.withIndent('  ').convert(jsonResponse));
-        debugPrint('======================================');
-
         final generatedText =
             jsonResponse['candidates'][0]['content']['parts'][0]['text'];
 
