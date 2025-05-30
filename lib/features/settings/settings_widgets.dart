@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../features/ai_chat/gemini_chat_service.dart';
 import 'settings_bloc.dart';
 import 'settings_event.dart';
 import 'settings_state.dart';
@@ -585,11 +586,15 @@ class SettingsWidgets {
     BuildContext context,
     SettingsState state,
   ) {
+    final TextEditingController controller = TextEditingController(
+      text: state.geminiApiKey,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Gemini AI',
+          'Gemini API Key',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
@@ -609,33 +614,25 @@ class SettingsWidgets {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Enter your Gemini API key:',
-                  style: TextStyle(fontWeight: FontWeight.w500),
+                  "Enter your Gemini API Key to use Google's AI model",
+                  style: TextStyle(fontSize: 14),
                 ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  initialValue: state.geminiApiKey,
+                const SizedBox(height: 10),
+                TextField(
+                  controller: controller,
                   decoration: const InputDecoration(
+                    hintText: 'Enter Gemini API Key',
                     border: OutlineInputBorder(),
-                    hintText: 'Enter Gemini API key',
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
                   ),
                   obscureText: true,
                   onChanged: (value) {
                     context.read<SettingsBloc>().add(UpdateGeminiApiKey(value));
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 const Text(
-                  'The API key is stored securely and used for AI chat functionality.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey,
-                  ),
+                  'Get your API key from: https://ai.google.dev/',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
                 ),
               ],
             ),
@@ -643,5 +640,183 @@ class SettingsWidgets {
         ),
       ],
     );
+  }
+
+  static Widget buildGeminiModelSection(
+    BuildContext context,
+    SettingsState state,
+  ) {
+    // Basic default models if the API fetch fails
+    List<Map<String, String>> defaultModels = [
+      {
+        'id': 'gemini-pro',
+        'name': 'Gemini Pro',
+        'description': 'Best for text generation and conversations',
+      },
+      {
+        'id': 'gemini-pro-vision',
+        'name': 'Gemini Pro Vision',
+        'description': 'Supports both text and image understanding',
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Gemini Model',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          color: Theme.of(context).colorScheme.primary,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.surfaceTint,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: FutureBuilder<List<dynamic>>(
+              future: _fetchGeminiModels(state.geminiApiKey),
+              builder: (context, snapshot) {
+                List<Map<String, String>> modelsList = defaultModels;
+
+                // Handle the API response
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  debugPrint('Error fetching models: ${snapshot.error}');
+                } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                  try {
+                    // Map the API response to our format
+                    modelsList =
+                        snapshot.data!.map<Map<String, String>>((model) {
+                          return {
+                            'id': model.name ?? 'unknown',
+                            'name':
+                                model.displayName ??
+                                model.name ??
+                                'Unknown Model',
+                            'description':
+                                model.description ?? 'No description available',
+                          };
+                        }).toList();
+
+                    // Filter out models that don't start with 'gemini'
+                    modelsList =
+                        modelsList
+                            .where((model) => model['id']!.contains('gemini'))
+                            .toList();
+                  } catch (e) {
+                    debugPrint('Error processing models data: $e');
+                  }
+                }
+
+                // If no models found or error occurred, use default models
+                if (modelsList.isEmpty) {
+                  modelsList = defaultModels;
+                }
+
+                // Check if current selected model exists in the list
+                final bool selectedModelExists = modelsList.any(
+                  (model) => model['id'] == state.geminiModel,
+                );
+
+                // If not, use the first model in the list
+                final String currentModel =
+                    selectedModelExists
+                        ? state.geminiModel
+                        : modelsList.first['id']!;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Select which Gemini model to use for AI chat",
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Select Model',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      value: currentModel,
+                      isExpanded: true,
+                      items:
+                          modelsList.map((model) {
+                            return DropdownMenuItem<String>(
+                              value: model['id'],
+                              child: Text(model['name']!),
+                            );
+                          }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          context.read<SettingsBloc>().add(
+                            UpdateGeminiModel(value),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    // Display the description of the selected model
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surface.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        modelsList.firstWhere(
+                          (model) => model['id'] == currentModel,
+                          orElse: () => modelsList.first,
+                        )['description']!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Note: Some models may require specific API access levels',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper method to fetch Gemini models
+  static Future<List<dynamic>> _fetchGeminiModels(String apiKey) async {
+    if (apiKey.isEmpty) {
+      return [];
+    }
+
+    try {
+      final geminiService = GeminiChatService(apiKey);
+      return await geminiService.getAvailableModels();
+    } catch (e) {
+      debugPrint('Error in _fetchGeminiModels: $e');
+      return [];
+    }
   }
 }

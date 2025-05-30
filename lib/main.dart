@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io';
 import 'features/settings/settings_bloc.dart';
 import 'features/settings/settings_event.dart';
 import 'features/settings/settings_state.dart';
@@ -51,6 +54,15 @@ late ProClockBloc proClockBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize sqflite_ffi for Windows
+  if (Platform.isWindows) {
+    // Initialize FFI
+    sqfliteFfiInit();
+    // Change the default factory for desktop platforms
+    databaseFactory = databaseFactoryFfi;
+  }
+
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database

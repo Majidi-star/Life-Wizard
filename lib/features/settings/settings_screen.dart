@@ -17,6 +17,12 @@ class SettingsScreen extends StatelessWidget {
       drawer: const AppDrawer(),
       body: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
+          // Create a unique key for the GeminiModelSection based on API key
+          // This forces a rebuild when API key changes
+          final geminiModelKey = ValueKey(
+            'gemini_models_${state.geminiApiKey}',
+          );
+
           return ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
@@ -33,6 +39,12 @@ class SettingsScreen extends StatelessWidget {
               SettingsWidgets.buildAiGuidelinesSection(context, state),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
               SettingsWidgets.buildGeminiApiKeySection(context, state),
+              Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              // Use key to force rebuild when API key changes
+              KeyedSubtree(
+                key: geminiModelKey,
+                child: SettingsWidgets.buildGeminiModelSection(context, state),
+              ),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
               // Debug section
               Padding(

@@ -9,6 +9,7 @@ class SettingsState extends Equatable {
   final int feedbackFrequency;
   final String aiGuideLines;
   final String geminiApiKey;
+  final String geminiModel;
 
   const SettingsState({
     required this.theme,
@@ -18,6 +19,7 @@ class SettingsState extends Equatable {
     required this.feedbackFrequency,
     required this.aiGuideLines,
     this.geminiApiKey = '',
+    this.geminiModel = 'gemini-pro',
   });
 
   // Get theme-based colors
@@ -71,6 +73,7 @@ class SettingsState extends Equatable {
     int? feedbackFrequency,
     String? aiGuideLines,
     String? geminiApiKey,
+    String? geminiModel,
   }) {
     return SettingsState(
       theme: theme ?? this.theme,
@@ -80,6 +83,7 @@ class SettingsState extends Equatable {
       feedbackFrequency: feedbackFrequency ?? this.feedbackFrequency,
       aiGuideLines: aiGuideLines ?? this.aiGuideLines,
       geminiApiKey: geminiApiKey ?? this.geminiApiKey,
+      geminiModel: geminiModel ?? this.geminiModel,
     );
   }
 
@@ -92,5 +96,6 @@ class SettingsState extends Equatable {
     feedbackFrequency,
     aiGuideLines,
     geminiApiKey,
+    geminiModel,
   ];
 }

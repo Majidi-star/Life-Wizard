@@ -22,6 +22,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
           feedbackFrequency: _preferences.getInt('feedbackFrequency') ?? 7,
           aiGuideLines: _preferences.getString('aiGuideLines') ?? 'default',
           geminiApiKey: _preferences.getString('geminiApiKey') ?? '',
+          geminiModel: _preferences.getString('geminiModel') ?? 'gemini-pro',
         ),
       ) {
     _initRepository();
@@ -33,6 +34,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateFeedbackFrequency>(_onUpdateFeedbackFrequency);
     on<UpdateAiGuideLines>(_onUpdateAiGuideLines);
     on<UpdateGeminiApiKey>(_onUpdateGeminiApiKey);
+    on<UpdateGeminiModel>(_onUpdateGeminiModel);
     on<LoadSettingsFromDatabase>(_onLoadSettingsFromDatabase);
     on<SyncSettingsWithDatabase>(_onSyncSettingsWithDatabase);
   }
@@ -78,6 +80,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         );
         _preferences.setString('aiGuideLines', settingsModel.AIGuidelines);
         _preferences.setString('geminiApiKey', settingsModel.geminiApiKey);
+        _preferences.setString('geminiModel', settingsModel.geminiModel);
 
         // Emit new state
         emit(
@@ -89,6 +92,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
             feedbackFrequency: settingsModel.feedbackFrequency,
             aiGuideLines: settingsModel.AIGuidelines,
             geminiApiKey: settingsModel.geminiApiKey,
+            geminiModel: settingsModel.geminiModel,
           ),
         );
       }
@@ -143,6 +147,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         feedbackFrequency: state.feedbackFrequency,
         aiGuidelines: state.aiGuideLines,
         geminiApiKey: state.geminiApiKey,
+        geminiModel: state.geminiModel,
       );
 
       if (_settingsId == null) {
@@ -169,6 +174,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         feedbackFrequency: _preferences.getInt('feedbackFrequency') ?? 7,
         aiGuideLines: _preferences.getString('aiGuideLines') ?? 'default',
         geminiApiKey: _preferences.getString('geminiApiKey') ?? '',
+        geminiModel: _preferences.getString('geminiModel') ?? 'gemini-pro',
       ),
     );
   }
@@ -237,6 +243,15 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     _preferences.setString('geminiApiKey', event.geminiApiKey);
     emit(state.copyWith(geminiApiKey: event.geminiApiKey));
+    add(SyncSettingsWithDatabase());
+  }
+
+  Future<void> _onUpdateGeminiModel(
+    UpdateGeminiModel event,
+    Emitter<SettingsState> emit,
+  ) async {
+    _preferences.setString('geminiModel', event.geminiModel);
+    emit(state.copyWith(geminiModel: event.geminiModel));
     add(SyncSettingsWithDatabase());
   }
 }

@@ -6,7 +6,7 @@ abstract class AIChatEvent extends Equatable {
   const AIChatEvent();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class SendMessage extends AIChatEvent {
@@ -15,9 +15,10 @@ class SendMessage extends AIChatEvent {
   const SendMessage(this.message);
 
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message];
 }
 
-class ClearMessages extends AIChatEvent {
-  const ClearMessages();
-}
+class ClearMessages extends AIChatEvent {}
+
+// New event for starting a new conversation while keeping history
+class StartNewConversation extends AIChatEvent {}

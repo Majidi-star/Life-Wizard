@@ -77,3 +77,12 @@ class UpdateGeminiApiKey extends SettingsEvent {
   @override
   List<Object> get props => [geminiApiKey];
 }
+
+class UpdateGeminiModel extends SettingsEvent {
+  final String geminiModel;
+
+  const UpdateGeminiModel(this.geminiModel);
+
+  @override
+  List<Object> get props => [geminiModel];
+}

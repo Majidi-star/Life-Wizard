@@ -6,8 +6,14 @@ import 'ai_chat_widgets.dart';
 import 'ai_chat_bloc.dart';
 import 'ai_chat_event.dart';
 import 'ai_chat_state.dart';
+import 'gemini_chat_service.dart';
 import '../../main.dart' as app_main;
 
+/// The AI Chat Screen which displays the chat interface
+/// This screen follows the BLoC pattern by:
+/// 1. Creating and providing the BLoC
+/// 2. Dispatching events to the BLoC
+/// 3. Rebuilding UI based on state changes
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({Key? key}) : super(key: key);
 
@@ -22,7 +28,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
   @override
   void initState() {
     super.initState();
-    _chatBloc = AIChatBloc();
+    // Create BLoC with dependency injection
+    final geminiService = createGeminiChatService();
+    _chatBloc = AIChatBloc(geminiService: geminiService);
   }
 
   @override
@@ -47,53 +55,107 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final settingsState = app_main.settingsBloc.state;
     final bool hasApiKey = settingsState.geminiApiKey.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      appBar: AppBar(
-        title: const Text('AI Chat'),
-        backgroundColor: ThemeUtils.getAppBarColor(context),
-        actions: [
-          // New chat button
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              _chatBloc.add(const ClearMessages());
-            },
-          ),
-        ],
-      ),
-      drawer: const AppDrawer(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (!hasApiKey)
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: Colors.amber[100],
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning, color: Colors.orange),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Please set your Gemini API key in the settings to use the AI chat feature.',
-                        style: TextStyle(color: Colors.orange[800]),
+    return BlocProvider(
+      // Provide the bloc to the widget tree
+      create: (context) => _chatBloc,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        appBar: AppBar(
+          title: BlocBuilder<AIChatBloc, AIChatState>(
+            builder: (context, state) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('AI Chat'),
+                  if (hasApiKey)
+                    Text(
+                      'Using: ${state.currentModel}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary.withOpacity(0.7),
+                        fontSize: 11,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {
-                        // Navigate to settings
-                        Navigator.pop(context);
-                        Navigator.pushNamed(context, '/settings');
-                      },
-                      child: const Text('GO TO SETTINGS'),
-                    ),
-                  ],
+                ],
+              );
+            },
+          ),
+          backgroundColor: ThemeUtils.getAppBarColor(context),
+          actions: [
+            // New conversation button
+            BlocBuilder<AIChatBloc, AIChatState>(
+              builder: (context, state) {
+                return IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: 'Start New Conversation',
+                  onPressed:
+                      () => context.read<AIChatBloc>().add(
+                        StartNewConversation(),
+                      ),
+                );
+              },
+            ),
+            // Clear conversation button
+            BlocBuilder<AIChatBloc, AIChatState>(
+              builder: (context, state) {
+                return PopupMenuButton(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: 'More options',
+                  itemBuilder:
+                      (context) => [
+                        PopupMenuItem(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete),
+                              const SizedBox(width: 8),
+                              const Text('Clear Chat History'),
+                            ],
+                          ),
+                          onTap:
+                              () => context.read<AIChatBloc>().add(
+                                ClearMessages(),
+                              ),
+                        ),
+                      ],
+                );
+              },
+            ),
+          ],
+        ),
+        drawer: const AppDrawer(),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Warning bar if API key is not set
+              if (!hasApiKey)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.amber[100],
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: Colors.orange),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Please set your Gemini API key in the settings to use the AI chat feature.',
+                          style: TextStyle(color: Colors.orange[800]),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // Navigate to settings
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/settings');
+                        },
+                        child: const Text('GO TO SETTINGS'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            Expanded(
-              child: BlocProvider(
-                create: (context) => _chatBloc,
+
+              // Chat messages list
+              Expanded(
                 child: BlocConsumer<AIChatBloc, AIChatState>(
                   listener: (context, state) {
                     // Auto-scroll to bottom when a new message is added
@@ -109,19 +171,21 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   },
                 ),
               ),
-            ),
-            BlocBuilder<AIChatBloc, AIChatState>(
-              bloc: _chatBloc,
-              builder: (context, state) {
-                return ChatInputField(
-                  onSendMessage: (text) {
-                    _chatBloc.add(SendMessage(text));
-                  },
-                  isLoading: state.isLoading,
-                );
-              },
-            ),
-          ],
+
+              // Chat input field
+              BlocBuilder<AIChatBloc, AIChatState>(
+                builder: (context, state) {
+                  return ChatInputField(
+                    onSendMessage: (text) {
+                      // Dispatch SendMessage event to BLoC
+                      context.read<AIChatBloc>().add(SendMessage(text));
+                    },
+                    isLoading: state.isLoading,
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -9,6 +9,7 @@ class SettingsModel {
   final int feedbackFrequency;
   final String AIGuidelines;
   final String geminiApiKey;
+  final String geminiModel;
 
   SettingsModel({
     required this.isDarkMode,
@@ -18,5 +19,6 @@ class SettingsModel {
     required this.feedbackFrequency,
     required this.AIGuidelines,
     this.geminiApiKey = '',
+    this.geminiModel = 'gemini-pro',
   });
 }
