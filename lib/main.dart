@@ -27,6 +27,8 @@ import 'features/goals/goals_state.dart';
 import 'database_initializer.dart';
 import 'features/schedule/schedule_bloc.dart';
 import 'features/pro_clock/pro_clock_bloc.dart';
+import 'features/ai_chat/ai_chat_bloc.dart';
+import 'features/ai_chat/gemini_chat_service.dart';
 
 // Import all test files
 import 'features/settings/settings_test.dart' as settings_test;
@@ -51,6 +53,8 @@ late HabitsBloc habitsBloc;
 late GoalsBloc goalsBloc;
 // Global singleton for ProClockBloc to ensure single source of truth
 late ProClockBloc proClockBloc;
+// Global singleton for AIChatBloc to ensure single source of truth
+late AIChatBloc aiChatBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +70,7 @@ void main() async {
   final preferences = await SharedPreferences.getInstance();
 
   // Initialize the database
-  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
+  await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
   // Create a single SettingsBloc instance that will be used throughout the app
@@ -86,6 +90,10 @@ void main() async {
 
   // Create a single ProClockBloc instance that will be used throughout the app
   proClockBloc = ProClockBloc();
+
+  // Create a single AIChatBloc instance that will be used throughout the app
+  final geminiService = createGeminiChatService();
+  aiChatBloc = AIChatBloc(geminiService: geminiService);
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
@@ -126,6 +134,7 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
         BlocProvider<ScheduleBloc>(create: (context) => ScheduleBloc()),
         BlocProvider.value(value: proClockBloc),
+        BlocProvider.value(value: aiChatBloc),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {

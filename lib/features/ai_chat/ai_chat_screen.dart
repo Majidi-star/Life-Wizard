@@ -23,20 +23,15 @@ class AIChatScreen extends StatefulWidget {
 
 class _AIChatScreenState extends State<AIChatScreen> {
   final ScrollController _scrollController = ScrollController();
-  late AIChatBloc _chatBloc;
 
   @override
   void initState() {
     super.initState();
-    // Create BLoC with dependency injection
-    final geminiService = createGeminiChatService();
-    _chatBloc = AIChatBloc(geminiService: geminiService);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _chatBloc.close();
     super.dispose();
   }
 
@@ -55,9 +50,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final settingsState = app_main.settingsBloc.state;
     final bool hasApiKey = settingsState.geminiApiKey.isNotEmpty;
 
-    return BlocProvider(
-      // Provide the bloc to the widget tree
-      create: (context) => _chatBloc,
+    return BlocProvider.value(
+      // Use the global bloc instance
+      value: app_main.aiChatBloc,
       child: Scaffold(
         backgroundColor: Theme.of(context).colorScheme.primary,
         appBar: AppBar(

@@ -264,18 +264,20 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildAvatar(BuildContext context, {bool isUser = false}) {
+    final theme = Theme.of(context);
     return CircleAvatar(
+      radius: 16,
       backgroundColor:
           isUser
-              ? Theme.of(context).colorScheme.secondaryContainer
-              : Theme.of(context).colorScheme.tertiaryContainer,
+              ? theme.colorScheme.secondaryContainer
+              : theme.colorScheme.tertiaryContainer,
       child: Icon(
         isUser ? Icons.person : Icons.smart_toy,
         color:
             isUser
-                ? Theme.of(context).colorScheme.secondary
-                : Theme.of(context).colorScheme.tertiary,
-        size: 18,
+                ? theme.colorScheme.onSecondaryContainer
+                : theme.colorScheme.onTertiaryContainer,
+        size: 20,
       ),
     );
   }
