@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import '../settings/settings_bloc.dart';
 import '../ai_prompting/sys_prompt.dart';
 import '../../main.dart' as app_main;
+import '../mood_data/mood_data_bloc.dart';
+import '../mood_data/mood_data_state.dart';
 
 class GeminiChatService {
   final String apiKey;
@@ -238,6 +240,33 @@ class GeminiChatService {
     _contextPrompt = fullContext;
   }
 
+  // Get formatted mood data for the system prompt
+  String _getFormattedMoodData() {
+    final moodDataBloc = app_main.moodDataBloc;
+    final state = moodDataBloc.state;
+
+    if (state.responses.isEmpty) {
+      return 'The user has not provided any mood data yet.';
+    }
+
+    final StringBuffer moodInfo = StringBuffer();
+    moodInfo.writeln('User Mood Data:');
+
+    for (final entry in state.responses.entries) {
+      final questionId = entry.key;
+      final question = state.questions.firstWhere(
+        (q) => q.id == questionId,
+        orElse: () => const MoodQuestion(id: '', question: '', options: []),
+      );
+
+      if (question.id.isNotEmpty) {
+        moodInfo.writeln('- ${question.question}: ${entry.value}');
+      }
+    }
+
+    return moodInfo.toString();
+  }
+
   // Send a message to Gemini and get a response
   Future<String?> sendMessage(String message) async {
     if (!_isInitialized) {
@@ -302,10 +331,16 @@ class GeminiChatService {
 
         // Add system prompt after user message
         if (SystemPrompt.prompt.isNotEmpty) {
+          // Replace mood data placeholder with actual mood data
+          final systemPrompt = SystemPrompt.prompt.replaceAll(
+            '{MOOD_DATA_PLACEHOLDER}',
+            _getFormattedMoodData(),
+          );
+
           contents.add({
             'role': 'user',
             'parts': [
-              {'text': '<system_prompt>${SystemPrompt.prompt}</system_prompt>'},
+              {'text': '<system_prompt>$systemPrompt</system_prompt>'},
             ],
           });
         }
@@ -348,10 +383,16 @@ class GeminiChatService {
 
         // Add system prompt after the user message
         if (SystemPrompt.prompt.isNotEmpty) {
+          // Replace mood data placeholder with actual mood data
+          final systemPrompt = SystemPrompt.prompt.replaceAll(
+            '{MOOD_DATA_PLACEHOLDER}',
+            _getFormattedMoodData(),
+          );
+
           contents.add({
             'role': 'user',
             'parts': [
-              {'text': '<system_prompt>${SystemPrompt.prompt}</system_prompt>'},
+              {'text': '<system_prompt>$systemPrompt</system_prompt>'},
             ],
           });
         }
