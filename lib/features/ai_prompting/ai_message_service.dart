@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../ai_chat/gemini_chat_service.dart';
 import 'message_formatter.dart';
 import 'respones_handler.dart';
+import 'dart:async'; // Add import for async delay
 
 /// Service to handle AI message formatting, sending, and response processing
 class AiMessageService {
@@ -35,7 +36,7 @@ class AiMessageService {
   /// Sends a message to the AI with proper formatting
   ///
   /// 1. Formats the message using MessageFormatter with conversation history
-  /// 2. Sends the formatted message to the AI
+  /// 2. Sends the formatted message to the AI (with up to 3 retry attempts)
   /// 3. Processes the response to extract tagged content
   /// 4. Adds the message and response to conversation history
   ///
@@ -60,8 +61,56 @@ class AiMessageService {
         _debugPrintFormattedMessage(formattedMessage);
       }
 
-      // Send the formatted message to the AI
-      final response = await _chatService.sendMessage(formattedMessage);
+      // Initialize variables for retry logic
+      String? response;
+      Exception? lastException;
+      int maxAttempts = 3;
+
+      // Try sending the message up to maxAttempts times
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          // Send the formatted message to the AI
+          response = await _chatService.sendMessage(formattedMessage);
+
+          // If we got a response, break out of the retry loop
+          if (response != null) {
+            break;
+          }
+
+          // If we got a null response but no exception, retry after delay
+          if (attempt < maxAttempts) {
+            await Future.delayed(
+              Duration(seconds: 2 * attempt),
+            ); // Increasing backoff
+            if (debugMode) {
+              debugPrint(
+                'Retrying AI message - Attempt ${attempt + 1}/$maxAttempts',
+              );
+            }
+          }
+        } catch (e) {
+          // Store the last exception
+          lastException = e is Exception ? e : Exception(e.toString());
+
+          // If not the last attempt, wait and retry
+          if (attempt < maxAttempts) {
+            await Future.delayed(
+              Duration(seconds: 2 * attempt),
+            ); // Increasing backoff
+            if (debugMode) {
+              debugPrint('Error sending AI message: $e');
+              debugPrint(
+                'Retrying AI message - Attempt ${attempt + 1}/$maxAttempts',
+              );
+            }
+          }
+        }
+      }
+
+      // If all attempts failed with exception, throw the last one
+      if (response == null && lastException != null) {
+        throw lastException;
+      }
 
       // Store the received response for debugging
       _lastExchange['received'] = response ?? 'No response received';
@@ -96,7 +145,7 @@ class AiMessageService {
         'sentMessage': formattedMessage,
       };
     } catch (e) {
-      debugPrint('Error in sendMessage: $e');
+      debugPrint('Error in sendMessage after all retry attempts: $e');
       return {'success': false, 'error': e.toString()};
     }
   }

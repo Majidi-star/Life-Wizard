@@ -586,10 +586,6 @@ class SettingsWidgets {
     BuildContext context,
     SettingsState state,
   ) {
-    final TextEditingController controller = TextEditingController(
-      text: state.geminiApiKey,
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -618,8 +614,8 @@ class SettingsWidgets {
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: controller,
+                TextFormField(
+                  initialValue: state.geminiApiKey,
                   decoration: const InputDecoration(
                     hintText: 'Enter Gemini API Key',
                     border: OutlineInputBorder(),
