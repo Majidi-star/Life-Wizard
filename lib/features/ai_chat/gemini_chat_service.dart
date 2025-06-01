@@ -6,6 +6,7 @@ import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:flutter/material.dart';
 import '../settings/settings_bloc.dart';
 import '../ai_prompting/sys_prompt.dart';
+import '../ai_prompting/respones_handler.dart';
 import '../../main.dart' as app_main;
 import '../mood_data/mood_data_bloc.dart';
 import '../mood_data/mood_data_state.dart';
@@ -421,15 +422,21 @@ class GeminiChatService {
         final generatedText =
             jsonResponse['candidates'][0]['content']['parts'][0]['text'];
 
-        // Add response to history
-        _history.add({'role': 'model', 'message': generatedText});
+        // Process the response using ResponseHandler
+        final taggedContent = ResponseHandler.processResponse(generatedText);
 
+        // Print the tagged content if in debug mode
         if (debugMode) {
           debugPrint('========== RESPONSE ==========');
           debugPrint('Response status: ${response.statusCode}');
           debugPrint('Generated text: $generatedText');
+          debugPrint('Tagged content:');
+          ResponseHandler.printTaggedContent(taggedContent);
           debugPrint('==============================');
         }
+
+        // Add response to history
+        _history.add({'role': 'model', 'message': generatedText});
 
         return generatedText;
       } else {
