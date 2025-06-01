@@ -3,6 +3,7 @@ import '../ai_chat/gemini_chat_service.dart';
 import 'ai_message_service.dart';
 import 'message_formatter.dart';
 import 'respones_handler.dart';
+import 'function_executor.dart';
 
 /// A simple example widget showing how to use the AI prompting system
 class AiPromptingExample extends StatefulWidget {
@@ -81,6 +82,57 @@ class _AiPromptingExampleState extends State<AiPromptingExample> {
           'isUser': false,
           'isError': true,
           'message': 'Error: $e',
+        });
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Direct test of function execution
+  void _testFunctionExecution() async {
+    setState(() {
+      _isLoading = true;
+      _messages.add({
+        'isUser': true,
+        'message': 'Testing direct function execution for get_all_todo_items',
+      });
+    });
+
+    try {
+      // Create a sample function call JSON
+      const functionCall = '''
+{
+  "name": "get_all_todo_items",
+  "parameters": {
+    "filter": "all"
+  }
+}
+''';
+
+      debugPrint(
+        "DIRECT TEST: About to execute function with content: $functionCall",
+      );
+
+      // Execute the function directly
+      final result = await FunctionExecutor.executeFunction(functionCall);
+
+      debugPrint("DIRECT TEST: Function returned result: $result");
+
+      setState(() {
+        _messages.add({
+          'isUser': false,
+          'message': 'Function result: $result',
+          'isFunctionResult': true,
+        });
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("DIRECT TEST: Error executing function: $e");
+      setState(() {
+        _messages.add({
+          'isUser': false,
+          'isError': true,
+          'message': 'Error executing function: $e',
         });
         _isLoading = false;
       });
@@ -311,6 +363,11 @@ class _AiPromptingExampleState extends State<AiPromptingExample> {
                 _lastFormattedMessage = '';
               });
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.functions),
+            onPressed: _testFunctionExecution,
+            tooltip: 'Test function execution',
           ),
         ],
       ),

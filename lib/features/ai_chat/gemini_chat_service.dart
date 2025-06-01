@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../settings/settings_bloc.dart';
 import '../ai_prompting/sys_prompt.dart';
 import '../ai_prompting/respones_handler.dart';
+import '../ai_prompting/function_executor.dart';
 import '../../main.dart' as app_main;
 import '../mood_data/mood_data_bloc.dart';
 import '../mood_data/mood_data_state.dart';
@@ -26,6 +27,9 @@ class GeminiChatService {
   // Previous messages to provide context
   String _contextPrompt = '';
   int _maxContextLength = 20000; // Character limit for context
+
+  // Track if we're handling a function result to avoid nested function calls
+  bool _processingFunctionResult = false;
 
   GeminiChatService(
     this.apiKey, {
@@ -268,6 +272,11 @@ class GeminiChatService {
     return moodInfo.toString();
   }
 
+  // Helper function to get the minimum of two integers
+  int _min(int a, int b) {
+    return a < b ? a : b;
+  }
+
   // Send a message to Gemini and get a response
   Future<String?> sendMessage(String message) async {
     if (!_isInitialized) {
@@ -437,6 +446,63 @@ class GeminiChatService {
 
         // Add response to history
         _history.add({'role': 'model', 'message': generatedText});
+
+        // Check for function calls and execute if found
+        if (!_processingFunctionResult &&
+            ResponseHandler.hasFunctionCall(taggedContent)) {
+          debugPrint("Found function call in response - executing it");
+
+          // Get the function call content
+          final functionCallContent = ResponseHandler.getFirstFunctionCall(
+            taggedContent,
+          );
+
+          if (functionCallContent != null) {
+            try {
+              debugPrint("Executing function: $functionCallContent");
+
+              // Execute the function
+              final functionResult = await FunctionExecutor.executeFunction(
+                functionCallContent,
+              );
+
+              debugPrint(
+                "Function executed successfully, result length: ${functionResult.length}",
+              );
+              if (functionResult.isNotEmpty) {
+                debugPrint(
+                  "Result preview: ${functionResult.substring(0, _min(50, functionResult.length))}",
+                );
+              }
+
+              // Add function result to conversation history
+              _history.add({
+                'role': 'user',
+                'message': 'Function result: $functionResult',
+              });
+
+              // Set flag to prevent nested function calls
+              _processingFunctionResult = true;
+
+              // Send function result back to AI
+              final functionResultMessage =
+                  'Here is the result of the function you called:\n\n$functionResult';
+              final aiResponseToResult = await sendMessage(
+                functionResultMessage,
+              );
+
+              // Reset flag
+              _processingFunctionResult = false;
+
+              // Return the AI's response to the function result instead
+              return aiResponseToResult;
+            } catch (e) {
+              debugPrint("Error executing function: $e");
+              // Still return original response on error
+              _processingFunctionResult = false;
+            }
+          }
+        }
 
         return generatedText;
       } else {

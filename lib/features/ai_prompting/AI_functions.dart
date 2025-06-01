@@ -1,6 +1,7 @@
 // This file will contain AI functions to be implemented later
 
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 import '../../database_initializer.dart';
 
 /// AI Functions that can be called by the AI assistant
@@ -13,6 +14,7 @@ class AIFunctions {
   /// - "all": returns all active tasks and completed tasks from the last day
   static Future<String> get_all_todo_items({required String filter}) async {
     try {
+      debugPrint("Starting get_all_todo_items with filter: $filter");
       final db = await DatabaseInitializer.database;
       final now = DateTime.now();
       final oneDayAgo = now.subtract(const Duration(days: 1));
@@ -40,12 +42,15 @@ class AIFunctions {
           );
       }
 
+      debugPrint("Querying database with where clause: $whereClause");
       final List<Map<String, dynamic>> results = await db.query(
         'todo',
         where: whereClause,
         whereArgs: whereArgs,
         orderBy: 'priority DESC, todoCreatedAt DESC',
       );
+
+      debugPrint("Got ${results.length} results from database");
 
       if (results.isEmpty) {
         return 'No todo items found.';
@@ -57,7 +62,11 @@ class AIFunctions {
       formattedResults.writeln('-----------');
 
       for (var todo in results) {
-        formattedResults.writeln('Title: ${todo['title']}');
+        // Log the todo item for debugging
+        debugPrint("Processing todo item: ${todo.toString()}");
+
+        // Use todoName instead of title
+        formattedResults.writeln('Title: ${todo['todoName'] ?? 'Untitled'}');
         formattedResults.writeln(
           'Status: ${todo['todoStatus'] == 1 ? 'Completed' : 'Active'}',
         );
@@ -72,15 +81,21 @@ class AIFunctions {
             'Completed: ${DateTime.parse(todo['completedAt']).toString()}',
           );
         }
-        if (todo['description'] != null &&
-            todo['description'].toString().isNotEmpty) {
-          formattedResults.writeln('Description: ${todo['description']}');
+        // Use todoDescription instead of description
+        if (todo['todoDescription'] != null &&
+            todo['todoDescription'].toString().isNotEmpty) {
+          formattedResults.writeln('Description: ${todo['todoDescription']}');
         }
         formattedResults.writeln('-----------');
       }
 
-      return formattedResults.toString();
-    } catch (e) {
+      final result = formattedResults.toString();
+      debugPrint(
+        "Final formatted result: ${result.substring(0, min(50, result.length))}...",
+      );
+      return result;
+    } catch (e, stackTrace) {
+      debugPrint("Error in get_all_todo_items: $e\n$stackTrace");
       return 'Error getting todo items: $e';
     }
   }
@@ -94,8 +109,29 @@ class AIFunctions {
         return 'Medium';
       case 2:
         return 'High';
+      case 3:
+        return 'Very High';
+      case 4:
+        return 'Urgent';
+      case 5:
+        return 'Critical';
+      case 6:
+        return 'Highest';
+      case 7:
+        return 'Extremely High';
+      case 8:
+        return 'Top Priority';
+      case 9:
+        return 'Ultimate Priority';
+      case 10:
+        return 'Maximum Priority';
       default:
-        return 'Unknown';
+        return 'Priority $priority';
     }
+  }
+
+  /// Helper function to get the minimum of two integers
+  static int min(int a, int b) {
+    return a < b ? a : b;
   }
 }

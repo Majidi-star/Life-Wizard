@@ -91,6 +91,20 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 );
               },
             ),
+            IconButton(
+              icon: const Icon(Icons.functions),
+              tooltip: 'Function Test',
+              onPressed: () {
+                Navigator.pushNamed(context, '/function_test');
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Settings',
+              onPressed: () {
+                Navigator.pushNamed(context, '/settings');
+              },
+            ),
           ],
         ),
         drawer: const AppDrawer(),

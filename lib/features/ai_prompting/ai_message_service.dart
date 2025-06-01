@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../ai_chat/gemini_chat_service.dart';
 import 'message_formatter.dart';
 import 'respones_handler.dart';
+import 'function_executor.dart';
 import 'dart:async'; // Add import for async delay
 
 /// Service to handle AI message formatting, sending, and response processing
@@ -34,11 +35,6 @@ class AiMessageService {
        _maxHistoryLength = maxHistoryLength;
 
   /// Sends a message to the AI with proper formatting
-  ///
-  /// 1. Formats the message using MessageFormatter with conversation history
-  /// 2. Sends the formatted message to the AI (with up to 3 retry attempts)
-  /// 3. Processes the response to extract tagged content
-  /// 4. Adds the message and response to conversation history
   ///
   /// @param userMessage The original user message
   /// @return A map containing the raw response and extracted tagged content
@@ -121,8 +117,30 @@ class AiMessageService {
       }
 
       // Process the response to extract tagged content
+      print("HELLO2");
       final List<Map<String, String>> taggedContent =
           response != null ? ResponseHandler.processResponse(response) : [];
+      print("HELLO3");
+      // Debug statement to show we're about to handle function calls
+      debugPrint(
+        "About to handle function calls. Tagged content count: ${taggedContent.length}",
+      );
+
+      // Check for function calls and execute them if found
+      String? functionResult;
+      if (taggedContent.isNotEmpty) {
+        print("HELLO");
+        debugPrint("Checking for function calls in tagged content");
+        if (ResponseHandler.hasFunctionCall(taggedContent)) {
+          debugPrint("Function call found, executing...");
+          functionResult = await _handleFunctionCalls(taggedContent);
+          debugPrint(
+            "Function execution complete. Result: ${functionResult != null ? 'not null' : 'null'}",
+          );
+        } else {
+          debugPrint("No function calls found in tagged content");
+        }
+      }
 
       // Create response message object
       final responseMessageObj = {
@@ -137,17 +155,130 @@ class AiMessageService {
         _addToHistory(responseMessageObj);
       }
 
+      // If function was called and returned result, send result back to AI
+      if (functionResult != null) {
+        debugPrint("Function returned result, sending back to AI");
+        // Add function result to history as system message
+        _addToHistory({
+          'isUser': false,
+          'isSystem': true,
+          'message': 'Function result: $functionResult',
+        });
+
+        // Format a new message to send back to AI with function result
+        final functionResultMessage =
+            'Here is the result of the function you called:\n\n$functionResult';
+        debugPrint(
+          "Sending function result back to AI: ${functionResultMessage.substring(0, min(50, functionResultMessage.length))}...",
+        );
+
+        final formattedFunctionResult =
+            MessageFormatter.formatMessageWithHistory(
+              functionResultMessage,
+              _conversationHistory,
+            );
+
+        // Send function result to AI
+        final functionResponse = await _chatService.sendMessage(
+          formattedFunctionResult,
+        );
+
+        if (functionResponse != null) {
+          // Process and add this response to history too
+          final functionResponseTaggedContent = ResponseHandler.processResponse(
+            functionResponse,
+          );
+
+          final functionResponseObj = {
+            'isUser': false,
+            'message': functionResponse,
+            'taggedContent': functionResponseTaggedContent,
+          };
+
+          _addToHistory(functionResponseObj);
+
+          // Return the function response as the final result
+          return {
+            'success': true,
+            'rawResponse': functionResponse,
+            'taggedContent': functionResponseTaggedContent,
+            'sentMessage': formattedMessage,
+            'functionResult': functionResult,
+          };
+        }
+      }
+
       // Return both the raw response and the extracted tagged content
       return {
         'success': response != null,
         'rawResponse': response,
         'taggedContent': taggedContent,
         'sentMessage': formattedMessage,
+        'functionResult': functionResult,
       };
     } catch (e) {
       debugPrint('Error in sendMessage after all retry attempts: $e');
       return {'success': false, 'error': e.toString()};
     }
+  }
+
+  /// Handles function calls found in the AI response
+  /// Returns the function result if a function was called, null otherwise
+  Future<String?> _handleFunctionCalls(
+    List<Map<String, String>> taggedContent,
+  ) async {
+    debugPrint(
+      "Handling function calls for ${taggedContent.length} tagged content items",
+    );
+
+    // Look for function call tags
+    for (final tag in taggedContent) {
+      debugPrint("Checking tag: ${tag['tag_name']}");
+
+      // Check if this is a function call tag
+      if (tag['tag_name'] == 'function_call') {
+        final functionContent = tag['content'];
+        debugPrint("Found function_call tag with content: $functionContent");
+
+        if (functionContent != null && functionContent.isNotEmpty) {
+          debugPrint(
+            "Function content is not null or empty, executing function",
+          );
+
+          // Execute the function call and get result
+          try {
+            final String trimmedContent = functionContent.trim();
+            debugPrint("Trimmed function content: $trimmedContent");
+            final result = await FunctionExecutor.executeFunction(
+              trimmedContent,
+            );
+
+            if (debugMode) {
+              debugPrint(
+                "Function execution completed with result: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+
+            // Return the function result to be sent back to AI
+            return result;
+          } catch (e, stackTrace) {
+            debugPrint("Error executing function: $e\n$stackTrace");
+            return "Error executing function: $e";
+          }
+        } else {
+          debugPrint("Function content is null or empty, skipping execution");
+        }
+      }
+    }
+
+    debugPrint("No function_call tags found in tagged content");
+    // No function calls found
+    return null;
+  }
+
+  /// Helper function to get the minimum of two integers
+  int min(int a, int b) {
+    return a < b ? a : b;
   }
 
   /// Debug prints the formatted message to the console

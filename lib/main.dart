@@ -29,6 +29,7 @@ import 'features/schedule/schedule_bloc.dart';
 import 'features/pro_clock/pro_clock_bloc.dart';
 import 'features/ai_chat/ai_chat_bloc.dart';
 import 'features/ai_chat/gemini_chat_service.dart';
+import 'features/ai_prompting/function_test_screen.dart';
 
 // Import all test files
 import 'features/settings/settings_test.dart' as settings_test;
@@ -251,6 +252,7 @@ class MyApp extends StatelessWidget {
               '/schedule': (context) => const ScheduleScreen(),
               '/pro_clock': (context) => const ProClockScreen(),
               '/mood': (context) => const MoodDataScreen(),
+              '/function_test': (context) => const FunctionTestScreen(),
             },
             initialRoute: '/',
           );
