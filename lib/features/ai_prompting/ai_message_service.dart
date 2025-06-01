@@ -197,10 +197,15 @@ class AiMessageService {
 
           _addToHistory(functionResponseObj);
 
+          // Remove function call tags from display response
+          final cleanDisplayResponse = ResponseHandler.removeTagsForDisplay(
+            functionResponse,
+          );
+
           // Return the function response as the final result
           return {
             'success': true,
-            'rawResponse': functionResponse,
+            'rawResponse': cleanDisplayResponse,
             'taggedContent': functionResponseTaggedContent,
             'sentMessage': formattedMessage,
             'functionResult': functionResult,
@@ -208,10 +213,16 @@ class AiMessageService {
         }
       }
 
+      // Remove function call tags from display response
+      final cleanDisplayResponse =
+          response != null
+              ? ResponseHandler.removeTagsForDisplay(response)
+              : null;
+
       // Return both the raw response and the extracted tagged content
       return {
         'success': response != null,
-        'rawResponse': response,
+        'rawResponse': cleanDisplayResponse,
         'taggedContent': taggedContent,
         'sentMessage': formattedMessage,
         'functionResult': functionResult,

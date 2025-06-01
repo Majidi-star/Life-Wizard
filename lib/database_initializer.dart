@@ -208,7 +208,7 @@ class DatabaseInitializer {
         totalProgress INTEGER NOT NULL,
         createdAt DATETIME NOT NULL,
         start TEXT NOT NULL,
-        end TEXT NOT NULL
+        end TEXT NOT NULL,
       )
     ''');
 

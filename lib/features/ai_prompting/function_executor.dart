@@ -46,25 +46,37 @@ class FunctionExecutor {
           name: "FunctionExecutor",
         );
         debugPrint("FUNCTION_EXECUTOR: Attempting fallback JSON parsing...");
-        // Try to extract just the JSON part if there's text before/after the JSON
-        final jsonStartIndex = cleanedContent.indexOf('{');
-        final jsonEndIndex = cleanedContent.lastIndexOf('}') + 1;
 
-        if (jsonStartIndex >= 0 && jsonEndIndex > jsonStartIndex) {
-          final jsonPart = cleanedContent.substring(
-            jsonStartIndex,
-            jsonEndIndex,
-          );
-          debugPrint("FUNCTION_EXECUTOR: Extracted JSON part: $jsonPart");
+        // More aggressive cleanup and parsing
+        try {
+          // Try to extract just the JSON part with a more lenient approach
+          final jsonStartIndex = cleanedContent.indexOf('{');
+          final jsonEndIndex = cleanedContent.lastIndexOf('}') + 1;
+
+          if (jsonStartIndex >= 0 && jsonEndIndex > jsonStartIndex) {
+            final jsonPart = cleanedContent.substring(
+              jsonStartIndex,
+              jsonEndIndex,
+            );
+            debugPrint("FUNCTION_EXECUTOR: Extracted JSON part: $jsonPart");
+            developer.log(
+              "FUNCTION EXECUTOR: Extracted JSON part: $jsonPart",
+              name: "FunctionExecutor",
+            );
+
+            // Try to parse with a more permissive approach
+            functionCall = jsonDecode(jsonPart);
+            debugPrint("FUNCTION_EXECUTOR: Fallback JSON parsing successful");
+          } else {
+            developer.log(
+              "FUNCTION EXECUTOR: Fallback parsing failed - could not find valid JSON",
+              name: "FunctionExecutor",
+            );
+            rethrow;
+          }
+        } catch (innerError) {
           developer.log(
-            "FUNCTION EXECUTOR: Extracted JSON part: $jsonPart",
-            name: "FunctionExecutor",
-          );
-          functionCall = jsonDecode(jsonPart);
-          debugPrint("FUNCTION_EXECUTOR: Fallback JSON parsing successful");
-        } else {
-          developer.log(
-            "FUNCTION EXECUTOR: Fallback parsing failed",
+            "FUNCTION EXECUTOR: Even fallback parsing failed: $innerError",
             name: "FunctionExecutor",
           );
           rethrow;
@@ -128,6 +140,360 @@ class FunctionExecutor {
               "FUNCTION_EXECUTOR: Error in AIFunctions.get_all_todo_items: $e",
             );
             return "Error executing get_all_todo_items: $e";
+          }
+
+        case 'update_todo':
+          // Extract required parameter
+          final String todoName = parameters['todoName'];
+          final String? newTitle = parameters['newTitle'];
+          final String? newDescription = parameters['newDescription'];
+          final int? newPriority =
+              parameters['newPriority'] != null
+                  ? int.tryParse(parameters['newPriority'].toString())
+                  : null;
+          final bool? newStatus =
+              parameters['newStatus'] != null
+                  ? parameters['newStatus'].toString().toLowerCase() == 'true'
+                  : null;
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling update_todo with name: $todoName",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling update_todo with name: $todoName",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.update_todo(
+              todoName: todoName,
+              newTitle: newTitle,
+              newDescription: newDescription,
+              newPriority: newPriority,
+              newStatus: newStatus,
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.update_todo: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.update_todo: $e",
+            );
+            return "Error executing update_todo: $e";
+          }
+
+        case 'delete_todo':
+          // Extract required parameter
+          final String todoName = parameters['todoName'];
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling delete_todo with name: $todoName",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling delete_todo with name: $todoName",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.delete_todo(todoName: todoName);
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.delete_todo: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.delete_todo: $e",
+            );
+            return "Error executing delete_todo: $e";
+          }
+
+        case 'add_todo':
+          // Extract required parameter
+          final String title = parameters['title'];
+          final String? description = parameters['description'];
+          final int priority =
+              parameters['priority'] != null
+                  ? int.tryParse(parameters['priority'].toString()) ?? 1
+                  : 1;
+
+          debugPrint("FUNCTION_EXECUTOR: Calling add_todo with title: $title");
+          developer.log(
+            "FUNCTION EXECUTOR: Calling add_todo with title: $title",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.add_todo(
+              title: title,
+              description: description,
+              priority: priority,
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.add_todo: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint("FUNCTION_EXECUTOR: Error in AIFunctions.add_todo: $e");
+            return "Error executing add_todo: $e";
+          }
+
+        case 'get_all_habits':
+          debugPrint("FUNCTION_EXECUTOR: Calling get_all_habits");
+          developer.log(
+            "FUNCTION EXECUTOR: Calling get_all_habits",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.get_all_habits();
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.get_all_habits: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.get_all_habits: $e",
+            );
+            return "Error executing get_all_habits: $e";
+          }
+
+        case 'add_habit':
+          // Extract required parameters
+          final String name = parameters['name'];
+          final String description = parameters['description'] ?? '';
+          final int consecutiveProgress =
+              parameters['consecutiveProgress'] != null
+                  ? int.tryParse(
+                        parameters['consecutiveProgress'].toString(),
+                      ) ??
+                      0
+                  : 0;
+          final int totalProgress =
+              parameters['totalProgress'] != null
+                  ? int.tryParse(parameters['totalProgress'].toString()) ?? 0
+                  : 0;
+
+          debugPrint("FUNCTION_EXECUTOR: Calling add_habit with name: $name");
+          developer.log(
+            "FUNCTION EXECUTOR: Calling add_habit with name: $name",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.add_habit(
+              name: name,
+              description: description,
+              consecutiveProgress: consecutiveProgress,
+              totalProgress: totalProgress,
+            );
+            debugPrint(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.add_habit: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint("FUNCTION_EXECUTOR: Error in AIFunctions.add_habit: $e");
+            return "Error executing add_habit: $e";
+          }
+
+        case 'update_habit':
+          // Extract required parameter
+          final String habitName = parameters['habitName'];
+          final String? newName = parameters['newName'];
+          final String? newDescription = parameters['newDescription'];
+          final String? newStatus = parameters['newStatus'];
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling update_habit with name: $habitName",
+          );
+          debugPrint(
+            "FUNCTION_EXECUTOR: update_habit parameters: newName=$newName, newDescription=$newDescription, newStatus=$newStatus",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling update_habit with name: $habitName",
+            name: "FunctionExecutor",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: update_habit full parameters: $parameters",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.update_habit(
+              habitName: habitName,
+              newName: newName,
+              newDescription: newDescription,
+              newStatus: newStatus,
+            );
+            debugPrint("FUNCTION_EXECUTOR: update_habit execution complete");
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.update_habit: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.update_habit: $e",
+            );
+            return "Error executing update_habit: $e";
+          }
+
+        case 'delete_habit':
+          // Extract required parameter
+          final String habitName = parameters['habitName'];
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling delete_habit with name: $habitName",
+          );
+          debugPrint(
+            "FUNCTION_EXECUTOR: delete_habit parameter: habitName=$habitName",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling delete_habit with name: $habitName",
+            name: "FunctionExecutor",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: delete_habit full parameters: $parameters",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.delete_habit(habitName: habitName);
+            debugPrint("FUNCTION_EXECUTOR: delete_habit execution complete");
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.delete_habit: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.delete_habit: $e",
+            );
+            return "Error executing delete_habit: $e";
           }
 
         // Add more function cases as they're implemented in AIFunctions
