@@ -30,8 +30,8 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     emit(state.copyWith(isLoading: true));
 
     try {
-      // Use getRecentTodos to only fetch todos from the last day
-      final todos = await _repository.getRecentTodos();
+      // Use getTodosByStatus(false) to only fetch active (not completed) todos
+      final todos = await _repository.getTodosByStatus(false);
 
       if (todos != null) {
         final sortedTodos =
@@ -49,17 +49,8 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
                 )
                 .toList();
 
-        // Sort todos by completion status first, then by priority (highest first)
-        sortedTodos.sort((a, b) {
-          // First sort by completion status (incomplete first)
-          if (a.todoStatus != b.todoStatus) {
-            return a.todoStatus
-                ? 1
-                : -1; // false (incomplete) comes before true (complete)
-          }
-          // Then sort by priority (highest first)
-          return b.priority.compareTo(a.priority);
-        });
+        // Sort by priority (highest first) since all are active
+        sortedTodos.sort((a, b) => b.priority.compareTo(a.priority));
 
         emit(state.copyWith(todos: sortedTodos, isLoading: false));
       } else {

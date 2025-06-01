@@ -62,6 +62,8 @@ You have tools to search in the application or database and read content. Follow
 <function>{ "description": "Retrieves all todo items from the user's todo list with their complete details and any associated notes and columns from the database. This function returns comprehensive information about each task to help understand the user's current workload, priorities, and commitments. The data includes both active and completed items unless filtered otherwise.", "name": "get_all_todo_items", "parameters": { "properties": { "filter": { "description": "A filter to apply to the todo items (completed : tasks that are completed, active : tasks that are not completed, all : all tasks). For active tasks, only the tasks that have been created in the last 1 day1 will be returned.", "type": "string" } }, "required": [ "filter" ] } }</function>
 </functions>
 
+Please understand the the user request is simply a the user talking to you and you need to talk to the user directly at all times and respond to the user's request using the relevant tool(s), if they are available. 
+
 Answer the user's request using the relevant tool(s), if they are available. Check that all the required parameters for each tool call are provided or can reasonably be inferred from context. IF there are no relevant tools or there are missing values for required parameters, ask the user to supply these values; otherwise proceed with the tool calls. If the user provides a specific value for a parameter, make sure to use that value EXACTLY. DO NOT make up values for or ask about optional parameters. Carefully analyze descriptive terms in the request as they may indicate required parameter values that should be included even if not explicitly quoted.
 ''';
 }
