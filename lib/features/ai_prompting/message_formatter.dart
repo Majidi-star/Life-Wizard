@@ -1,5 +1,6 @@
 import '../../main.dart';
 import 'sys_prompt.dart';
+import 'package:intl/intl.dart';
 
 /// Formats messages sent to the AI by adding system prompt and wrapping user message in tags
 class MessageFormatter {
@@ -22,6 +23,13 @@ class MessageFormatter {
     // Add a separator
     formattedMessage.write('\n\n');
 
+    // Get current date and time
+    final now = DateTime.now();
+    final dateFormatter = DateFormat('EEEE, MMMM d, yyyy');
+    final timeFormatter = DateFormat('HH:mm:ss');
+    final currentDate = dateFormatter.format(now);
+    final currentTime = timeFormatter.format(now);
+
     // Get AI Guidelines from settings
     String aiGuidelines = '';
     try {
@@ -35,6 +43,12 @@ class MessageFormatter {
 
     // Add the system prompt wrapped in <system_prompt> tags
     formattedMessage.write('<system_prompt>');
+
+    // Include current date and time
+    formattedMessage.write('<current_datetime>\n');
+    formattedMessage.write('Current Date: $currentDate\n');
+    formattedMessage.write('Current Time: $currentTime\n');
+    formattedMessage.write('</current_datetime>\n\n');
 
     // Include user's AI guidelines if available
     if (aiGuidelines.isNotEmpty) {
@@ -86,6 +100,13 @@ class MessageFormatter {
       formattedMessage.write('</conversation_history>\n\n');
     }
 
+    // Get current date and time
+    final now = DateTime.now();
+    final dateFormatter = DateFormat('EEEE, MMMM d, yyyy');
+    final timeFormatter = DateFormat('HH:mm:ss');
+    final currentDate = dateFormatter.format(now);
+    final currentTime = timeFormatter.format(now);
+
     // Get AI Guidelines from settings
     String aiGuidelines = '';
     try {
@@ -99,6 +120,12 @@ class MessageFormatter {
 
     // Add the system prompt wrapped in <system_prompt> tags
     formattedMessage.write('<system_prompt>');
+
+    // Include current date and time
+    formattedMessage.write('<current_datetime>\n');
+    formattedMessage.write('Current Date: $currentDate\n');
+    formattedMessage.write('Current Time: $currentTime\n');
+    formattedMessage.write('</current_datetime>\n\n');
 
     // Include user's AI guidelines if available
     if (aiGuidelines.isNotEmpty) {
