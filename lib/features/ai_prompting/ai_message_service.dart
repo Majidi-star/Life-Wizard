@@ -2,6 +2,8 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import '../ai_chat/gemini_chat_service.dart';
 import '../ai_chat/ai_chat_widgets.dart'; // Import ChatMessage and FunctionCallResult classes
+import '../../main.dart'
+    show settingsBloc; // Import settingsBloc for AI guidelines
 import 'message_formatter.dart';
 import 'respones_handler.dart';
 import 'function_executor.dart';

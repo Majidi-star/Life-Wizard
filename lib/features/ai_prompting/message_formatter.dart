@@ -1,3 +1,4 @@
+import '../../main.dart';
 import 'sys_prompt.dart';
 
 /// Formats messages sent to the AI by adding system prompt and wrapping user message in tags
@@ -21,8 +22,27 @@ class MessageFormatter {
     // Add a separator
     formattedMessage.write('\n\n');
 
+    // Get AI Guidelines from settings
+    String aiGuidelines = '';
+    try {
+      aiGuidelines = settingsBloc.state.aiGuideLines;
+      if (aiGuidelines == 'default') {
+        aiGuidelines = '';
+      }
+    } catch (e) {
+      print('Error getting AI guidelines: $e');
+    }
+
     // Add the system prompt wrapped in <system_prompt> tags
     formattedMessage.write('<system_prompt>');
+
+    // Include user's AI guidelines if available
+    if (aiGuidelines.isNotEmpty) {
+      formattedMessage.write('<user_guidelines>\n');
+      formattedMessage.write(aiGuidelines);
+      formattedMessage.write('\n</user_guidelines>\n\n');
+    }
+
     formattedMessage.write(SystemPrompt.prompt);
     formattedMessage.write('</system_prompt>');
 
@@ -66,8 +86,27 @@ class MessageFormatter {
       formattedMessage.write('</conversation_history>\n\n');
     }
 
+    // Get AI Guidelines from settings
+    String aiGuidelines = '';
+    try {
+      aiGuidelines = settingsBloc.state.aiGuideLines;
+      if (aiGuidelines == 'default') {
+        aiGuidelines = '';
+      }
+    } catch (e) {
+      print('Error getting AI guidelines: $e');
+    }
+
     // Add the system prompt wrapped in <system_prompt> tags
     formattedMessage.write('<system_prompt>');
+
+    // Include user's AI guidelines if available
+    if (aiGuidelines.isNotEmpty) {
+      formattedMessage.write('<user_guidelines>\n');
+      formattedMessage.write(aiGuidelines);
+      formattedMessage.write('\n</user_guidelines>\n\n');
+    }
+
     formattedMessage.write(SystemPrompt.prompt);
     formattedMessage.write('</system_prompt>');
 
