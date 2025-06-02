@@ -208,7 +208,7 @@ class DatabaseInitializer {
         totalProgress INTEGER NOT NULL,
         createdAt DATETIME NOT NULL,
         start TEXT NOT NULL,
-        end TEXT NOT NULL,
+        end TEXT NOT NULL
       )
     ''');
 
@@ -239,7 +239,8 @@ class DatabaseInitializer {
       CREATE TABLE logs(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         datetime DATETIME NOT NULL,
-        logs TEXT NOT NULL
+        logs TEXT NOT NULL,
+        category TEXT NOT NULL
       )
     ''');
 
@@ -746,13 +747,35 @@ class DatabaseInitializer {
       'datetime': yesterday.toIso8601String(),
       'logs':
           'Completed a productive work day with 3 major tasks finished. Started a new book in the evening.',
+      'category': 'Work',
     });
 
     await db.insert('logs', {
       'datetime': now.toIso8601String(),
       'logs':
           'Morning meditation was great. Had an insightful team meeting. Need to focus more on the project tomorrow.',
+      'category': 'Personal',
     });
+
+    // Print logs table values
+    await _printLogsTableValues(db);
+  }
+
+  // Helper method to print logs table values
+  static Future<void> _printLogsTableValues(Database db) async {
+    _logger.info('Printing logs table values:');
+
+    final List<Map<String, dynamic>> logsList = await db.query('logs');
+
+    for (final log in logsList) {
+      _logger.info('Log ID: ${log['id']}');
+      _logger.info('  Date: ${log['datetime']}');
+      _logger.info('  Category: ${log['category']}');
+      _logger.info('  Content: ${log['logs']}');
+      _logger.info('-----------------------------------');
+    }
+
+    _logger.info('Total logs: ${logsList.length}');
   }
 
   // Helper method to close the database

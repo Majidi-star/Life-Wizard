@@ -117,10 +117,8 @@ class AiMessageService {
       }
 
       // Process the response to extract tagged content
-      print("HELLO2");
       final List<Map<String, String>> taggedContent =
           response != null ? ResponseHandler.processResponse(response) : [];
-      print("HELLO3");
       // Debug statement to show we're about to handle function calls
       debugPrint(
         "About to handle function calls. Tagged content count: ${taggedContent.length}",
@@ -129,7 +127,6 @@ class AiMessageService {
       // Check for function calls and execute them if found
       String? functionResult;
       if (taggedContent.isNotEmpty) {
-        print("HELLO");
         debugPrint("Checking for function calls in tagged content");
         if (ResponseHandler.hasFunctionCall(taggedContent)) {
           debugPrint("Function call found, executing...");
