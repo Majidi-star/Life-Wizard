@@ -1,10 +1,12 @@
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import '../ai_chat/gemini_chat_service.dart';
+import '../ai_chat/ai_chat_widgets.dart'; // Import ChatMessage and FunctionCallResult classes
 import 'message_formatter.dart';
 import 'respones_handler.dart';
 import 'function_executor.dart';
 import 'dart:async'; // Add import for async delay
+import 'dart:convert'; // Add import for jsonDecode
 
 /// Service to handle AI message formatting, sending, and response processing
 class AiMessageService {
@@ -126,14 +128,38 @@ class AiMessageService {
 
       // Check for function calls and execute them if found
       String? functionResult;
+      List<FunctionCallResult> functionCallResults = [];
+
       if (taggedContent.isNotEmpty) {
         debugPrint("Checking for function calls in tagged content");
         if (ResponseHandler.hasFunctionCall(taggedContent)) {
           debugPrint("Function call found, executing...");
-          functionResult = await _handleFunctionCalls(taggedContent);
-          debugPrint(
-            "Function execution complete. Result: ${functionResult != null ? 'not null' : 'null'}",
-          );
+
+          // Extract function name before execution
+          String? functionName = _extractFunctionName(taggedContent);
+
+          try {
+            functionResult = await _handleFunctionCalls(taggedContent);
+            debugPrint(
+              "Function execution complete. Result: ${functionResult != null ? 'not null' : 'null'}",
+            );
+
+            // Add successful function call to results
+            if (functionName != null) {
+              functionCallResults.add(
+                FunctionCallResult(name: functionName, success: true),
+              );
+            }
+          } catch (e) {
+            debugPrint("Function execution failed: $e");
+
+            // Add failed function call to results
+            if (functionName != null) {
+              functionCallResults.add(
+                FunctionCallResult(name: functionName, success: false),
+              );
+            }
+          }
         } else {
           debugPrint("No function calls found in tagged content");
         }
@@ -144,6 +170,7 @@ class AiMessageService {
         'isUser': false,
         'message': response,
         'taggedContent': taggedContent,
+        'functionCallResults': functionCallResults,
       };
 
       // Add messages to conversation history
@@ -186,10 +213,40 @@ class AiMessageService {
             functionResponse,
           );
 
+          // Check for additional function calls in the response
+          List<FunctionCallResult> additionalFunctionCallResults = [];
+          if (ResponseHandler.hasFunctionCall(functionResponseTaggedContent)) {
+            String? additionalFunctionName = _extractFunctionName(
+              functionResponseTaggedContent,
+            );
+
+            try {
+              await _handleFunctionCalls(functionResponseTaggedContent);
+              if (additionalFunctionName != null) {
+                additionalFunctionCallResults.add(
+                  FunctionCallResult(
+                    name: additionalFunctionName,
+                    success: true,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (additionalFunctionName != null) {
+                additionalFunctionCallResults.add(
+                  FunctionCallResult(
+                    name: additionalFunctionName,
+                    success: false,
+                  ),
+                );
+              }
+            }
+          }
+
           final functionResponseObj = {
             'isUser': false,
             'message': functionResponse,
             'taggedContent': functionResponseTaggedContent,
+            'functionCallResults': additionalFunctionCallResults,
           };
 
           _addToHistory(functionResponseObj);
@@ -206,6 +263,10 @@ class AiMessageService {
             'taggedContent': functionResponseTaggedContent,
             'sentMessage': formattedMessage,
             'functionResult': functionResult,
+            'functionCallResults': [
+              ...functionCallResults,
+              ...additionalFunctionCallResults,
+            ],
           };
         }
       }
@@ -223,6 +284,7 @@ class AiMessageService {
         'taggedContent': taggedContent,
         'sentMessage': formattedMessage,
         'functionResult': functionResult,
+        'functionCallResults': functionCallResults,
       };
     } catch (e) {
       debugPrint('Error in sendMessage after all retry attempts: $e');
@@ -252,6 +314,26 @@ class AiMessageService {
           debugPrint(
             "Function content is not null or empty, executing function",
           );
+
+          // Get function name for reporting
+          String functionName = "Unknown Function";
+          try {
+            final Map<String, dynamic>? functionCall = jsonDecode(
+              functionContent.trim(),
+            );
+            if (functionCall != null && functionCall['name'] != null) {
+              functionName = functionCall['name'].toString();
+              debugPrint("Function name extracted: $functionName");
+            }
+          } catch (e) {
+            // If JSON parsing fails, try regex as fallback
+            final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
+            final match = nameRegex.firstMatch(functionContent);
+            if (match != null && match.groupCount >= 1) {
+              functionName = match.group(1) ?? "Unknown Function";
+              debugPrint("Function name extracted using regex: $functionName");
+            }
+          }
 
           // Execute the function call and get result
           try {
@@ -342,4 +424,54 @@ class AiMessageService {
   /// Gets the last message exchange (sent and received)
   Map<String, String> get lastExchange =>
       Map<String, String>.from(_lastExchange);
+
+  /// Extracts the function name from function call tags
+  String? _extractFunctionName(List<Map<String, String>> taggedContent) {
+    // First check for proper function_call tags
+    for (final tag in taggedContent) {
+      if (tag['tag_name'] == 'function_call') {
+        final functionContent = tag['content'];
+        if (functionContent != null && functionContent.isNotEmpty) {
+          try {
+            final trimmedContent = functionContent.trim();
+            final Map<String, dynamic> functionCall = jsonDecode(
+              trimmedContent,
+            );
+            return functionCall['name'] as String?;
+          } catch (e) {
+            debugPrint("Error extracting function name from JSON: $e");
+
+            // Try a more lenient approach with regex
+            final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
+            final match = nameRegex.firstMatch(functionContent);
+            if (match != null && match.groupCount >= 1) {
+              return match.group(1);
+            }
+          }
+        }
+      }
+    }
+
+    // If no function_call tags found, check for raw content mentioning functions
+    final String fullContent = taggedContent
+        .map((tag) => tag['content'] ?? '')
+        .join(' ');
+
+    // Check for habit-related functions
+    final habitFunctionPattern = RegExp(
+      r'(get_all_habits|add_habit|update_habit|delete_habit)',
+      caseSensitive: false,
+    );
+
+    final match = habitFunctionPattern.firstMatch(fullContent);
+    if (match != null && match.groupCount >= 0) {
+      final functionName = match.group(0);
+      if (functionName != null && functionName.isNotEmpty) {
+        debugPrint("Found habit function mention: $functionName");
+        return functionName;
+      }
+    }
+
+    return null;
+  }
 }

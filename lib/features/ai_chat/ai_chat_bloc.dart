@@ -5,15 +5,21 @@ import 'ai_chat_event.dart';
 import 'ai_chat_state.dart';
 import 'ai_chat_widgets.dart';
 import 'gemini_chat_service.dart';
+import '../ai_prompting/ai_message_service.dart';
 import '../../main.dart' as app_main;
+import 'package:flutter/foundation.dart';
 
 class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
   final GeminiChatService _geminiService;
+  final AiMessageService _aiMessageService;
   String _currentModel = '';
 
   // Constructor using dependency injection pattern
   AIChatBloc({GeminiChatService? geminiService})
     : _geminiService = geminiService ?? createGeminiChatService(),
+      _aiMessageService = AiMessageService(
+        chatService: geminiService ?? createGeminiChatService(),
+      ),
       super(const AIChatState()) {
     // Initialize the current model
     _currentModel = app_main.settingsBloc.state.geminiModel;
@@ -68,17 +74,78 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
         _currentModel = modelName;
       }
 
-      // Get AI response
-      final response = await _geminiService.sendMessage(event.message);
+      // Get AI response using AI Message Service
+      final response = await _aiMessageService.sendMessage(event.message);
+      final rawResponse = response['rawResponse'] as String?;
+
+      // Extract function call results with proper type handling
+      final functionCallResultsRaw = response['functionCallResults'];
+      List<FunctionCallResult> functionCallResults = [];
+
+      if (functionCallResultsRaw != null) {
+        // Handle the case where functionCallResults might be a List<dynamic>
+        if (functionCallResultsRaw is List) {
+          for (var item in functionCallResultsRaw) {
+            if (item is FunctionCallResult) {
+              functionCallResults.add(item);
+            } else if (item is Map) {
+              // Try to convert from Map to FunctionCallResult
+              try {
+                final name = item['name']?.toString() ?? 'Unknown Function';
+                final success = item['success'] == true;
+                functionCallResults.add(
+                  FunctionCallResult(name: name, success: success),
+                );
+              } catch (e) {
+                debugPrint('Error converting function call result: $e');
+              }
+            }
+          }
+        }
+      }
+
+      // Ensure we have at least one function call result if a function was executed
+      if (functionCallResults.isEmpty && response['functionResult'] != null) {
+        // Extract function name using regex as fallback
+        String functionName = 'Function Call';
+        final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
+        final match = nameRegex.firstMatch(
+          response['functionResult'].toString(),
+        );
+        if (match != null && match.groupCount >= 1) {
+          functionName = match.group(1) ?? 'Function Call';
+        }
+
+        functionCallResults.add(
+          FunctionCallResult(name: functionName, success: true),
+        );
+      }
+
+      debugPrint('Function calls to display: ${functionCallResults.length}');
 
       // Add AI response to the state
       final aiMessage = ChatMessage(
-        text: response ?? "Sorry, I couldn't generate a response.",
+        text: rawResponse ?? "Sorry, I couldn't generate a response.",
         isUser: false,
       );
 
+      // Create a list with the AI message and then add function call messages
       final messagesWithResponse = List<ChatMessage>.from(updatedMessages)
         ..add(aiMessage);
+
+      // Now add separate messages for each function call
+      for (var functionCall in functionCallResults) {
+        messagesWithResponse.add(
+          ChatMessage(
+            text: functionCall.name,
+            isUser: false,
+            isSystemMessage: true,
+            isFunctionCallMessage: true,
+            functionCalls: [functionCall],
+          ),
+        );
+      }
+
       emit(
         state.copyWith(
           messages: messagesWithResponse,
@@ -101,8 +168,9 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
 
   /// Handle the ClearMessages event by clearing the chat history
   void _onClearMessages(ClearMessages event, Emitter<AIChatState> emit) {
-    // Clear conversation history in the Gemini service
+    // Clear conversation history in both services
     _geminiService.clearConversation();
+    _aiMessageService.clearConversation();
 
     // Clear messages in the state
     emit(state.copyWith(messages: []));
@@ -113,8 +181,9 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
     StartNewConversation event,
     Emitter<AIChatState> emit,
   ) {
-    // Clear conversation history in the Gemini service
+    // Clear conversation history in both services
     _geminiService.clearConversation();
+    _aiMessageService.clearConversation();
 
     // Update state to indicate a new conversation has started
     final modelName = app_main.settingsBloc.state.geminiModel;

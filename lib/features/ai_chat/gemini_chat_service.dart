@@ -178,24 +178,42 @@ class GeminiChatService {
   // Check network connectivity
   Future<bool> _checkConnectivity() async {
     try {
-      // Try to connect to Google's API endpoint
+      // Use a more reliable endpoint for connectivity check
       final response = await http
           .get(
-            Uri.parse(
-              'https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey',
-            ),
+            Uri.parse('https://www.google.com'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 5));
 
-      return response.statusCode >= 200 && response.statusCode < 400;
+      // Consider any response (even an error page) as having connectivity
+      return response.statusCode >= 200;
     } on SocketException catch (_) {
-      return false;
+      debugPrint('Socket exception during connectivity check');
+      // Try an alternative endpoint before giving up
+      try {
+        final backup = await http
+            .get(Uri.parse('https://www.cloudflare.com'))
+            .timeout(const Duration(seconds: 5));
+        return backup.statusCode >= 200;
+      } catch (_) {
+        return false;
+      }
     } on TimeoutException catch (_) {
-      return false;
+      debugPrint('Timeout during connectivity check');
+      // Try a fallback connection test with shorter timeout
+      try {
+        final backup = await http
+            .get(Uri.parse('https://1.1.1.1'))
+            .timeout(const Duration(seconds: 3));
+        return true;
+      } catch (_) {
+        return false;
+      }
     } catch (e) {
       debugPrint('Error checking connectivity: $e');
-      return false;
+      // Return true by default, assume connectivity unless proven otherwise
+      return true;
     }
   }
 
@@ -289,10 +307,18 @@ class GeminiChatService {
       }
     }
 
-    // Check internet connection first
-    final hasConnectivity = await _checkConnectivity();
+    // Check internet connection first - try multiple times before failing
+    bool hasConnectivity = false;
+    for (int i = 0; i < 3; i++) {
+      hasConnectivity = await _checkConnectivity();
+      if (hasConnectivity) break;
+      // Wait briefly before retry
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
     if (!hasConnectivity) {
-      return "No internet connection. Please check your network settings and try again.";
+      debugPrint("Connectivity check failed after multiple attempts");
+      // Try to proceed anyway, the actual API call may still work
     }
 
     _retryCount = 0;

@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import 'package:flutter/services.dart'; // For clipboard
+import 'package:markdown/markdown.dart' as md;
+import 'markdown_code_block.dart'; // Import our custom code block builder
 
 /// Widget to display the chat conversation
 class ChatMessageList extends StatelessWidget {
@@ -207,8 +212,67 @@ class MessageBubble extends StatelessWidget {
     final theme = Theme.of(context);
     final isUser = message.isUser;
     final isSystemMessage = message.isSystemMessage;
+    final isFunctionCallMessage = message.isFunctionCallMessage;
 
-    // For system messages, use a different style
+    // For system messages with function calls, use a special style
+    if (isFunctionCallMessage && message.functionCalls.isNotEmpty) {
+      final functionCall = message.functionCalls.first;
+      final success = functionCall.success;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color:
+                    success
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: success ? Colors.green.shade300 : Colors.red.shade300,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    success ? Icons.check_circle : Icons.cancel,
+                    color: success ? Colors.green : Colors.red,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Function: ${message.text}",
+                    style: TextStyle(
+                      color:
+                          success ? Colors.green.shade800 : Colors.red.shade800,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    success ? "Executed" : "Failed",
+                    style: TextStyle(
+                      color:
+                          success ? Colors.green.shade600 : Colors.red.shade600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // For regular system messages, use the existing style
     if (isSystemMessage) {
       return Center(
         child: Padding(
@@ -233,6 +297,7 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
+    // For regular user and AI messages
     return Row(
       mainAxisAlignment:
           isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -240,27 +305,104 @@ class MessageBubble extends StatelessWidget {
         if (!isUser) _buildAvatar(context),
         const SizedBox(width: 8),
         Flexible(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color:
-                  isUser
-                      ? theme.colorScheme.secondary
-                      : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Text(
-              message.text,
-              style: TextStyle(
-                color: isUser ? Colors.white : theme.colorScheme.onSurface,
+          child: Column(
+            crossAxisAlignment:
+                isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      isUser
+                          ? theme.colorScheme.secondary
+                          : theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child:
+                    isUser
+                        ? Text(
+                          message.text,
+                          style: TextStyle(color: Colors.white),
+                        )
+                        : _buildMarkdownContent(context),
               ),
-            ),
+            ],
           ),
         ),
         const SizedBox(width: 8),
         if (isUser) _buildAvatar(context, isUser: true),
       ],
     );
+  }
+
+  /// Build a markdown widget for AI responses
+  Widget _buildMarkdownContent(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MarkdownBody(
+      data: message.text,
+      selectable: true,
+      styleSheet: MarkdownStyleSheet(
+        p: TextStyle(color: theme.colorScheme.onSurface),
+        h1: TextStyle(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
+        h2: TextStyle(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+        h3: TextStyle(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+        code: TextStyle(
+          backgroundColor: theme.colorScheme.surfaceVariant,
+          color: theme.colorScheme.secondary,
+          fontFamily: 'monospace',
+        ),
+        codeblockDecoration: BoxDecoration(
+          color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.surfaceVariant, width: 1),
+        ),
+        blockquote: TextStyle(
+          color: theme.colorScheme.onSurface.withOpacity(0.8),
+          fontStyle: FontStyle.italic,
+        ),
+        blockquoteDecoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: theme.colorScheme.secondary, width: 4),
+          ),
+        ),
+        blockquotePadding: const EdgeInsets.only(left: 16.0),
+        listBullet: TextStyle(color: theme.colorScheme.secondary),
+      ),
+      onTapLink: (text, href, title) {
+        if (href != null) {
+          _launchUrl(href);
+        }
+      },
+    );
+  }
+
+  /// Launch URLs when tapped in markdown
+  Future<void> _launchUrl(String urlString) async {
+    try {
+      final url = Uri.parse(urlString);
+      await url_launcher.launchUrl(
+        url,
+        mode: url_launcher.LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+    }
   }
 
   Widget _buildAvatar(BuildContext context, {bool isUser = false}) {
@@ -283,17 +425,29 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
+/// Function call result information
+class FunctionCallResult {
+  final String name;
+  final bool success;
+
+  FunctionCallResult({required this.name, required this.success});
+}
+
 /// Model class for chat messages
 class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
   final bool isSystemMessage;
+  final List<FunctionCallResult> functionCalls;
+  final bool isFunctionCallMessage;
 
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? timestamp,
     this.isSystemMessage = false,
+    this.functionCalls = const [],
+    this.isFunctionCallMessage = false,
   }) : timestamp = timestamp ?? DateTime.now();
 }
