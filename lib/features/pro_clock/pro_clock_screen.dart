@@ -68,7 +68,7 @@ class _ProClockScreenState extends State<ProClockScreen> {
       ),
       drawer: const AppDrawer(),
       body: Container(
-        decoration: BoxDecoration(color: theme.colorScheme.background),
+        decoration: BoxDecoration(color: theme.colorScheme.surface),
         child: SafeArea(
           child: BlocBuilder<ProClockBloc, ProClockState>(
             builder: (context, state) {

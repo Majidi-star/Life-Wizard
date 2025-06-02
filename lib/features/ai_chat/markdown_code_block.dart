@@ -19,8 +19,8 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-        border: Border.all(color: theme.colorScheme.surfaceVariant),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        border: Border.all(color: theme.colorScheme.surfaceContainerHighest),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,10 +46,10 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
                       final scaffoldContext = _findScaffoldMessengerContext();
                       if (scaffoldContext != null) {
                         ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                          SnackBar(
-                            content: const Text('Code copied to clipboard'),
+                          const SnackBar(
+                            content: Text('Code copied to clipboard'),
                             behavior: SnackBarBehavior.floating,
-                            duration: const Duration(seconds: 2),
+                            duration: Duration(seconds: 2),
                           ),
                         );
                       }

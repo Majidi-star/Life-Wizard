@@ -214,14 +214,14 @@ class SettingsWidgets {
           ),
           child: RadioTheme(
             data: RadioThemeData(
-              fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor;
                 }
                 return state.deactivatedBorderColor;
               }),
-              overlayColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor.withOpacity(0.2);
                 }
                 return state.deactivatedBorderColor.withOpacity(0.2);
@@ -359,28 +359,28 @@ class SettingsWidgets {
           ),
           child: SwitchTheme(
             data: SwitchThemeData(
-              overlayColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor.withOpacity(0.2);
                 }
                 return state.deactivatedBorderColor.withOpacity(0.2);
               }),
-              thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor;
                 }
                 return state.deactivatedColor;
               }),
-              trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor.withOpacity(0.5);
                 }
                 return state.deactivatedColor.withOpacity(0.5);
               }),
-              trackOutlineColor: MaterialStateProperty.resolveWith<Color>((
+              trackOutlineColor: WidgetStateProperty.resolveWith<Color>((
                 states,
               ) {
-                if (states.contains(MaterialState.selected)) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedBorderColor;
                 }
                 return state.deactivatedBorderColor;
@@ -423,28 +423,28 @@ class SettingsWidgets {
           ),
           child: SwitchTheme(
             data: SwitchThemeData(
-              overlayColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor.withOpacity(0.2);
                 }
                 return state.deactivatedBorderColor.withOpacity(0.2);
               }),
-              thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor;
                 }
                 return state.deactivatedColor;
               }),
-              trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-                if (states.contains(MaterialState.selected)) {
+              trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedColor.withOpacity(0.5);
                 }
                 return state.deactivatedColor.withOpacity(0.5);
               }),
-              trackOutlineColor: MaterialStateProperty.resolveWith<Color>((
+              trackOutlineColor: WidgetStateProperty.resolveWith<Color>((
                 states,
               ) {
-                if (states.contains(MaterialState.selected)) {
+                if (states.contains(WidgetState.selected)) {
                   return state.activatedBorderColor;
                 }
                 return state.deactivatedBorderColor;

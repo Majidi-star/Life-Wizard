@@ -26,7 +26,7 @@ class GeminiChatService {
 
   // Previous messages to provide context
   String _contextPrompt = '';
-  int _maxContextLength = 20000; // Character limit for context
+  final int _maxContextLength = 20000; // Character limit for context
 
   // Track if we're handling a function result to avoid nested function calls
   bool _processingFunctionResult = false;
@@ -89,8 +89,8 @@ class GeminiChatService {
 
       if (_retryCount < _maxRetries) {
         _retryCount++;
-        debugPrint('Retrying initialization (${_retryCount}/${_maxRetries})');
-        await Future.delayed(Duration(seconds: 1));
+        debugPrint('Retrying initialization ($_retryCount/$_maxRetries)');
+        await Future.delayed(const Duration(seconds: 1));
         await _initialize();
       }
     }
@@ -151,8 +151,8 @@ class GeminiChatService {
         debugPrint('Error updating Gemini API key: $e');
         if (_retryCount < _maxRetries) {
           _retryCount++;
-          debugPrint('Retrying key update (${_retryCount}/${_maxRetries})');
-          await Future.delayed(Duration(seconds: 1));
+          debugPrint('Retrying key update ($_retryCount/$_maxRetries)');
+          await Future.delayed(const Duration(seconds: 1));
           await updateApiKey(newApiKey, newModel: newModel);
         }
       }
@@ -573,8 +573,8 @@ class GeminiChatService {
 
       if (_retryCount < _maxRetries) {
         _retryCount++;
-        debugPrint('Error occurred, retrying (${_retryCount}/${_maxRetries})');
-        await Future.delayed(Duration(seconds: 1));
+        debugPrint('Error occurred, retrying ($_retryCount/$_maxRetries)');
+        await Future.delayed(const Duration(seconds: 1));
         return _attemptSendMessage(message);
       }
       return "Error: $e";

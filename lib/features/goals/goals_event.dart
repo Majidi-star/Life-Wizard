@@ -1,7 +1,6 @@
 // Goals Event file
 
 import 'package:equatable/equatable.dart';
-import 'goals_model.dart';
 
 abstract class GoalsEvent extends Equatable {
   const GoalsEvent();

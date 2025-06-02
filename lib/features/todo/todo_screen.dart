@@ -168,7 +168,7 @@ class TodoItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     'Description:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -181,7 +181,7 @@ class TodoItemCard extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'Priority: ${todo.priority}',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -253,7 +253,7 @@ class TodoItemCard extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Todo Name',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: settingsState.secondaryColor,
@@ -268,7 +268,7 @@ class TodoItemCard extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Description',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: settingsState.secondaryColor,
@@ -284,7 +284,7 @@ class TodoItemCard extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Priority (1-9)',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: settingsState.secondaryColor,
@@ -482,7 +482,7 @@ class _TodoScreenState extends State<TodoScreen> {
           }
 
           if (state.todos.isEmpty) {
-            return Center(
+            return const Center(
               child: Text('No todos found. Tap the + button to add one.'),
             );
           }
@@ -552,7 +552,7 @@ class _TodoScreenState extends State<TodoScreen> {
                     decoration: InputDecoration(
                       labelText: 'Todo Name',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: settingsState.secondaryColor,
@@ -567,7 +567,7 @@ class _TodoScreenState extends State<TodoScreen> {
                     decoration: InputDecoration(
                       labelText: 'Description',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: settingsState.secondaryColor,
@@ -583,7 +583,7 @@ class _TodoScreenState extends State<TodoScreen> {
                     decoration: InputDecoration(
                       labelText: 'Priority (1-9)',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: settingsState.secondaryColor,

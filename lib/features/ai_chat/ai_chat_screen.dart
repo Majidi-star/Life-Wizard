@@ -6,7 +6,6 @@ import 'ai_chat_widgets.dart';
 import 'ai_chat_bloc.dart';
 import 'ai_chat_event.dart';
 import 'ai_chat_state.dart';
-import 'gemini_chat_service.dart';
 import '../../main.dart' as app_main;
 
 /// The AI Chat Screen which displays the chat interface

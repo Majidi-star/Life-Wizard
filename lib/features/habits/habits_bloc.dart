@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'habits_event.dart';
 import 'habits_state.dart';

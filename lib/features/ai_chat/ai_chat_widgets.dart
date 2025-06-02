@@ -80,7 +80,7 @@ class _ChatInputFieldState extends State<ChatInputField> {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final backgroundColor =
-        isDarkMode ? theme.colorScheme.primary : theme.colorScheme.background;
+        isDarkMode ? theme.colorScheme.primary : theme.colorScheme.surface;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
@@ -155,7 +155,7 @@ class SendButton extends StatelessWidget {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final backgroundColor =
-        isDarkMode ? theme.colorScheme.primary : theme.colorScheme.background;
+        isDarkMode ? theme.colorScheme.primary : theme.colorScheme.surface;
 
     return Container(
       width: 48,
@@ -280,7 +280,7 @@ class MessageBubble extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
@@ -325,7 +325,7 @@ class MessageBubble extends StatelessWidget {
                     isUser
                         ? Text(
                           message.text,
-                          style: TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
                         )
                         : _buildMarkdownContent(context),
               ),
@@ -363,14 +363,17 @@ class MessageBubble extends StatelessWidget {
           fontSize: 16,
         ),
         code: TextStyle(
-          backgroundColor: theme.colorScheme.surfaceVariant,
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
           color: theme.colorScheme.secondary,
           fontFamily: 'monospace',
         ),
         codeblockDecoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: theme.colorScheme.surfaceVariant, width: 1),
+          border: Border.all(
+            color: theme.colorScheme.surfaceContainerHighest,
+            width: 1,
+          ),
         ),
         blockquote: TextStyle(
           color: theme.colorScheme.onSurface.withOpacity(0.8),

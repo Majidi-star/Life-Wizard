@@ -1,7 +1,6 @@
 // Todo BLoC file
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'todo_event.dart';
 import 'todo_state.dart';

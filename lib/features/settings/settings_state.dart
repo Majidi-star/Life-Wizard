@@ -25,43 +25,43 @@ class SettingsState extends Equatable {
   // Get theme-based colors
   Color get primaryColor =>
       theme == 'dark'
-          ? Color.fromRGBO(40, 40, 40, 1)
-          : Color.fromRGBO(255, 255, 255, 1);
+          ? const Color.fromRGBO(40, 40, 40, 1)
+          : const Color.fromRGBO(255, 255, 255, 1);
 
   Color get secondaryColor =>
       theme == 'dark'
-          ? Color.fromRGBO(35, 190, 172, 1)
-          : Color.fromRGBO(1, 181, 240, 1);
+          ? const Color.fromRGBO(35, 190, 172, 1)
+          : const Color.fromRGBO(1, 181, 240, 1);
 
   Color get thirdlyColor =>
       theme == 'dark'
-          ? Color.fromRGBO(36, 36, 36, 1)
-          : Color.fromRGBO(249, 250, 252, 1);
+          ? const Color.fromRGBO(36, 36, 36, 1)
+          : const Color.fromRGBO(249, 250, 252, 1);
 
   Color get fourthlyColor =>
       theme == 'dark'
-          ? Color.fromRGBO(55, 59, 60, 1)
-          : Color.fromRGBO(249, 250, 252, 1);
+          ? const Color.fromRGBO(55, 59, 60, 1)
+          : const Color.fromRGBO(249, 250, 252, 1);
 
   Color get activatedColor =>
       theme == 'dark'
-          ? Color.fromRGBO(76, 217, 100, 1)
-          : Color.fromRGBO(52, 199, 89, 1);
+          ? const Color.fromRGBO(76, 217, 100, 1)
+          : const Color.fromRGBO(52, 199, 89, 1);
 
   Color get deactivatedColor =>
       theme == 'dark'
-          ? Color.fromRGBO(72, 72, 74, 1)
-          : Color.fromRGBO(229, 229, 234, 1);
+          ? const Color.fromRGBO(72, 72, 74, 1)
+          : const Color.fromRGBO(229, 229, 234, 1);
 
   Color get activatedBorderColor =>
       theme == 'dark'
-          ? Color.fromRGBO(85, 227, 110, 1)
-          : Color.fromRGBO(42, 189, 79, 1);
+          ? const Color.fromRGBO(85, 227, 110, 1)
+          : const Color.fromRGBO(42, 189, 79, 1);
 
   Color get deactivatedBorderColor =>
       theme == 'dark'
-          ? Color.fromRGBO(82, 82, 84, 1)
-          : Color.fromRGBO(209, 209, 214, 1);
+          ? const Color.fromRGBO(82, 82, 84, 1)
+          : const Color.fromRGBO(209, 209, 214, 1);
 
   // 58, 129, 70
   // 76, 217, 99

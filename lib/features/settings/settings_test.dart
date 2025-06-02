@@ -13,7 +13,7 @@ void testSettingsState() {
   } catch (e) {
     // If not available (when run directly), create a test state
     print('Using test state (not connected to app)');
-    final testState = SettingsState(
+    const testState = SettingsState(
       theme: 'dark',
       language: 'en',
       notifications: true,

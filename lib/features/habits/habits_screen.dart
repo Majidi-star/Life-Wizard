@@ -148,7 +148,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                     decoration: InputDecoration(
                       labelText: 'Habit Name',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.secondary,
@@ -163,7 +163,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                     decoration: InputDecoration(
                       labelText: 'Description',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.secondary,
@@ -229,7 +229,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     'Description:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -301,7 +301,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                     decoration: InputDecoration(
                       labelText: 'Habit Name',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.secondary,
@@ -316,7 +316,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                     decoration: InputDecoration(
                       labelText: 'Description',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.secondary,

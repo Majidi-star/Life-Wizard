@@ -71,14 +71,14 @@ class MoodDataWidgets {
       value: optionIndex,
       groupValue: isSelected ? optionIndex : null,
       activeColor: settingsState.activatedColor,
-      fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-        if (states.contains(MaterialState.selected)) {
+      fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
           return settingsState.activatedColor;
         }
         return settingsState.deactivatedColor;
       }),
-      overlayColor: MaterialStateProperty.resolveWith<Color>((states) {
-        if (states.contains(MaterialState.selected)) {
+      overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
           return settingsState.activatedColor.withOpacity(0.2);
         }
         return settingsState.deactivatedBorderColor.withOpacity(0.2);

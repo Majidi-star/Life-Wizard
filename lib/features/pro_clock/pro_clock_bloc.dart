@@ -169,10 +169,11 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
           initialIndex = tasks.indexWhere(
             (task) =>
                 task.currentTask == currentTask!.currentTask &&
-                task.startTime == currentTask!.startTime,
+                task.startTime == currentTask.startTime,
           );
-          if (initialIndex < 0)
+          if (initialIndex < 0) {
             initialIndex = 0; // Default to first task if not found
+          }
         }
       }
 

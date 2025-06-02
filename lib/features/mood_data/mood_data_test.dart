@@ -1,7 +1,7 @@
 import 'mood_data_state.dart';
 
 void main() {
-  final state = MoodDataState(
+  const state = MoodDataState(
     questions: [
       const MoodQuestion(
         id: 'mood_overall',

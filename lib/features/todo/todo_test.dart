@@ -7,7 +7,7 @@ void main() {
 
 void testTodoState() {
   final now = DateTime.now();
-  final twoHoursAgo = now.subtract(Duration(hours: 2));
+  final twoHoursAgo = now.subtract(const Duration(hours: 2));
 
   // Create sample todos with completedAt field
   final todos = [
@@ -16,7 +16,7 @@ void testTodoState() {
       todoName: 'Complete project',
       todoDescription: 'Finish the Flutter project',
       todoStatus: false, // Not completed
-      todoCreatedAt: now.subtract(Duration(days: 1)),
+      todoCreatedAt: now.subtract(const Duration(days: 1)),
       completedAt: null, // Not completed, so null
       priority: 3,
     ),
@@ -25,7 +25,7 @@ void testTodoState() {
       todoName: 'Write documentation',
       todoDescription: 'Create documentation for the project',
       todoStatus: true, // Completed
-      todoCreatedAt: now.subtract(Duration(days: 1)),
+      todoCreatedAt: now.subtract(const Duration(days: 1)),
       completedAt: twoHoursAgo, // Completed 2 hours ago
       priority: 2,
     ),

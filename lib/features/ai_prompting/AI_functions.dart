@@ -1,6 +1,5 @@
 // This file will contain AI functions to be implemented later
 
-import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
 import '../../database_initializer.dart';
 

@@ -42,7 +42,7 @@ class ScheduleWidgets {
                     ),
                   ),
                   monthCellStyle: DateRangePickerMonthCellStyle(
-                    todayTextStyle: TextStyle(
+                    todayTextStyle: const TextStyle(
                       color: Colors.red, // Text color for today's date
                       fontWeight: FontWeight.bold,
                     ),

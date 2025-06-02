@@ -548,7 +548,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   Container(
                     height: 5,
                     width: constraints.maxWidth,
-                    color: theme.colorScheme.surfaceVariant,
+                    color: theme.colorScheme.surfaceContainerHighest,
                   ),
 
                   // Timeline segments
@@ -720,7 +720,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
                         value: progress / 100,
-                        backgroundColor: theme.colorScheme.surfaceVariant,
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
                         color: taskColor, // Use color order for progress line
                         minHeight: 5,
                       ),
@@ -832,7 +833,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceVariant,
+            color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: settingsState.activatedColor.withOpacity(0.5),
@@ -955,7 +956,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: theme.colorScheme.surfaceVariant,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
                       child: Icon(Icons.person_outline, color: comparisonColor),
                     ),
                     title: Text(name),

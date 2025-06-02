@@ -1,7 +1,6 @@
 // Mood Data BLoC file
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'mood_data_event.dart';
 import 'mood_data_state.dart';
@@ -66,6 +65,12 @@ class MoodDataBloc extends Bloc<MoodDataEvent, MoodDataState> {
       const MoodQuestion(
         id: 'energy_peak',
         question: 'When during the day do you typically have the most energy?',
+        type: QuestionType.textInput,
+      ),
+      const MoodQuestion(
+        id: 'personal_notes',
+        question:
+            'Is there anything else about yourself that you would like the app to know about you?',
         type: QuestionType.textInput,
       ),
     ];

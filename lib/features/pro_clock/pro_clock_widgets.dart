@@ -695,8 +695,8 @@ class PomodoroInfo extends StatelessWidget {
           },
           child:
               state.isWorkPhase
-                  ? WorkPhaseCard(key: const ValueKey('work'))
-                  : RestPhaseCard(key: const ValueKey('rest')),
+                  ? const WorkPhaseCard(key: ValueKey('work'))
+                  : const RestPhaseCard(key: ValueKey('rest')),
         );
       },
     );
@@ -845,7 +845,7 @@ class RestPhaseCard extends StatelessWidget {
     final theme = Theme.of(context);
     final settingsState = main_app.settingsBloc.state;
     // Use red color for rest phase
-    final restColor = Colors.red;
+    const restColor = Colors.red;
     final textColor =
         settingsState.theme == 'dark' ? Colors.white : Colors.black;
 
@@ -1394,7 +1394,7 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.background,
+              color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: settingsState.activatedColor.withOpacity(0.3),
@@ -1505,7 +1505,7 @@ Future<void> selectDate(BuildContext context) async {
                       ),
                     ),
                     monthCellStyle: DateRangePickerMonthCellStyle(
-                      todayTextStyle: TextStyle(
+                      todayTextStyle: const TextStyle(
                         color: Colors.red,
                         fontWeight: FontWeight.bold,
                       ),

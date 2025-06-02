@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'schedule_event.dart';
 import 'schedule_state.dart';

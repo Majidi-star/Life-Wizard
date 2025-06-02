@@ -868,7 +868,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
         // Use the index as a proxy for the ID
         timeBoxId = timeboxes.indexOf(matchingTimebox);
-        if (timeBoxId != null && timeBoxId >= 0) {
+        if (timeBoxId >= 0) {
           print(
             'In dialog - using timeBox index: $timeBoxId for habit $habitName',
           );
@@ -1017,7 +1017,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         decoration: InputDecoration(
                           labelText: 'Activity Name',
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: settingsState.secondaryColor,
@@ -1034,7 +1034,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         decoration: InputDecoration(
                           labelText: 'Notes',
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: settingsState.secondaryColor,
@@ -1052,7 +1052,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         decoration: InputDecoration(
                           labelText: 'Todo Items (comma separated)',
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: settingsState.secondaryColor,
@@ -1368,7 +1368,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         decoration: InputDecoration(
                           labelText: 'Activity Name',
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: settingsState.secondaryColor,
@@ -1385,7 +1385,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         decoration: InputDecoration(
                           labelText: 'Notes',
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: settingsState.secondaryColor,
@@ -1403,7 +1403,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         decoration: InputDecoration(
                           labelText: 'Todo Items (comma separated)',
                           floatingLabelBehavior: FloatingLabelBehavior.always,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                               color: settingsState.secondaryColor,

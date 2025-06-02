@@ -449,7 +449,7 @@ class DatabaseInitializer {
     final twoWeeksAgo = now.subtract(const Duration(days: 14));
     final threeWeeksAgo = now.subtract(const Duration(days: 21));
 
-    final sampleGoalsRoadmap1 = '''{
+    const sampleGoalsRoadmap1 = '''{
   "milestones": [
     {
       "milestoneDate": "2025-05-30",
@@ -524,7 +524,7 @@ class DatabaseInitializer {
   }
 }''';
 
-    final sampleGoalsRoadmap2 = '''{
+    const sampleGoalsRoadmap2 = '''{
   "milestones": [
     {
       "milestoneDate": "2025-07-15",
@@ -608,7 +608,7 @@ class DatabaseInitializer {
   }
 }''';
 
-    final sampleGoalsRoadmap3 = '''{
+    const sampleGoalsRoadmap3 = '''{
   "milestones": [
     {
       "milestoneDate": "2025-09-30",

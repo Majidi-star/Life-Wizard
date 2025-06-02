@@ -155,9 +155,6 @@ class MyApp extends StatelessWidget {
                 surfaceTint: state.fourthlyColor,
                 error: Colors.red,
                 onError: Colors.white,
-                background: state.theme == 'dark' ? Colors.black : Colors.white,
-                onBackground:
-                    state.theme == 'dark' ? Colors.white : Colors.black,
                 surface:
                     state.theme == 'dark'
                         ? Colors.grey[900]!
@@ -170,12 +167,12 @@ class MyApp extends StatelessWidget {
                 elevation: 0,
               ),
               cardColor: state.fourthlyColor,
-              cardTheme: CardTheme(surfaceTintColor: Colors.transparent),
+              cardTheme: const CardTheme(surfaceTintColor: Colors.transparent),
 
               // Configure radio buttons
               radioTheme: RadioThemeData(
-                fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(MaterialState.selected)) {
+                fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(WidgetState.selected)) {
                     return state.secondaryColor; // Active color
                   }
                   return state.fourthlyColor; // Inactive color
@@ -184,14 +181,14 @@ class MyApp extends StatelessWidget {
 
               // Configure switches
               switchTheme: SwitchThemeData(
-                thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(MaterialState.selected)) {
+                thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(WidgetState.selected)) {
                     return state.secondaryColor; // Active color
                   }
                   return state.fourthlyColor; // Inactive color
                 }),
-                trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(MaterialState.selected)) {
+                trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(WidgetState.selected)) {
                     return state.secondaryColor.withOpacity(
                       0.5,
                     ); // Active track
@@ -202,8 +199,8 @@ class MyApp extends StatelessWidget {
 
               // Configure checkboxes
               checkboxTheme: CheckboxThemeData(
-                fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(MaterialState.selected)) {
+                fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(WidgetState.selected)) {
                     return state.secondaryColor; // Active color
                   }
                   return state.fourthlyColor; // Inactive color
@@ -221,7 +218,7 @@ class MyApp extends StatelessWidget {
               // Configure dropdown buttons
               dropdownMenuTheme: DropdownMenuThemeData(
                 menuStyle: MenuStyle(
-                  backgroundColor: MaterialStatePropertyAll(state.primaryColor),
+                  backgroundColor: WidgetStatePropertyAll(state.primaryColor),
                 ),
               ),
 
