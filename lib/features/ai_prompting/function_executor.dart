@@ -608,6 +608,78 @@ class FunctionExecutor {
             return "Error executing create_goal: $e";
           }
 
+        case 'update_goal':
+          // Extract required parameter
+          final String goalName = parameters['goalName'];
+          final String? newName = parameters['newName'];
+          final String? newDescription = parameters['newDescription'];
+          final int? newProgressPercentage =
+              parameters['newProgressPercentage'] != null
+                  ? int.tryParse(parameters['newProgressPercentage'].toString())
+                  : null;
+          final int? newCurrentScore =
+              parameters['newCurrentScore'] != null
+                  ? int.tryParse(parameters['newCurrentScore'].toString())
+                  : null;
+          final int? newTargetScore =
+              parameters['newTargetScore'] != null
+                  ? int.tryParse(parameters['newTargetScore'].toString())
+                  : null;
+          final int? newPriority =
+              parameters['newPriority'] != null
+                  ? int.tryParse(parameters['newPriority'].toString())
+                  : null;
+          final String? newGoalsRoadmap = parameters['newGoalsRoadmap'];
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling update_goal with name: $goalName",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling update_goal with name: $goalName",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.update_goal(
+              goalName: goalName,
+              newName: newName,
+              newDescription: newDescription,
+              newProgressPercentage: newProgressPercentage,
+              newCurrentScore: newCurrentScore,
+              newTargetScore: newTargetScore,
+              newPriority: newPriority,
+              newGoalsRoadmap: newGoalsRoadmap,
+            );
+
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.update_goal: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.update_goal: $e",
+            );
+            return "Error executing update_goal: $e";
+          }
+
         // Add more function cases as they're implemented in AIFunctions
         default:
           _logger.warning('Unknown function called: $functionName');

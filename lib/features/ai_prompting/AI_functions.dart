@@ -858,4 +858,170 @@ class AIFunctions {
       return 'Error creating goal: $e';
     }
   }
+
+  /// Updates an existing goal in the database
+  ///
+  /// [goalName] is the name of the existing goal to update (used to find the right goal)
+  /// [newName] is the new name for the goal (optional)
+  /// [newDescription] is the new description for the goal (optional)
+  /// [newProgressPercentage] is the new progress percentage for the goal (optional)
+  /// [newCurrentScore] is the new current score for the goal (optional)
+  /// [newTargetScore] is the new target score for the goal (optional)
+  /// [newPriority] is the new priority level for the goal (optional)
+  /// [newGoalsRoadmap] is the new JSON string containing the roadmap structure (optional)
+  static Future<String> update_goal({
+    required String goalName,
+    String? newName,
+    String? newDescription,
+    int? newProgressPercentage,
+    int? newCurrentScore,
+    int? newTargetScore,
+    int? newPriority,
+    String? newGoalsRoadmap,
+  }) async {
+    try {
+      debugPrint("Starting update_goal with name: $goalName");
+      debugPrint(
+        "update_goal parameters: newName=$newName, newDescription=$newDescription, " +
+            "newProgressPercentage=$newProgressPercentage, newCurrentScore=$newCurrentScore, " +
+            "newTargetScore=$newTargetScore, newPriority=$newPriority",
+      );
+
+      if (newGoalsRoadmap != null) {
+        // Chunk the roadmap into 100 character segments for better logging
+        final int roadmapLength = newGoalsRoadmap.length;
+        for (int i = 0; i < roadmapLength; i += 100) {
+          final int end = min(i + 100, roadmapLength);
+          debugPrint(
+            "Roadmap chunk ${i ~/ 100 + 1}: ${newGoalsRoadmap.substring(i, end)}",
+          );
+        }
+      }
+
+      final db = await DatabaseInitializer.database;
+
+      // Find the goal by name
+      final List<Map<String, dynamic>> goals = await db.query(
+        'goals',
+        where: 'name LIKE ?',
+        whereArgs: ['%$goalName%'],
+      );
+
+      if (goals.isEmpty) {
+        return 'No goal found with name similar to "$goalName".';
+      }
+
+      // If multiple goals match, use the first one
+      final goal = goals.first;
+      final int goalId = goal['id'];
+
+      debugPrint("Found goal with ID: $goalId, name: ${goal['name']}");
+
+      // Prepare the update fields
+      final Map<String, dynamic> updateFields = {};
+
+      if (newName != null && newName.isNotEmpty) {
+        updateFields['name'] = newName;
+      }
+
+      if (newDescription != null) {
+        updateFields['description'] = newDescription;
+      }
+
+      if (newProgressPercentage != null) {
+        if (newProgressPercentage < 0) {
+          updateFields['progressPercentage'] = 0;
+        } else if (newProgressPercentage > 100) {
+          updateFields['progressPercentage'] = 100;
+        } else {
+          updateFields['progressPercentage'] = newProgressPercentage;
+        }
+      }
+
+      if (newCurrentScore != null) {
+        updateFields['currentScore'] = newCurrentScore;
+      }
+
+      if (newTargetScore != null) {
+        updateFields['targetScore'] = newTargetScore;
+      }
+
+      if (newPriority != null) {
+        if (newPriority < 0) {
+          updateFields['priority'] = 0;
+        } else if (newPriority > 10) {
+          updateFields['priority'] = 10;
+        } else {
+          updateFields['priority'] = newPriority;
+        }
+      }
+
+      if (newGoalsRoadmap != null) {
+        updateFields['goalsRoadmap'] = newGoalsRoadmap;
+      }
+
+      // Only update if there are fields to update
+      if (updateFields.isEmpty) {
+        return 'No changes specified for goal "$goalName".';
+      }
+
+      // Update the goal
+      final int updatedRows = await db.update(
+        'goals',
+        updateFields,
+        where: 'id = ?',
+        whereArgs: [goalId],
+      );
+
+      if (updatedRows > 0) {
+        // Get the updated goal
+        final List<Map<String, dynamic>> updatedGoal = await db.query(
+          'goals',
+          where: 'id = ?',
+          whereArgs: [goalId],
+        );
+
+        if (updatedGoal.isNotEmpty) {
+          final updated = updatedGoal.first;
+          final StringBuffer response = StringBuffer();
+          response.writeln('Goal updated successfully:');
+          response.writeln('-----------');
+          response.writeln('Name: ${updated['name']}');
+          response.writeln('Description: ${updated['description']}');
+          response.writeln('Priority: ${updated['priority']}/10');
+          response.writeln('Progress: ${updated['progressPercentage']}%');
+          response.writeln(
+            'Score: ${updated['startScore']} → ${updated['currentScore']} → ${updated['targetScore']}',
+          );
+          response.writeln(
+            'Created: ${DateTime.parse(updated['createdAt']).toString()}',
+          );
+
+          try {
+            // Try to extract deadline from roadmap for display purposes
+            final Map<String, dynamic> roadmap = jsonDecode(
+              updated['goalsRoadmap'],
+            );
+            if (roadmap.containsKey('overallPlan') &&
+                roadmap['overallPlan'].containsKey('deadline')) {
+              response.writeln(
+                'Deadline: ${roadmap['overallPlan']['deadline']}',
+              );
+            }
+          } catch (e) {
+            debugPrint("Error parsing goal roadmap: $e");
+          }
+
+          response.writeln('-----------');
+          return response.toString();
+        }
+        return 'Goal updated successfully.';
+      } else {
+        return 'No changes made to the goal.';
+      }
+    } catch (e, stackTrace) {
+      debugPrint("Error in update_goal: $e\n$stackTrace");
+      return 'Error updating goal: $e';
+    }
+  }
 }
