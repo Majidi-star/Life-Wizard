@@ -680,6 +680,57 @@ class FunctionExecutor {
             return "Error executing update_goal: $e";
           }
 
+        case 'delete_goal':
+          // Extract required parameter
+          final String goalName = parameters['goalName'];
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling delete_goal with name: $goalName",
+          );
+          debugPrint(
+            "FUNCTION_EXECUTOR: delete_goal parameter: goalName=$goalName",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling delete_goal with name: $goalName",
+            name: "FunctionExecutor",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: delete_goal full parameters: $parameters",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.delete_goal(goalName: goalName);
+            debugPrint("FUNCTION_EXECUTOR: delete_goal execution complete");
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: ${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.delete_goal: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.delete_goal: $e",
+            );
+            return "Error executing delete_goal: $e";
+          }
+
         // Add more function cases as they're implemented in AIFunctions
         default:
           _logger.warning('Unknown function called: $functionName');

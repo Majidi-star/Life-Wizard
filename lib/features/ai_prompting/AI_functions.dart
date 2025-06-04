@@ -1024,4 +1024,67 @@ class AIFunctions {
       return 'Error updating goal: $e';
     }
   }
+
+  /// Deletes a goal from the database
+  ///
+  /// [goalName] is the name of the goal to delete (used to find the right goal)
+  static Future<String> delete_goal({required String goalName}) async {
+    try {
+      debugPrint("Starting delete_goal with name: $goalName");
+
+      // Get database instance
+      final db = await DatabaseInitializer.database;
+      debugPrint("delete_goal: Database instance obtained");
+
+      // Find the goal by name
+      final List<Map<String, dynamic>> goals = await db.query(
+        'goals',
+        where: 'name LIKE ?',
+        whereArgs: ['%$goalName%'],
+      );
+
+      debugPrint(
+        "delete_goal: Query executed, found ${goals.length} matching goals",
+      );
+
+      if (goals.isEmpty) {
+        debugPrint(
+          "delete_goal: No goal found with name similar to '$goalName'",
+        );
+        return 'No goal found with name similar to "$goalName".';
+      }
+
+      // If multiple goals match, use the first one
+      final goal = goals.first;
+      final int goalId = goal['id'];
+      final String exactGoalName = goal['name'];
+
+      debugPrint(
+        "delete_goal: Found goal with ID: $goalId, name: $exactGoalName",
+      );
+
+      // Delete the goal
+      final int deletedRows = await db.delete(
+        'goals',
+        where: 'id = ?',
+        whereArgs: [goalId],
+      );
+
+      debugPrint(
+        "delete_goal: Database deletion complete, deleted $deletedRows rows",
+      );
+
+      if (deletedRows > 0) {
+        final result = 'Goal "$exactGoalName" was successfully deleted.';
+        debugPrint("delete_goal: Success result: $result");
+        return result;
+      } else {
+        debugPrint("delete_goal: Failed to delete goal");
+        return 'Failed to delete goal "$exactGoalName".';
+      }
+    } catch (e, stackTrace) {
+      debugPrint("Error in delete_goal: $e\n$stackTrace");
+      return 'Error deleting goal: $e';
+    }
+  }
 }
