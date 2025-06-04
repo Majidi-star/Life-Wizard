@@ -2,6 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import '../../database_initializer.dart';
+import 'dart:convert';
 
 /// AI Functions that can be called by the AI assistant
 class AIFunctions {
@@ -688,6 +689,314 @@ class AIFunctions {
     } catch (e, stackTrace) {
       debugPrint("Error in delete_habit: $e\n$stackTrace");
       return 'Error deleting habit: $e';
+    }
+  }
+
+  /// Adds a new goal to the database
+  ///
+  /// [name] is the name of the goal
+  /// [description] is the description of the goal
+  /// [priority] is the priority level (0-10, default 5)
+  /// [startScore] is the initial score for the goal
+  /// [currentScore] is the current score for the goal
+  /// [targetScore] is the target score to achieve (default 100)
+  /// [milestones] is a list of milestones (optional, will create default if not provided)
+  /// [deadline] is the deadline date in YYYY-MM-DD format (default is 3 months from now)
+  /// [comparisons] is a list of custom comparisons for the comparison card
+  /// [planExplanation] is a custom explanation for the plan explanation card
+  /// [overallPlan] is the overall plan structure with task groups
+  /// [goalFormula] is the goal formula structure
+  /// [scoreChart] is the score chart structure for tracking progress
+  static Future<String> add_goal({
+    required String name,
+    required String description,
+    int priority = 5,
+    int startScore = 0,
+    int currentScore = 0,
+    int targetScore = 100,
+    List<Map<String, dynamic>>? milestones,
+    String? deadline,
+    List<Map<String, dynamic>>? comparisons,
+    String? planExplanation,
+    Map<String, dynamic>? overallPlan,
+    Map<String, dynamic>? goalFormula,
+    Map<String, dynamic>? scoreChart,
+  }) async {
+    try {
+      debugPrint("Starting add_goal with name: $name");
+      final db = await DatabaseInitializer.database;
+      final now = DateTime.now();
+
+      // Set default deadline if not provided (3 months from now)
+      final DateTime deadlineDate =
+          deadline != null
+              ? DateTime.parse(deadline)
+              : now.add(const Duration(days: 90));
+
+      final String deadlineStr = deadlineDate.toIso8601String().split('T')[0];
+
+      // Create default milestone if none provided
+      final milestonesToUse =
+          milestones ??
+          [
+            {
+              "milestoneDate": deadlineStr,
+              "milestoneName": "Complete $name",
+              "milestoneDescription": "Successfully finish $name goal",
+              "milestoneProgress": "0%",
+              "isCompleted": false,
+              "milestoneTasks": [
+                {
+                  "taskName": "Plan and research",
+                  "taskDescription":
+                      "Research and create detailed plan for $name",
+                  "isCompleted": false,
+                  "taskTime": 2,
+                  "taskTimeFormat": "weeks",
+                  "taskStartPercentage": [0],
+                  "taskEndPercentage": [30],
+                },
+                {
+                  "taskName": "Implementation phase",
+                  "taskDescription": "Execute the primary activities for $name",
+                  "isCompleted": false,
+                  "taskTime": 6,
+                  "taskTimeFormat": "weeks",
+                  "taskStartPercentage": [30],
+                  "taskEndPercentage": [80],
+                },
+                {
+                  "taskName": "Review and finalize",
+                  "taskDescription": "Review progress and finalize $name",
+                  "isCompleted": false,
+                  "taskTime": 2,
+                  "taskTimeFormat": "weeks",
+                  "taskStartPercentage": [80],
+                  "taskEndPercentage": [100],
+                },
+              ],
+            },
+          ];
+
+      // Use provided comparisons or create default ones with more varied skill levels
+      final comparisonsToUse =
+          comparisons ??
+          [
+            {
+              "name": "Beginner",
+              "level": "Novice",
+              "score": startScore + (targetScore - startScore) * 0.1,
+            },
+            {
+              "name": "Intermediate",
+              "level": "Practitioner",
+              "score": startScore + (targetScore - startScore) * 0.5,
+            },
+            {
+              "name": "Advanced",
+              "level": "Expert",
+              "score": startScore + (targetScore - startScore) * 0.8,
+            },
+            {"name": "Master", "level": "Professional", "score": targetScore},
+          ];
+
+      // Use provided plan explanation or create a more detailed default one
+      final planExplanationToUse =
+          planExplanation ??
+          "This comprehensive plan for '$name' is structured into three phases: "
+              "Planning (${milestonesToUse[0].containsKey('milestoneTasks') && milestonesToUse[0]['milestoneTasks'].length > 0 ? milestonesToUse[0]['milestoneTasks'][0]['taskName'] : 'Research'} phase), "
+              "Execution (${milestonesToUse[0].containsKey('milestoneTasks') && milestonesToUse[0]['milestoneTasks'].length > 1 ? milestonesToUse[0]['milestoneTasks'][1]['taskName'] : 'Implementation'} phase), and "
+              "Review (${milestonesToUse[0].containsKey('milestoneTasks') && milestonesToUse[0]['milestoneTasks'].length > 2 ? milestonesToUse[0]['milestoneTasks'][2]['taskName'] : 'Finalization'} phase). "
+              "The plan is designed to progress from an initial score of $startScore to a target of $targetScore over the course of ${deadlineDate.difference(now).inDays} days, "
+              "with key milestones to track progress along the way.";
+
+      // Use provided overallPlan or create default
+      final overallPlanToUse =
+          overallPlan ??
+          {
+            "taskGroups": [
+              {
+                "taskGroupName": "Planning",
+                "taskGroupProgress": 0,
+                "taskGroupTime": 2,
+                "taskGroupTimeFormat": "weeks",
+              },
+              {
+                "taskGroupName": "Execution",
+                "taskGroupProgress": 0,
+                "taskGroupTime": 6,
+                "taskGroupTimeFormat": "weeks",
+              },
+              {
+                "taskGroupName": "Finalization",
+                "taskGroupProgress": 0,
+                "taskGroupTime": 2,
+                "taskGroupTimeFormat": "weeks",
+              },
+            ],
+            "deadline": deadlineStr,
+          };
+
+      // Use provided goalFormula or create default
+      final goalFormulaToUse =
+          goalFormula ??
+          {
+            "goalFormula": "completedTasks / totalTasks",
+            "currentScore": currentScore,
+            "goalScore": targetScore,
+          };
+
+      // Use provided scoreChart or create default
+      final scoreChartToUse =
+          scoreChart ??
+          {
+            "scores": [startScore, currentScore],
+            "dates": [
+              now.toIso8601String().split('T')[0],
+              now.toIso8601String().split('T')[0],
+            ],
+          };
+
+      // Construct the full goalsRoadmap structure
+      final Map<String, dynamic> goalsRoadmap = {
+        "milestones": milestonesToUse,
+        "overallPlan": overallPlanToUse,
+        "goalFormula": goalFormulaToUse,
+        "scoreChart": scoreChartToUse,
+        "comparisonCard": {"comparisons": comparisonsToUse},
+        "planExplanationCard": {"planExplanation": planExplanationToUse},
+      };
+
+      // Validate priority range
+      if (priority < 0) priority = 0;
+      if (priority > 10) priority = 10;
+
+      // Prepare the goal data
+      final Map<String, dynamic> goal = {
+        'name': name,
+        'progressPercentage': 0, // Start with 0% progress
+        'startScore': startScore,
+        'currentScore': currentScore,
+        'targetScore': targetScore,
+        'createdAt': now.toIso8601String(),
+        'priority': priority,
+        'description': description,
+        'goalsRoadmap': jsonEncode(goalsRoadmap), // Convert Map to JSON string
+      };
+
+      // Insert the goal
+      final int id = await db.insert('goals', goal);
+
+      if (id > 0) {
+        // Get the inserted goal
+        final List<Map<String, dynamic>> insertedGoal = await db.query(
+          'goals',
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+
+        if (insertedGoal.isNotEmpty) {
+          final inserted = insertedGoal.first;
+          final StringBuffer response = StringBuffer();
+          response.writeln('Goal added successfully:');
+          response.writeln('-----------');
+          response.writeln('Name: ${inserted['name']}');
+          response.writeln('Description: ${inserted['description']}');
+          response.writeln('Priority: ${inserted['priority']}/10');
+          response.writeln('Progress: ${inserted['progressPercentage']}%');
+          response.writeln(
+            'Score: ${inserted['startScore']} → ${inserted['currentScore']} → ${inserted['targetScore']}',
+          );
+          response.writeln(
+            'Created: ${DateTime.parse(inserted['createdAt']).toString()}',
+          );
+          response.writeln('Deadline: $deadlineStr');
+
+          // Add comparison card and plan explanation summary to response
+          response.writeln('\nComparison Card:');
+          for (var comparison in comparisonsToUse) {
+            response.writeln(
+              '  ${comparison['name']} (${comparison['level']}): ${comparison['score']}',
+            );
+          }
+
+          response.writeln('\nPlan Explanation:');
+          response.writeln(
+            '  ${planExplanationToUse.length > 100 ? '${planExplanationToUse.substring(0, 100)}...' : planExplanationToUse}',
+          );
+
+          response.writeln('-----------');
+          return response.toString();
+        }
+        return 'Goal added successfully with ID: $id';
+      } else {
+        return 'Failed to add goal.';
+      }
+    } catch (e, stackTrace) {
+      debugPrint("Error in add_goal: $e\n$stackTrace");
+      return 'Error adding goal: $e';
+    }
+  }
+
+  /// Get all goals from the database
+  static Future<String> get_all_goals() async {
+    try {
+      debugPrint("Starting get_all_goals");
+      final db = await DatabaseInitializer.database;
+
+      // Query all goals
+      final List<Map<String, dynamic>> goals = await db.query(
+        'goals',
+        orderBy: 'priority DESC, createdAt DESC',
+      );
+
+      if (goals.isEmpty) {
+        return 'No goals found.';
+      }
+
+      // Format the results into a readable string
+      final StringBuffer formattedResults = StringBuffer();
+      formattedResults.writeln('Goals:');
+      formattedResults.writeln('-----------');
+
+      for (var goal in goals) {
+        formattedResults.writeln('Name: ${goal['name'] ?? 'Unnamed goal'}');
+        formattedResults.writeln(
+          'Description: ${goal['description'] ?? 'No description'}',
+        );
+        formattedResults.writeln('Priority: ${goal['priority']}/10');
+        formattedResults.writeln('Progress: ${goal['progressPercentage']}%');
+        formattedResults.writeln(
+          'Scores: ${goal['startScore']} → ${goal['currentScore']} → ${goal['targetScore']}',
+        );
+        formattedResults.writeln(
+          'Created: ${DateTime.parse(goal['createdAt']).toString()}',
+        );
+
+        try {
+          // Try to extract deadline from roadmap
+          final Map<String, dynamic> roadmap = jsonDecode(goal['goalsRoadmap']);
+          if (roadmap.containsKey('overallPlan') &&
+              roadmap['overallPlan'].containsKey('deadline')) {
+            formattedResults.writeln(
+              'Deadline: ${roadmap['overallPlan']['deadline']}',
+            );
+          }
+        } catch (e) {
+          debugPrint("Error parsing goal roadmap: $e");
+        }
+
+        formattedResults.writeln('-----------');
+      }
+
+      final result = formattedResults.toString();
+      debugPrint(
+        "Final formatted result: ${result.substring(0, min(50, result.length))}...",
+      );
+      return result;
+    } catch (e, stackTrace) {
+      debugPrint("Error in get_all_goals: $e\n$stackTrace");
+      return 'Error getting goals: $e';
     }
   }
 }
