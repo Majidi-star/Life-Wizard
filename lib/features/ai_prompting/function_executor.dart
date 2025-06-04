@@ -534,10 +534,15 @@ class FunctionExecutor {
             return "Error executing get_all_goals: $e";
           }
 
-        case 'add_goal':
+        case 'create_goal':
           // Extract required parameters
           final String name = parameters['name'];
           final String description = parameters['description'] ?? '';
+          final int progressPercentage =
+              parameters['progressPercentage'] != null
+                  ? int.tryParse(parameters['progressPercentage'].toString()) ??
+                      0
+                  : 0;
           final int priority =
               parameters['priority'] != null
                   ? int.tryParse(parameters['priority'].toString()) ?? 5
@@ -554,124 +559,26 @@ class FunctionExecutor {
               parameters['targetScore'] != null
                   ? int.tryParse(parameters['targetScore'].toString()) ?? 100
                   : 100;
-          final String? deadline = parameters['deadline'];
-          final String? planExplanation = parameters['planExplanation'];
+          final String goalsRoadmap = parameters['goalsRoadmap'] ?? '{}';
 
-          // Parse milestones if provided
-          List<Map<String, dynamic>>? milestones;
-          if (parameters['milestones'] != null) {
-            try {
-              final rawMilestones =
-                  parameters['milestones'] is String
-                      ? jsonDecode(parameters['milestones'])
-                      : parameters['milestones'];
-
-              if (rawMilestones is List) {
-                milestones = List<Map<String, dynamic>>.from(
-                  rawMilestones.map(
-                    (m) => m is Map ? Map<String, dynamic>.from(m as Map) : {},
-                  ),
-                );
-              }
-            } catch (e) {
-              debugPrint("Error parsing milestones: $e");
-            }
-          }
-
-          // Parse comparisons if provided
-          List<Map<String, dynamic>>? comparisons;
-          if (parameters['comparisons'] != null) {
-            try {
-              final rawComparisons =
-                  parameters['comparisons'] is String
-                      ? jsonDecode(parameters['comparisons'])
-                      : parameters['comparisons'];
-
-              if (rawComparisons is List) {
-                comparisons = List<Map<String, dynamic>>.from(
-                  rawComparisons.map(
-                    (c) => c is Map ? Map<String, dynamic>.from(c as Map) : {},
-                  ),
-                );
-              }
-            } catch (e) {
-              debugPrint("Error parsing comparisons: $e");
-            }
-          }
-
-          // Parse overallPlan if provided
-          Map<String, dynamic>? overallPlan;
-          if (parameters['overallPlan'] != null) {
-            try {
-              final rawOverallPlan =
-                  parameters['overallPlan'] is String
-                      ? jsonDecode(parameters['overallPlan'])
-                      : parameters['overallPlan'];
-
-              if (rawOverallPlan is Map) {
-                overallPlan = Map<String, dynamic>.from(rawOverallPlan as Map);
-              }
-            } catch (e) {
-              debugPrint("Error parsing overallPlan: $e");
-            }
-          }
-
-          // Parse goalFormula if provided
-          Map<String, dynamic>? goalFormula;
-          if (parameters['goalFormula'] != null) {
-            try {
-              final rawGoalFormula =
-                  parameters['goalFormula'] is String
-                      ? jsonDecode(parameters['goalFormula'])
-                      : parameters['goalFormula'];
-
-              if (rawGoalFormula is Map) {
-                goalFormula = Map<String, dynamic>.from(rawGoalFormula as Map);
-              }
-            } catch (e) {
-              debugPrint("Error parsing goalFormula: $e");
-            }
-          }
-
-          // Parse scoreChart if provided
-          Map<String, dynamic>? scoreChart;
-          if (parameters['scoreChart'] != null) {
-            try {
-              final rawScoreChart =
-                  parameters['scoreChart'] is String
-                      ? jsonDecode(parameters['scoreChart'])
-                      : parameters['scoreChart'];
-
-              if (rawScoreChart is Map) {
-                scoreChart = Map<String, dynamic>.from(rawScoreChart as Map);
-              }
-            } catch (e) {
-              debugPrint("Error parsing scoreChart: $e");
-            }
-          }
-
-          debugPrint("FUNCTION_EXECUTOR: Calling add_goal with name: $name");
+          debugPrint("FUNCTION_EXECUTOR: Calling create_goal with name: $name");
           developer.log(
-            "FUNCTION EXECUTOR: Calling add_goal with name: $name",
+            "FUNCTION EXECUTOR: Calling create_goal with name: $name",
             name: "FunctionExecutor",
           );
 
           try {
-            final result = await AIFunctions.add_goal(
+            final result = await AIFunctions.create_goal(
               name: name,
               description: description,
-              priority: priority,
+              progressPercentage: progressPercentage,
               startScore: startScore,
               currentScore: currentScore,
               targetScore: targetScore,
-              milestones: milestones,
-              deadline: deadline,
-              comparisons: comparisons,
-              planExplanation: planExplanation,
-              overallPlan: overallPlan,
-              goalFormula: goalFormula,
-              scoreChart: scoreChart,
+              priority: priority,
+              goalsRoadmap: goalsRoadmap,
             );
+
             debugPrint(
               "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
             );
@@ -692,11 +599,13 @@ class FunctionExecutor {
             return result;
           } catch (e, stackTrace) {
             developer.log(
-              "FUNCTION EXECUTOR: Error in AIFunctions.add_goal: $e\n$stackTrace",
+              "FUNCTION EXECUTOR: Error in AIFunctions.create_goal: $e\n$stackTrace",
               name: "FunctionExecutor",
             );
-            debugPrint("FUNCTION_EXECUTOR: Error in AIFunctions.add_goal: $e");
-            return "Error executing add_goal: $e";
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.create_goal: $e",
+            );
+            return "Error executing create_goal: $e";
           }
 
         // Add more function cases as they're implemented in AIFunctions

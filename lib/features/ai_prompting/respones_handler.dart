@@ -13,6 +13,7 @@ class ResponseHandler {
 
     // Debug print the full response
     debugPrint("Processing full response: $response");
+    // Chunk the response into 100 character segments for better logging
 
     // Regular expression to find tags and their content
     // This regex matches <tag>content</tag> patterns, including multiline content
