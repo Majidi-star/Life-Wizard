@@ -785,4 +785,54 @@ class DatabaseInitializer {
       _database = null;
     }
   }
+
+  /// Adds a new schedule timebox. If there are existing timeboxes for the same date,
+  /// the new row's habits column will use the value from those rows (first found).
+  /// Otherwise, it uses the provided [habits] value (default: '[]').
+  /// Returns the inserted row id.
+  static Future<int> addScheduleTimebox({
+    required String date, // format: YYYY-MM-DD
+    required int challenge,
+    required int startTimeHour,
+    required int startTimeMinute,
+    required int endTimeHour,
+    required int endTimeMinute,
+    required String activity,
+    String? notes,
+    required String todo, // JSON string
+    required String timeBoxStatus,
+    required int priority,
+    required double heatmapProductivity,
+    String? habits, // JSON string, optional
+  }) async {
+    final db = await database;
+    // Check for existing timeboxes for the same date
+    final existing = await db.query(
+      'schedule',
+      columns: ['habits'],
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+    String habitsValue = habits ?? '[]';
+    if (existing.isNotEmpty) {
+      // Use the habits value from the first found row for that date
+      habitsValue = existing.first['habits'] as String? ?? '[]';
+    }
+    final row = {
+      'date': date,
+      'challenge': challenge,
+      'startTimeHour': startTimeHour,
+      'startTimeMinute': startTimeMinute,
+      'endTimeHour': endTimeHour,
+      'endTimeMinute': endTimeMinute,
+      'activity': activity,
+      'notes': notes,
+      'todo': todo,
+      'timeBoxStatus': timeBoxStatus,
+      'priority': priority,
+      'heatmapProductivity': heatmapProductivity,
+      'habits': habitsValue,
+    };
+    return await db.insert('schedule', row);
+  }
 }

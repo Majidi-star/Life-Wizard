@@ -216,7 +216,7 @@ class FunctionExecutor {
           try {
             final result = await AIFunctions.delete_todo(todoName: todoName);
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
@@ -266,7 +266,7 @@ class FunctionExecutor {
               priority: priority,
             );
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
@@ -302,7 +302,7 @@ class FunctionExecutor {
           try {
             final result = await AIFunctions.get_all_habits();
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
@@ -506,7 +506,7 @@ class FunctionExecutor {
           try {
             final result = await AIFunctions.get_all_goals();
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
@@ -580,7 +580,7 @@ class FunctionExecutor {
             );
 
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
@@ -744,7 +744,7 @@ class FunctionExecutor {
           try {
             final result = await AIFunctions.get_schedule_for_date(date: date);
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: \\${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: \\${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: \\${result.length}",
@@ -769,6 +769,99 @@ class FunctionExecutor {
               "FUNCTION_EXECUTOR: Error in AIFunctions.get_schedule_for_date: $e",
             );
             return "Error executing get_schedule_for_date: $e";
+          }
+
+        case 'add_schedule_timeboxes':
+          // Expects a list of timeboxes in parameters['timeboxes']
+          final List<dynamic> timeboxesRaw = parameters['timeboxes'];
+          final List<Map<String, dynamic>> timeboxes =
+              timeboxesRaw.cast<Map<String, dynamic>>();
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling add_schedule_timeboxes with count: \\${timeboxes.length}",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling add_schedule_timeboxes with count: \\${timeboxes.length}",
+            name: "FunctionExecutor",
+          );
+          try {
+            final result = await AIFunctions.add_schedule_timeboxes(
+              timeboxes: timeboxes,
+            );
+            debugPrint(
+              "FUNCTION EXECUTOR: add_schedule_timeboxes result: \\${result.length}",
+            );
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.add_schedule_timeboxes: $e\\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in add_schedule_timeboxes: $e",
+            );
+            return "Error executing add_schedule_timeboxes: $e";
+          }
+
+        case 'update_schedule_timeboxes':
+          // Expects a list of timeboxes in parameters['timeboxes']
+          final List<dynamic> timeboxesRaw = parameters['timeboxes'];
+          final List<Map<String, dynamic>> timeboxes =
+              timeboxesRaw.cast<Map<String, dynamic>>();
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling update_schedule_timeboxes with count: \\${timeboxes.length}",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling update_schedule_timeboxes with count: \\${timeboxes.length}",
+            name: "FunctionExecutor",
+          );
+          try {
+            final result = await AIFunctions.update_schedule_timeboxes(
+              timeboxes: timeboxes,
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: update_schedule_timeboxes result: \\${result.length}",
+            );
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.update_schedule_timeboxes: $e\\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in update_schedule_timeboxes: $e",
+            );
+            return "Error executing update_schedule_timeboxes: $e";
+          }
+
+        case 'delete_schedule_timeboxes':
+          // Expects a list of timeboxes in parameters['timeboxes']
+          final List<dynamic> timeboxesRaw = parameters['timeboxes'];
+          final List<Map<String, dynamic>> timeboxes =
+              timeboxesRaw.cast<Map<String, dynamic>>();
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling delete_schedule_timeboxes with count: \\${timeboxes.length}",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling delete_schedule_timeboxes with count: \\${timeboxes.length}",
+            name: "FunctionExecutor",
+          );
+          try {
+            final result = await AIFunctions.delete_schedule_timeboxes(
+              timeboxes: timeboxes,
+            );
+            debugPrint(
+              "FUNCTION EXECUTOR: delete_schedule_timeboxes result: \\${result.length}",
+            );
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.delete_schedule_timeboxes: $e\\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in delete_schedule_timeboxes: $e",
+            );
+            return "Error executing delete_schedule_timeboxes: $e";
           }
 
         // Add more function cases as they're implemented in AIFunctions

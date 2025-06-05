@@ -1133,4 +1133,137 @@ class AIFunctions {
       return 'Error deleting goal: $e';
     }
   }
+
+  /// Adds multiple schedule timeboxes to the database.
+  /// [timeboxes] is a list of maps, each representing a timebox with the same fields as the old add_schedule_timebox function.
+  /// Returns a summary string of successes and failures.
+  static Future<String> add_schedule_timeboxes({
+    required List<Map<String, dynamic>> timeboxes,
+  }) async {
+    final List<String> results = [];
+    for (final timebox in timeboxes) {
+      try {
+        final int id = await DatabaseInitializer.addScheduleTimebox(
+          date: timebox['date'],
+          challenge: timebox['challenge'],
+          startTimeHour: timebox['startTimeHour'],
+          startTimeMinute: timebox['startTimeMinute'],
+          endTimeHour: timebox['endTimeHour'],
+          endTimeMinute: timebox['endTimeMinute'],
+          activity: timebox['activity'],
+          notes: timebox['notes'],
+          todo: timebox['todo'],
+          timeBoxStatus: timebox['timeBoxStatus'],
+          priority: timebox['priority'],
+          heatmapProductivity: timebox['heatmapProductivity'],
+          habits: timebox['habits'],
+        );
+        if (id > 0) {
+          results.add('Success: ${timebox['date']} - ${timebox['activity']}');
+        } else {
+          results.add('Failed: ${timebox['date']} - ${timebox['activity']}');
+        }
+      } catch (e) {
+        results.add('Error: ${timebox['date']} - ${timebox['activity']}: $e');
+      }
+    }
+    return results.join('\n');
+  }
+
+  /// Updates multiple schedule timeboxes in the database.
+  /// [timeboxes] is a list of maps, each with identifiers (date, startTimeHour, startTimeMinute) and any fields to update.
+  /// Returns a summary string of successes and failures.
+  static Future<String> update_schedule_timeboxes({
+    required List<Map<String, dynamic>> timeboxes,
+  }) async {
+    final db = await DatabaseInitializer.database;
+    final List<String> results = [];
+    for (final timebox in timeboxes) {
+      try {
+        final String date = timebox['date'];
+        final int startTimeHour = timebox['startTimeHour'];
+        final int startTimeMinute = timebox['startTimeMinute'];
+        // Find the timebox
+        final List<Map<String, dynamic>> found = await db.query(
+          'schedule',
+          where: 'date = ? AND startTimeHour = ? AND startTimeMinute = ?',
+          whereArgs: [date, startTimeHour, startTimeMinute],
+        );
+        if (found.isEmpty) {
+          results.add('Not found: $date at $startTimeHour:$startTimeMinute');
+          continue;
+        }
+        final int id = found.first['id'];
+        final Map<String, dynamic> updateFields = Map.of(timebox);
+        updateFields.remove('date');
+        updateFields.remove('startTimeHour');
+        updateFields.remove('startTimeMinute');
+        if (updateFields.isEmpty) {
+          results.add(
+            'No update fields for $date at $startTimeHour:$startTimeMinute',
+          );
+          continue;
+        }
+        final int updatedRows = await db.update(
+          'schedule',
+          updateFields,
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        if (updatedRows > 0) {
+          results.add('Updated: $date at $startTimeHour:$startTimeMinute');
+        } else {
+          results.add('No changes: $date at $startTimeHour:$startTimeMinute');
+        }
+      } catch (e) {
+        results.add(
+          'Error: ${timebox['date']} at ${timebox['startTimeHour']}:${timebox['startTimeMinute']}: $e',
+        );
+      }
+    }
+    return results.join('\n');
+  }
+
+  /// Deletes multiple schedule timeboxes from the database.
+  /// [timeboxes] is a list of maps, each with date, startTimeHour, and startTimeMinute.
+  /// Returns a summary string of successes and failures.
+  static Future<String> delete_schedule_timeboxes({
+    required List<Map<String, dynamic>> timeboxes,
+  }) async {
+    final db = await DatabaseInitializer.database;
+    final List<String> results = [];
+    for (final timebox in timeboxes) {
+      try {
+        final String date = timebox['date'];
+        final int startTimeHour = timebox['startTimeHour'];
+        final int startTimeMinute = timebox['startTimeMinute'];
+        // Find the timebox
+        final List<Map<String, dynamic>> found = await db.query(
+          'schedule',
+          where: 'date = ? AND startTimeHour = ? AND startTimeMinute = ?',
+          whereArgs: [date, startTimeHour, startTimeMinute],
+        );
+        if (found.isEmpty) {
+          results.add('Not found: $date at $startTimeHour:$startTimeMinute');
+          continue;
+        }
+        final int id = found.first['id'];
+        final int deletedRows = await db.delete(
+          'schedule',
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        if (deletedRows > 0) {
+          results.add('Deleted: $date at $startTimeHour:$startTimeMinute');
+        } else {
+          results.add('Failed: $date at $startTimeHour:$startTimeMinute');
+        }
+      } catch (e) {
+        results.add(
+          'Error: ${timebox['date']} at ${timebox['startTimeHour']}:${timebox['startTimeMinute']}: $e',
+        );
+      }
+    }
+    return results.join('\n');
+  }
 }
