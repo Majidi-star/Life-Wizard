@@ -754,6 +754,52 @@ class AIFunctions {
     }
   }
 
+  /// Gets all schedule timeboxes for a specific date from the database
+  ///
+  /// [date] should be in YYYY-MM-DD format
+  static Future<String> get_schedule_for_date({required String date}) async {
+    try {
+      debugPrint("Starting get_schedule_for_date with date: $date");
+      final db = await DatabaseInitializer.database;
+      final List<Map<String, dynamic>> results = await db.query(
+        'schedule',
+        where: 'date = ?',
+        whereArgs: [date],
+        orderBy: 'startTimeHour ASC, startTimeMinute ASC',
+      );
+
+      if (results.isEmpty) {
+        return 'No schedule timeboxes found for $date.';
+      }
+
+      final StringBuffer formattedResults = StringBuffer();
+      formattedResults.writeln('Schedule for $date:');
+      formattedResults.writeln('----------------------');
+      for (var item in results) {
+        formattedResults.writeln('Activity: \\${item['activity']}');
+        formattedResults.writeln(
+          'Time: \\${item['startTimeHour'].toString().padLeft(2, '0')}:\\${item['startTimeMinute'].toString().padLeft(2, '0')} - \\${item['endTimeHour'].toString().padLeft(2, '0')}:\\${item['endTimeMinute'].toString().padLeft(2, '0')}',
+        );
+        formattedResults.writeln(
+          'Challenge: \\${item['challenge'] == 1 ? 'Yes' : 'No'}',
+        );
+        formattedResults.writeln('Status: \\${item['timeBoxStatus']}');
+        formattedResults.writeln('Priority: \\${item['priority']}');
+        formattedResults.writeln(
+          'Productivity: \\${item['heatmapProductivity']}',
+        );
+        formattedResults.writeln('Notes: \\${item['notes'] ?? ''}');
+        formattedResults.writeln('Todos: \\${item['todo']}');
+        formattedResults.writeln('Habits: \\${item['habits']}');
+        formattedResults.writeln('----------------------');
+      }
+      return formattedResults.toString();
+    } catch (e, stackTrace) {
+      debugPrint("Error in get_schedule_for_date: $e\\n$stackTrace");
+      return 'Error getting schedule for $date: $e';
+    }
+  }
+
   /// Creates a new goal entry in the goals table
   ///
   /// [name] is the name of the goal

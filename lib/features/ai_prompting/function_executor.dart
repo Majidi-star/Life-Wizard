@@ -731,6 +731,46 @@ class FunctionExecutor {
             return "Error executing delete_goal: $e";
           }
 
+        case 'get_schedule_for_date':
+          // Extract required parameter
+          final String date = parameters['date'];
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling get_schedule_for_date with date: $date",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling get_schedule_for_date with date: $date",
+            name: "FunctionExecutor",
+          );
+          try {
+            final result = await AIFunctions.get_schedule_for_date(date: date);
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: \\${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: Function returned result with length: \\${result.length}",
+              name: "FunctionExecutor",
+            );
+            if (result.isNotEmpty) {
+              developer.log(
+                "FUNCTION EXECUTOR: Result preview: \\${result.substring(0, min(50, result.length))}...",
+                name: "FunctionExecutor",
+              );
+              debugPrint(
+                "FUNCTION_EXECUTOR: Result preview: \\${result.substring(0, min(50, result.length))}...",
+              );
+            }
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.get_schedule_for_date: $e\\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.get_schedule_for_date: $e",
+            );
+            return "Error executing get_schedule_for_date: $e";
+          }
+
         // Add more function cases as they're implemented in AIFunctions
         default:
           _logger.warning('Unknown function called: $functionName');
