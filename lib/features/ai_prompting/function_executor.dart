@@ -3,6 +3,9 @@ import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
 import 'AI_functions.dart';
+import 'package:flutter/widgets.dart';
+import '../schedule/schedule_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Handles executing functions called by the AI in tagged responses
 class FunctionExecutor {
@@ -12,7 +15,10 @@ class FunctionExecutor {
   ///
   /// @param functionTag The content of a function call tag extracted from AI response
   /// @return Future<String> The result of the function execution
-  static Future<String> executeFunction(String functionTag) async {
+  static Future<String> executeFunction(
+    String functionTag, {
+    BuildContext? context,
+  }) async {
     try {
       developer.log(
         "FUNCTION EXECUTOR: Starting execution with tag: $functionTag",
@@ -788,8 +794,16 @@ class FunctionExecutor {
               timeboxes: timeboxes,
             );
             debugPrint(
-              "FUNCTION EXECUTOR: add_schedule_timeboxes result: \\${result.length}",
+              "FUNCTION_EXECUTOR: add_schedule_timeboxes result: \\${result.length}",
             );
+            // Refresh UI if context is provided
+            if (context != null) {
+              try {
+                context.read<ScheduleBloc>().refreshCurrentDateSchedule();
+              } catch (e) {
+                debugPrint('Could not refresh schedule: $e');
+              }
+            }
             return result;
           } catch (e, stackTrace) {
             developer.log(
@@ -821,6 +835,14 @@ class FunctionExecutor {
             debugPrint(
               "FUNCTION_EXECUTOR: update_schedule_timeboxes result: \\${result.length}",
             );
+            // Refresh UI if context is provided
+            if (context != null) {
+              try {
+                context.read<ScheduleBloc>().refreshCurrentDateSchedule();
+              } catch (e) {
+                debugPrint('Could not refresh schedule: $e');
+              }
+            }
             return result;
           } catch (e, stackTrace) {
             developer.log(
@@ -850,8 +872,16 @@ class FunctionExecutor {
               timeboxes: timeboxes,
             );
             debugPrint(
-              "FUNCTION EXECUTOR: delete_schedule_timeboxes result: \\${result.length}",
+              "FUNCTION_EXECUTOR: delete_schedule_timeboxes result: \\${result.length}",
             );
+            // Refresh UI if context is provided
+            if (context != null) {
+              try {
+                context.read<ScheduleBloc>().refreshCurrentDateSchedule();
+              } catch (e) {
+                debugPrint('Could not refresh schedule: $e');
+              }
+            }
             return result;
           } catch (e, stackTrace) {
             developer.log(

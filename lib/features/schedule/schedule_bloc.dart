@@ -421,7 +421,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     Emitter<ScheduleState> emit,
   ) {
     _updateTimer?.cancel();
-    _updateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       add(
         LoadSchedule(
           year: state.selectedYear,
@@ -732,5 +732,16 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         ),
       );
     }
+  }
+
+  // Public method to refresh the schedule for the currently selected date
+  void refreshCurrentDateSchedule() {
+    add(
+      LoadSchedule(
+        year: state.selectedYear,
+        month: state.selectedMonth,
+        day: state.selectedDay,
+      ),
+    );
   }
 }
