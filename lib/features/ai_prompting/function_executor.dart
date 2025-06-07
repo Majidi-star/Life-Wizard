@@ -794,7 +794,7 @@ class FunctionExecutor {
               timeboxes: timeboxes,
             );
             debugPrint(
-              "FUNCTION_EXECUTOR: add_schedule_timeboxes result: \\${result.length}",
+              "FUNCTION EXECUTOR: add_schedule_timeboxes result: \\${result.length}",
             );
             // Refresh UI if context is provided
             if (context != null) {

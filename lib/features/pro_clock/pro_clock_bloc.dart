@@ -6,6 +6,7 @@ import 'pro_clock_event.dart';
 import 'pro_clock_state.dart';
 import 'pro_clock_repository.dart';
 import 'pro_clock_model.dart';
+import '../../utils/alarm_utils.dart';
 
 class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
   final ProClockRepository repository;
@@ -299,6 +300,9 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
           state.copyWith(remainingSeconds: 0, timerStatus: TimerStatus.idle),
         );
 
+        // Play alarm and speak for schedule mode
+        AlarmUtils.playAlarmAndSpeak('Time is up!');
+
         // In schedule mode, mark task as complete and move to next
         add(const CompletePhase());
       } else {
@@ -317,6 +321,9 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
         emit(
           state.copyWith(remainingSeconds: 0, timerStatus: TimerStatus.idle),
         );
+
+        // Play alarm and speak for pomodoro mode
+        AlarmUtils.playAlarmAndSpeak('Time is up!');
 
         // Move to next phase
         add(const CompletePhase());
