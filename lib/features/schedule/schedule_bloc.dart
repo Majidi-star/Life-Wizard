@@ -101,16 +101,35 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       return;
     }
 
+    print('\n===== LOADING SCHEDULE =====');
+    print('Date: ${event.year}-${event.month}-${event.day}');
+
     emit(state.copyWith(isLoading: true, error: null));
 
     try {
       final date = DateTime(event.year, event.month, event.day);
+      print('Fetching schedules for date: $date');
+
       final schedules = await _repository!.getSchedulesByDate(date);
 
       if (schedules != null) {
+        print('Found ${schedules.length} schedules for the date');
         final scheduleModel = _repository!.transformToScheduleModel(schedules);
+
+        // Print some details about the loaded schedules
+        print(
+          'Transformed to ScheduleModel with ${scheduleModel.timeBoxes.length} timeboxes',
+        );
+        for (int i = 0; i < scheduleModel.timeBoxes.length; i++) {
+          final timeBox = scheduleModel.timeBoxes[i];
+          print(
+            'TimeBox $i: ${timeBox.activity} (Status: ${timeBox.timeBoxStatus})',
+          );
+        }
+
         emit(state.copyWith(scheduleModel: scheduleModel, isLoading: false));
       } else {
+        print('No schedules found for the date');
         emit(
           state.copyWith(
             scheduleModel: ScheduleModel(timeBoxes: [], currentTimeBox: null),
@@ -118,8 +137,11 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           ),
         );
       }
+      print('===== SCHEDULE LOADED =====\n');
     } catch (e) {
+      print('ERROR loading schedule: $e');
       emit(state.copyWith(isLoading: false, error: e.toString()));
+      print('===== SCHEDULE LOAD FAILED =====\n');
     }
   }
 
@@ -378,15 +400,23 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     Emitter<ScheduleState> emit,
   ) {
     _updateTimer?.cancel();
-    _updateTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      add(
-        LoadSchedule(
-          year: state.selectedYear,
-          month: state.selectedMonth,
-          day: state.selectedDay,
-        ),
-      );
+    // Use a less frequent update interval (10 seconds instead of 2)
+    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      print('Periodic update triggered');
+      // Only update if we're not already loading
+      if (!state.isLoading) {
+        add(
+          LoadSchedule(
+            year: state.selectedYear,
+            month: state.selectedMonth,
+            day: state.selectedDay,
+          ),
+        );
+      } else {
+        print('Skipping periodic update because loading is in progress');
+      }
     });
+    print('Started periodic updates with 10-second interval');
   }
 
   void _onStopPeriodicUpdate(
@@ -395,6 +425,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   ) {
     _updateTimer?.cancel();
     _updateTimer = null;
+    print('Stopped periodic updates');
   }
 
   @override
@@ -433,27 +464,45 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         activity: event.activity,
         notes: event.notes,
         todo: event.todos != null ? jsonEncode(event.todos) : '[]',
-        timeBoxStatus: false, // Default to not completed
+        timeBoxStatus: false, // This will be converted to 'planned' in toMap()
         priority: event.priority,
         heatmapProductivity: 0.0, // Default to 0
         habits: '[]', // Default to empty habits
       );
 
+      // Debug print to verify the data
+      print('Adding new timebox with data:');
+      print('Activity: ${event.activity}');
+      print('Start time: ${event.startTimeHour}:${event.startTimeMinute}');
+      print('End time: ${event.endTimeHour}:${event.endTimeMinute}');
+      print('Date: $date');
+
       // Insert the new schedule
       final id = await _repository!.insertSchedule(newSchedule);
+      print('New timebox inserted with ID: $id');
 
-      // Reload the schedule
-      add(
-        LoadSchedule(
-          year: state.selectedYear,
-          month: state.selectedMonth,
-          day: state.selectedDay,
-        ),
-      );
+      // Directly fetch the updated schedules instead of using the LoadSchedule event
+      final updatedSchedules = await _repository!.getSchedulesByDate(date);
+      if (updatedSchedules != null) {
+        print('Directly updating UI with ${updatedSchedules.length} schedules');
+        final scheduleModel = _repository!.transformToScheduleModel(
+          updatedSchedules,
+        );
+        emit(state.copyWith(scheduleModel: scheduleModel, isLoading: false));
+      } else {
+        print('No schedules found after insertion - this is unexpected');
+        emit(
+          state.copyWith(
+            scheduleModel: ScheduleModel(timeBoxes: [], currentTimeBox: null),
+            isLoading: false,
+          ),
+        );
+      }
 
       // Update notifications for this date
       await _proClockRepository.scheduleNotificationsForDate(date);
     } catch (e) {
+      print('Error adding timebox: $e');
       emit(
         state.copyWith(
           isLoading: false,

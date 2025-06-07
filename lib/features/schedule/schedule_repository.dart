@@ -133,14 +133,32 @@ class ScheduleRepository {
   /// Gets schedules for a specific date
   /// Returns null if no schedules exist for the date
   Future<List<Schedule>?> getSchedulesByDate(DateTime date) async {
-    final dateStr = date.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
+    // Format: YYYY-MM-DD - strip time component
+    final dateStr = date.toIso8601String().split('T')[0];
 
+    print('\n===== FETCHING SCHEDULES BY DATE =====');
+    print('Date parameter: $date');
+    print('Date string used for query: $dateStr');
+
+    // Debug: Show all schedules in the database first
+    final allSchedules = await _db.query(_tableName);
+    print('Total schedules in database: ${allSchedules.length}');
+    for (var schedule in allSchedules) {
+      print(
+        'Schedule ID: ${schedule['id']}, Date: ${schedule['date']}, Activity: ${schedule['activity']}',
+      );
+    }
+
+    // Query for the specific date
     final List<Map<String, dynamic>> maps = await _db.query(
       _tableName,
-      where: 'date = ?',
-      whereArgs: [dateStr],
+      where: 'date LIKE ?', // Use LIKE for more flexible matching
+      whereArgs: ['$dateStr%'], // Add wildcard to match any time component
       orderBy: 'startTimeHour ASC, startTimeMinute ASC',
     );
+
+    print('Found ${maps.length} schedules for date $dateStr');
+
     if (maps.isEmpty) return null;
     return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
   }
@@ -173,7 +191,38 @@ class ScheduleRepository {
 
   /// Inserts a new schedule
   Future<int> insertSchedule(Schedule schedule) async {
-    return await _db.insert(_tableName, schedule.toMap());
+    print('\n===== INSERTING NEW SCHEDULE =====');
+    final scheduleMap = schedule.toMap();
+    print('Schedule data to insert:');
+    scheduleMap.forEach((key, value) {
+      print('  $key: $value (${value.runtimeType})');
+    });
+
+    try {
+      final id = await _db.insert(_tableName, scheduleMap);
+      print('Inserted with ID: $id');
+
+      // Verify the inserted record
+      if (id > 0) {
+        final inserted = await getScheduleById(id);
+        if (inserted != null) {
+          print('Successfully retrieved inserted record:');
+          print('  Activity: ${inserted.activity}');
+          print(
+            '  TimeBoxStatus: ${inserted.timeBoxStatus} (DB value: ${inserted.timeBoxStatus ? "completed" : "planned"})',
+          );
+        } else {
+          print('WARNING: Could not retrieve the inserted record!');
+        }
+      }
+
+      print('===== INSERTION COMPLETE =====\n');
+      return id;
+    } catch (e) {
+      print('ERROR inserting schedule: $e');
+      print('===== INSERTION FAILED =====\n');
+      rethrow;
+    }
   }
 
   /// Updates an existing schedule
@@ -347,9 +396,16 @@ class ScheduleRepository {
 
   /// Transforms database Schedule into ScheduleModel structure
   ScheduleModel transformToScheduleModel(List<Schedule> schedules) {
+    print('\n===== TRANSFORMING SCHEDULES TO MODEL =====');
+    print('Number of schedules to transform: ${schedules.length}');
+
     final List<TimeBox> timeBoxes = [];
 
     for (var schedule in schedules) {
+      print(
+        'Processing schedule ID: ${schedule.id}, Activity: ${schedule.activity}',
+      );
+
       // Parse the todo string
       List<String> todoList = [];
       if (schedule.todo != null && schedule.todo!.isNotEmpty) {
@@ -383,6 +439,9 @@ class ScheduleRepository {
         habits: schedule.habits ?? '', // Make sure habits is properly passed
       );
 
+      print(
+        'Created TimeBox: ${timeBox.activity}, Status: ${timeBox.timeBoxStatus}',
+      );
       timeBoxes.add(timeBox);
     }
 
@@ -400,9 +459,13 @@ class ScheduleRepository {
               (timeBox.endTimeHour == currentHour &&
                   timeBox.endTimeMinute >= currentMinute))) {
         currentTimeBox = timeBox;
+        print('Found current timebox: ${timeBox.activity}');
         break;
       }
     }
+
+    print('Total timeboxes in model: ${timeBoxes.length}');
+    print('===== TRANSFORMATION COMPLETE =====\n');
 
     return ScheduleModel(timeBoxes: timeBoxes, currentTimeBox: currentTimeBox);
   }

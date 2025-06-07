@@ -89,6 +89,28 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       appBar: AppBar(
         title: const Text('Schedule'),
         backgroundColor: settingsState.thirdlyColor,
+        actions: [
+          // Refresh button
+          BlocBuilder<ScheduleBloc, ScheduleState>(
+            builder: (context, state) {
+              return IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Schedule',
+                onPressed: () {
+                  // Force reload the schedule
+                  print('Manual refresh requested');
+                  context.read<ScheduleBloc>().add(
+                    LoadSchedule(
+                      year: state.selectedYear,
+                      month: state.selectedMonth,
+                      day: state.selectedDay,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
       drawer: const AppDrawer(),
       body: Padding(
