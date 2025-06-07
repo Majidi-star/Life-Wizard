@@ -30,6 +30,8 @@ import 'features/pro_clock/pro_clock_bloc.dart';
 import 'features/ai_chat/ai_chat_bloc.dart';
 import 'features/ai_chat/gemini_chat_service.dart';
 import 'features/ai_prompting/function_test_screen.dart';
+import 'utils/notification_utils.dart';
+import 'features/pro_clock/pro_clock_repository.dart';
 
 // Import all test files
 import 'features/settings/settings_test.dart' as settings_test;
@@ -74,6 +76,10 @@ void main() async {
   // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
+  // Do NOT initialize notifications here!
+  // await NotificationUtils.initialize();
+  // await ProClockRepository().scheduleNotificationsForDate(DateTime.now());
+
   // Create a single SettingsBloc instance that will be used throughout the app
   settingsBloc = SettingsBloc(preferences);
 
@@ -116,13 +122,36 @@ void main() async {
   // Don't close the database here, as it will be needed by the app
   // Database will be closed automatically when app terminates
 
-  runApp(MyApp(preferences: preferences));
+  runApp(AppWithNotificationInit(preferences: preferences));
 }
 
-class MyApp extends StatelessWidget {
+class AppWithNotificationInit extends StatefulWidget {
   final SharedPreferences preferences;
+  const AppWithNotificationInit({Key? key, required this.preferences})
+    : super(key: key);
 
-  const MyApp({Key? key, required this.preferences}) : super(key: key);
+  @override
+  State<AppWithNotificationInit> createState() =>
+      _AppWithNotificationInitState();
+}
+
+class _AppWithNotificationInitState extends State<AppWithNotificationInit> {
+  @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+  }
+
+  Future<void> _initNotifications() async {
+    await NotificationUtils.initialize(context);
+
+    // Schedule notifications for today and the next 6 days
+    final now = DateTime.now();
+    for (int i = 0; i < 7; i++) {
+      final date = now.add(Duration(days: i));
+      await ProClockRepository().scheduleNotificationsForDate(date);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +170,18 @@ class MyApp extends StatelessWidget {
         builder: (context, state) {
           return MaterialApp(
             title: 'Life Wizard',
+            builder: (context, child) {
+              // Add top-level SafeArea to ensure UI elements don't overlap with system UI
+              return MediaQuery(
+                // Apply a top padding to avoid status bar overlap
+                data: MediaQuery.of(context).copyWith(
+                  padding: MediaQuery.of(context).padding.copyWith(
+                    top: MediaQuery.of(context).padding.top + 8,
+                  ),
+                ),
+                child: child!,
+              );
+            },
             theme: ThemeData(
               primaryColor: state.primaryColor,
               colorScheme: ColorScheme(
@@ -219,6 +260,16 @@ class MyApp extends StatelessWidget {
               dropdownMenuTheme: DropdownMenuThemeData(
                 menuStyle: MenuStyle(
                   backgroundColor: WidgetStatePropertyAll(state.primaryColor),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.fromLTRB(
+                      8,
+                      32,
+                      8,
+                      8,
+                    ), // Add extra top padding to avoid status bar
+                  ),
+                  alignment: Alignment.topCenter,
+                  visualDensity: VisualDensity.comfortable,
                 ),
               ),
 

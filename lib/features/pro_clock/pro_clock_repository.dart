@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 import '../../database_initializer.dart';
 import 'pro_clock_model.dart';
+import '../../utils/notification_utils.dart';
 
 class ProClockRepository {
   Future<Database> get _database async => await DatabaseInitializer.database;
@@ -230,5 +231,42 @@ class ProClockRepository {
         endTime: '18:00',
       ),
     ];
+  }
+
+  // Schedule notifications for all tasks of a given date
+  Future<void> scheduleNotificationsForDate(DateTime date) async {
+    // First cancel all existing notifications for this date
+    await NotificationUtils.cancelNotificationsForDate(date);
+
+    final tasks = await getTasksForDate(date);
+    for (int i = 0; i < tasks.length; i++) {
+      final task = tasks[i];
+      // Parse start time
+      final startParts = task.startTime.split(':');
+      if (startParts.length == 2) {
+        try {
+          final hour = int.parse(startParts[0]);
+          final minute = int.parse(startParts[1]);
+          final scheduledTime = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            hour,
+            minute,
+          );
+          if (scheduledTime.isAfter(DateTime.now())) {
+            await NotificationUtils.scheduleNotification(
+              id: date.day * 1000 + i, // unique id per task per day
+              title: 'Task Reminder',
+              body:
+                  'It\'s time! "${task.currentTask}" has just started. Check your schedule!',
+              scheduledTime: scheduledTime,
+            );
+          }
+        } catch (e) {
+          print('Error scheduling notification: $e');
+        }
+      }
+    }
   }
 }

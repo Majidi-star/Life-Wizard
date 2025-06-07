@@ -658,7 +658,7 @@ class FunctionExecutor {
             );
 
             debugPrint(
-              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
             );
             developer.log(
               "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",

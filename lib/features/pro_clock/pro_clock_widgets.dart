@@ -981,202 +981,213 @@ void _showTaskDetails(BuildContext context, ProClockModel task) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     backgroundColor: theme.colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (context) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header with task name and close button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    task.currentTask,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: activatedColor,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.close, color: textColor),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-
-            // Time range
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: activatedColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+      return SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with task name and close button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.access_time, size: 16, color: activatedColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    task.timeRangeString,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: activatedColor,
-                    ),
-                  ),
-                  if (task.durationInMinutes > 0) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '(${task.durationInMinutes} min)',
-                      style: TextStyle(color: activatedColor.withOpacity(0.8)),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Description (if available)
-            if (task.currentTaskDescription.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Description',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.onSurface.withOpacity(0.1),
-                  ),
-                ),
-                child: Text(
-                  task.currentTaskDescription,
-                  style: TextStyle(fontSize: 16, color: textColor),
-                ),
-              ),
-            ],
-
-            // Notes (if available)
-            if (task.currentTaskNotes.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Notes',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.onSurface.withOpacity(0.1),
-                  ),
-                ),
-                child: Text(
-                  task.currentTaskNotes,
-                  style: TextStyle(fontSize: 16, color: textColor),
-                ),
-              ),
-            ],
-
-            // Todo items (if available)
-            if (task.currentTaskTodos.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Todo Items',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: task.currentTaskTodos.length,
-                  itemBuilder: (context, index) {
-                    final todo = task.currentTaskTodos[index];
-                    return ListTile(
-                      leading: Icon(
-                        Icons.check_circle_outline,
+                  Expanded(
+                    child: Text(
+                      task.currentTask,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                         color: activatedColor,
                       ),
-                      title: Text(todo, style: TextStyle(color: textColor)),
-                      dense: true,
-                    );
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: textColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+
+              // Time range
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: activatedColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.access_time, size: 16, color: activatedColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      task.timeRangeString,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: activatedColor,
+                      ),
+                    ),
+                    if (task.durationInMinutes > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${task.durationInMinutes} min)',
+                        style: TextStyle(
+                          color: activatedColor.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const Divider(height: 24),
+
+              // Description (if available)
+              if (task.currentTaskDescription.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Description',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: theme.colorScheme.onSurface.withOpacity(0.1),
+                    ),
+                  ),
+                  child: Text(
+                    task.currentTaskDescription,
+                    style: TextStyle(fontSize: 16, color: textColor),
+                  ),
+                ),
+              ],
+
+              // Notes (if available)
+              if (task.currentTaskNotes.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Notes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: theme.colorScheme.onSurface.withOpacity(0.1),
+                    ),
+                  ),
+                  child: Text(
+                    task.currentTaskNotes,
+                    style: TextStyle(fontSize: 16, color: textColor),
+                  ),
+                ),
+              ],
+
+              // Todo items (if available)
+              if (task.currentTaskTodos.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Todo Items',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: task.currentTaskTodos.length,
+                    itemBuilder: (context, index) {
+                      final todo = task.currentTaskTodos[index];
+                      return ListTile(
+                        leading: Icon(
+                          Icons.check_circle_outline,
+                          color: activatedColor,
+                        ),
+                        title: Text(todo, style: TextStyle(color: textColor)),
+                        dense: true,
+                      );
+                    },
+                  ),
+                ),
+              ],
+
+              // Action buttons
+              const SizedBox(height: 16),
+              Center(
+                child: ElevatedButton.icon(
+                  icon: Icon(
+                    task.currentTaskStatus
+                        ? Icons.check_circle
+                        : Icons.play_circle_outline,
+                  ),
+                  label: Text(
+                    task.currentTaskStatus ? 'Completed' : 'Start Task',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        task.currentTaskStatus ? Colors.grey : activatedColor,
+                    foregroundColor:
+                        settingsState.theme == 'dark'
+                            ? Colors.white
+                            : Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  onPressed: () {
+                    if (!task.currentTaskStatus) {
+                      // Mark task as in progress and start timer
+                      context.read<ProClockBloc>().add(
+                        MarkTaskAsCompleted(
+                          taskIndex:
+                              context
+                                  .read<ProClockBloc>()
+                                  .state
+                                  .currentTaskIndex,
+                          isCompleted: true,
+                        ),
+                      );
+                      context.read<ProClockBloc>().add(const StartTimer());
+                    }
+                    Navigator.pop(context);
                   },
                 ),
               ),
             ],
-
-            // Action buttons
-            const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton.icon(
-                icon: Icon(
-                  task.currentTaskStatus
-                      ? Icons.check_circle
-                      : Icons.play_circle_outline,
-                ),
-                label: Text(
-                  task.currentTaskStatus ? 'Completed' : 'Start Task',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      task.currentTaskStatus ? Colors.grey : activatedColor,
-                  foregroundColor:
-                      settingsState.theme == 'dark'
-                          ? Colors.white
-                          : Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-                onPressed: () {
-                  if (!task.currentTaskStatus) {
-                    // Mark task as in progress and start timer
-                    context.read<ProClockBloc>().add(
-                      MarkTaskAsCompleted(
-                        taskIndex:
-                            context.read<ProClockBloc>().state.currentTaskIndex,
-                        isCompleted: true,
-                      ),
-                    );
-                    context.read<ProClockBloc>().add(const StartTimer());
-                  }
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
+          ),
         ),
       );
     },
@@ -1188,11 +1199,12 @@ void showTimerSettings(BuildContext context) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) => const TimerSettingsSheet(),
+    builder: (context) => SafeArea(child: const TimerSettingsSheet()),
   );
 }
 
