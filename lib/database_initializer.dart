@@ -246,6 +246,23 @@ class DatabaseInitializer {
 
     // Insert sample logs
     await _insertSampleLogs(db);
+
+    // Rewards table for gamification
+    await db.execute('''
+      CREATE TABLE rewards(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        points INTEGER NOT NULL DEFAULT 0,
+        badges TEXT NOT NULL DEFAULT 'beginner',
+        cookie_jar TEXT NOT NULL DEFAULT '[]'
+      )
+    ''');
+
+    // Insert default rewards row
+    await db.insert('rewards', {
+      'points': 0,
+      'badges': 'beginner',
+      'cookie_jar': '[]',
+    });
   }
 
   static Future<void> _insertSampleScheduleData(Database db) async {
