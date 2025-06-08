@@ -4,11 +4,11 @@ import '../../widgets/app_drawer.dart';
 import '../../utils/theme_utils.dart';
 import '../../main.dart' as app_main;
 import 'schedule_bloc.dart';
-import 'schedule_event.dart';
+import 'schedule_event.dart' as schedule_events;
 import 'schedule_state.dart';
 import 'schedule_widgets.dart';
 import '../habits/habits_bloc.dart';
-import '../habits/habits_event.dart';
+import '../habits/habits_event.dart' as habits_events;
 import '../habits/habits_state.dart';
 import '../habits/habits_repository.dart';
 import 'dart:convert';
@@ -31,10 +31,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<ScheduleBloc>().add(StartPeriodicUpdate());
+    context.read<ScheduleBloc>().add(schedule_events.StartPeriodicUpdate());
 
     // Make sure habits are loaded
-    app_main.habitsBloc.add(const LoadHabits());
+    app_main.habitsBloc.add(const habits_events.LoadHabits());
 
     // Debug prints for habits state
     print('\n===== SCHEDULE SCREEN - HABITS DEBUG =====');
@@ -72,7 +72,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   void dispose() {
-    context.read<ScheduleBloc>().add(StopPeriodicUpdate());
+    context.read<ScheduleBloc>().add(schedule_events.StopPeriodicUpdate());
     // Dispose of ValueNotifier when widget is disposed
     completedHabits.dispose();
     // Dispose of ScrollController
@@ -82,6 +82,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Set context in the bloc for showing points notifications
+    context.read<ScheduleBloc>().add(
+      schedule_events.SetContext(context: context),
+    );
+
     final settingsState = app_main.settingsBloc.state;
 
     return Scaffold(
@@ -100,7 +105,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   // Force reload the schedule
                   print('Manual refresh requested');
                   context.read<ScheduleBloc>().add(
-                    LoadSchedule(
+                    schedule_events.LoadSchedule(
                       year: state.selectedYear,
                       month: state.selectedMonth,
                       day: state.selectedDay,
@@ -267,7 +272,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                                       context
                                                           .read<ScheduleBloc>()
                                                           .add(
-                                                            ToggleTimeBoxCompletion(
+                                                            schedule_events.ToggleTimeBoxCompletion(
                                                               timeBoxIndex:
                                                                   index,
                                                               isCompleted:
@@ -471,7 +476,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                             // Update timebox completion status without scrolling reset
                                             // CRITICAL: Dispatch the event synchronously for immediate UI feedback
                                             context.read<ScheduleBloc>().add(
-                                              ToggleTimeBoxCompletion(
+                                              schedule_events.ToggleTimeBoxCompletion(
                                                 timeBoxIndex: index,
                                                 isCompleted: value,
                                               ),
@@ -689,7 +694,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             }
 
             // Debug habits state
-            app_main.habitsBloc.add(const DebugHabitsState());
+            app_main.habitsBloc.add(const habits_events.DebugHabitsState());
 
             print('\n==========================\n');
           },
@@ -767,7 +772,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           // Update database without causing scroll reset
           WidgetsBinding.instance.addPostFrameCallback((_) {
             context.read<ScheduleBloc>().add(
-              ToggleHabitCompletion(
+              schedule_events.ToggleHabitCompletion(
                 habitName: habitName,
                 isCompleted: newValue,
                 timeBoxId:
@@ -824,7 +829,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       // Update database without causing scroll reset
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         context.read<ScheduleBloc>().add(
-                          ToggleHabitCompletion(
+                          schedule_events.ToggleHabitCompletion(
                             habitName: habitName,
                             isCompleted: value,
                             timeBoxId:
@@ -917,7 +922,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           // Update database without causing scroll reset
           WidgetsBinding.instance.addPostFrameCallback((_) {
             context.read<ScheduleBloc>().add(
-              ToggleHabitCompletion(
+              schedule_events.ToggleHabitCompletion(
                 habitName: habitName,
                 isCompleted: newValue,
                 timeBoxId: timeBoxId,
@@ -950,7 +955,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   // Update database without causing scroll reset
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     context.read<ScheduleBloc>().add(
-                      ToggleHabitCompletion(
+                      schedule_events.ToggleHabitCompletion(
                         habitName: habitName,
                         isCompleted: value,
                         timeBoxId: timeBoxId,
@@ -1317,7 +1322,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
                       // Add timebox using the bloc
                       context.read<ScheduleBloc>().add(
-                        AddTimeBox(
+                        schedule_events.AddTimeBox(
                           startTimeHour: startHour,
                           startTimeMinute: startMinute,
                           endTimeHour: endHour,
@@ -1356,6 +1361,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
 
     final timeBox = state.scheduleModel!.timeBoxes[timeBoxIndex];
+
+    // We need to get the actual database ID for this timeBox
+    // For now, we'll use the timeBoxIndex since that's what the API expects
+    final timeBoxId = timeBoxIndex;
 
     // Controllers for text fields
     final activityController = TextEditingController(text: timeBox.activity);
@@ -1678,17 +1687,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
                       // Update timebox using the bloc
                       context.read<ScheduleBloc>().add(
-                        UpdateTimeBox(
-                          timeBoxIndex: timeBoxIndex,
+                        schedule_events.UpdateTimeBox(
+                          id: timeBoxId,
                           startTimeHour: startHour,
                           startTimeMinute: startMinute,
                           endTimeHour: endHour,
                           endTimeMinute: endMinute,
                           activity: activity,
                           notes: notes,
-                          todos: todos,
-                          priority: priority,
                           isChallenge: isChallenge,
+                          priority: priority,
                         ),
                       );
 
@@ -1718,6 +1726,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     final timeBox = state.scheduleModel!.timeBoxes[timeBoxIndex];
 
+    // We need to get the actual database ID for this timeBox
+    // For now, we'll use the timeBoxIndex since that's what the API expects
+    final timeBoxId = timeBoxIndex;
+
     showDialog(
       context: context,
       builder:
@@ -1735,7 +1747,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               TextButton(
                 onPressed: () {
                   context.read<ScheduleBloc>().add(
-                    DeleteTimeBox(timeBoxIndex: timeBoxIndex),
+                    schedule_events.DeleteTimeBox(id: timeBoxId),
                   );
                   // Close both dialogs
                   Navigator.of(context).pop();

@@ -1,14 +1,18 @@
 // Todo BLoC file
 
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../database_initializer.dart';
 import 'todo_event.dart';
 import 'todo_state.dart';
 import 'todo_repository.dart';
 import 'todo_model.dart';
+import '../progress_dashboard/points_service.dart';
 
 class TodoBloc extends Bloc<TodoEvent, TodoState> {
   late final TodoRepository _repository;
+  final PointsService _pointsService = PointsService();
+  BuildContext? _context;
 
   TodoBloc() : super(const TodoState()) {
     _initRepository();
@@ -17,6 +21,12 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     on<UpdateTodo>(_onUpdateTodo);
     on<DeleteTodo>(_onDeleteTodo);
     on<ToggleTodoStatus>(_onToggleTodoStatus);
+    on<SetContext>(_onSetContext);
+  }
+
+  // Set the BuildContext for showing notifications
+  void _onSetContext(SetContext event, Emitter<TodoState> emit) {
+    _context = event.context;
   }
 
   Future<void> _initRepository() async {
@@ -250,6 +260,19 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
       );
 
       await _repository.updateTodo(todoEntity);
+
+      // Update points based on completion status
+      int points = 0;
+      if (event.completed) {
+        points = await _pointsService.addPointsForCompletion();
+      } else {
+        points = await _pointsService.removePointsForUncompletion();
+      }
+
+      // Show notification if context is available
+      if (_context != null) {
+        _pointsService.showPointsNotification(_context!, points);
+      }
 
       print(
         'TodoBloc: Successfully updated todo status. New list has ${updatedTodos.length} todos',

@@ -1,6 +1,7 @@
 // Todo Event file
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
 
 abstract class TodoEvent extends Equatable {
   const TodoEvent();
@@ -25,26 +26,26 @@ class AddTodo extends TodoEvent {
   });
 
   @override
-  List<Object> get props => [name, description, priority];
+  List<Object?> get props => [name, description, priority];
 }
 
 class UpdateTodo extends TodoEvent {
   final int id;
   final String? name;
   final String? description;
-  final int? priority;
   final bool? status;
+  final int? priority;
 
   const UpdateTodo({
     required this.id,
     this.name,
     this.description,
-    this.priority,
     this.status,
+    this.priority,
   });
 
   @override
-  List<Object?> get props => [id, name, description, priority, status];
+  List<Object?> get props => [id, name, description, status, priority];
 }
 
 class DeleteTodo extends TodoEvent {
@@ -53,7 +54,7 @@ class DeleteTodo extends TodoEvent {
   const DeleteTodo({required this.id});
 
   @override
-  List<Object> get props => [id];
+  List<Object?> get props => [id];
 }
 
 class ToggleTodoStatus extends TodoEvent {
@@ -63,5 +64,14 @@ class ToggleTodoStatus extends TodoEvent {
   const ToggleTodoStatus({required this.id, required this.completed});
 
   @override
-  List<Object> get props => [id, completed];
+  List<Object?> get props => [id, completed];
+}
+
+class SetContext extends TodoEvent {
+  final BuildContext context;
+
+  const SetContext({required this.context});
+
+  @override
+  List<Object?> get props => [context];
 }

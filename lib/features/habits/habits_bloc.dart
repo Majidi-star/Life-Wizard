@@ -1,15 +1,19 @@
 // Habits BLoC file
 
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../database_initializer.dart';
 import 'habits_event.dart';
 import 'habits_state.dart';
 import 'habits_repository.dart';
 import 'habits_model.dart';
+import '../progress_dashboard/points_service.dart';
 
 class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
   final HabitsRepository _habitsRepository;
+  final PointsService _pointsService = PointsService();
+  BuildContext? _context;
   Timer? _refreshTimer;
 
   HabitsBloc({HabitsRepository? habitsRepository})
@@ -23,9 +27,16 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
     on<UpdateHabit>(_onUpdateHabit);
     on<DeleteHabit>(_onDeleteHabit);
     on<DebugHabitsState>(_onDebugHabitsState);
+    on<SetContext>(_onSetContext);
+    on<ToggleHabitCompletion>(_onToggleHabitCompletion);
 
     // Initialize database connection
     _initDatabase();
+  }
+
+  // Set the BuildContext for showing notifications
+  void _onSetContext(SetContext event, Emitter<HabitsState> emit) {
+    _context = event.context;
   }
 
   Future<void> _initDatabase() async {
@@ -122,6 +133,78 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _onToggleHabitCompletion(
+    ToggleHabitCompletion event,
+    Emitter<HabitsState> emit,
+  ) async {
+    try {
+      // Find the habit in the current state
+      if (state.habitsModel == null || state.habitsModel!.habits.isEmpty) {
+        return;
+      }
+
+      final habitIndex = state.habitsModel!.habits.indexWhere(
+        (habit) => habit.id == event.habitId,
+      );
+
+      if (habitIndex == -1) {
+        return; // Habit not found
+      }
+
+      final habit = state.habitsModel!.habits[habitIndex];
+
+      // Get the habit from the repository to update it
+      final habitEntity = await _habitsRepository.getHabitById(event.habitId);
+      if (habitEntity == null) {
+        return; // Habit not found in database
+      }
+
+      // Update the habit's progress
+      final updatedHabit = Habit(
+        id: habitEntity.id,
+        name: habitEntity.name,
+        description: habitEntity.description ?? '',
+        consecutiveProgress:
+            event.completed
+                ? habitEntity.consecutiveProgress + 1
+                : habitEntity.consecutiveProgress - 1,
+        totalProgress:
+            event.completed
+                ? habitEntity.totalProgress + 1
+                : habitEntity.totalProgress - 1,
+        createdAt: habitEntity.createdAt,
+        start: habitEntity.start,
+        end: habitEntity.end,
+      );
+
+      // Save to database
+      await _habitsRepository.updateHabit(updatedHabit);
+
+      // Update points based on completion status
+      int points = 0;
+      if (event.completed) {
+        points = await _pointsService.addPointsForCompletion();
+      } else {
+        points = await _pointsService.removePointsForUncompletion();
+      }
+
+      // Show notification if context is available
+      if (_context != null) {
+        _pointsService.showPointsNotification(_context!, points);
+      }
+
+      // Refresh habits to show updated data
+      add(const RefreshHabits());
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: HabitsStatus.error,
+          errorMessage: 'Failed to toggle habit completion: $e',
+        ),
+      );
     }
   }
 

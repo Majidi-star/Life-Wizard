@@ -1,6 +1,7 @@
 // Habits Event file
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
 
 abstract class HabitsEvent extends Equatable {
   const HabitsEvent();
@@ -57,4 +58,23 @@ class DeleteHabit extends HabitsEvent {
 
 class DebugHabitsState extends HabitsEvent {
   const DebugHabitsState();
+}
+
+class SetContext extends HabitsEvent {
+  final BuildContext context;
+
+  const SetContext({required this.context});
+
+  @override
+  List<Object?> get props => [context];
+}
+
+class ToggleHabitCompletion extends HabitsEvent {
+  final int habitId;
+  final bool completed;
+
+  const ToggleHabitCompletion({required this.habitId, required this.completed});
+
+  @override
+  List<Object> get props => [habitId, completed];
 }

@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../database_initializer.dart';
 import 'schedule_event.dart';
@@ -9,11 +10,14 @@ import 'schedule_state.dart';
 import 'schedule_model.dart';
 import 'schedule_repository.dart';
 import '../../features/pro_clock/pro_clock_repository.dart';
+import '../progress_dashboard/points_service.dart';
 
 class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   ScheduleRepository? _repository;
   Timer? _updateTimer;
   final ProClockRepository _proClockRepository = ProClockRepository();
+  final PointsService _pointsService = PointsService();
+  BuildContext? _context;
 
   ScheduleBloc() : super(ScheduleState.initial()) {
     on<UpdateSelectedYear>(_onUpdateSelectedYear);
@@ -28,9 +32,15 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     on<AddTimeBox>(_onAddTimeBox);
     on<UpdateTimeBox>(_onUpdateTimeBox);
     on<DeleteTimeBox>(_onDeleteTimeBox);
+    on<SetContext>(_onSetContext);
 
     // Initialize repository and load initial data
     add(InitializeRepository());
+  }
+
+  // Set the BuildContext for showing notifications
+  void _onSetContext(SetContext event, Emitter<ScheduleState> emit) {
+    _context = event.context;
   }
 
   Future<void> _onInitializeRepository(
@@ -155,6 +165,8 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     }
 
     try {
+      bool habitStatusChanged = false;
+
       // If a timeBoxId is provided (as an index), get the actual database ID
       if (event.timeBoxId != null && state.scheduleModel != null) {
         // Ensure the index is valid
@@ -192,10 +204,12 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
                     !habitsJson.contains(event.habitName)) {
                   habitsJson.add(event.habitName);
                   changed = true;
+                  habitStatusChanged = true;
                 } else if (!event.isCompleted &&
                     habitsJson.contains(event.habitName)) {
                   habitsJson.remove(event.habitName);
                   changed = true;
+                  habitStatusChanged = true;
                 }
 
                 if (changed) {
@@ -249,6 +263,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
               print(
                 'Added habit ${event.habitName} to timeBox ${schedule.id}: $updatedHabits',
               );
+              habitStatusChanged = true;
               // Don't break - we want to add to all timeboxes
             }
             // For unchecked habits, remove from any timebox that has it
@@ -263,8 +278,24 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
               print(
                 'Removed habit ${event.habitName} from timeBox ${schedule.id}: $updatedHabits',
               );
+              habitStatusChanged = true;
             }
           }
+        }
+      }
+
+      // Update points if habit status changed
+      if (habitStatusChanged) {
+        int points = 0;
+        if (event.isCompleted) {
+          points = await _pointsService.addPointsForCompletion();
+        } else {
+          points = await _pointsService.removePointsForUncompletion();
+        }
+
+        // Show notification if context is available and points changed
+        if (_context != null && points != 0) {
+          _pointsService.showPointsNotification(_context!, points);
         }
       }
 
@@ -324,6 +355,55 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         print('Schedule ID: $scheduleId');
         print('Current status: ${scheduleToUpdate.timeBoxStatus}');
         print('New status: ${event.isCompleted}');
+
+        // Calculate start and end times for points calculation
+        final startTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          scheduleToUpdate.startTimeHour,
+          scheduleToUpdate.startTimeMinute,
+        );
+
+        final endTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          scheduleToUpdate.endTimeHour,
+          scheduleToUpdate.endTimeMinute,
+        );
+
+        // Calculate duration in minutes for debugging
+        final durationMinutes = endTime.difference(startTime).inMinutes;
+        print('Timebox duration: $durationMinutes minutes');
+
+        // Update points based on completion status - always calculate points regardless of previous status
+        int points = 0;
+        if (event.isCompleted) {
+          // Always calculate points when completing
+          points = await _pointsService.addPointsForScheduleTask(
+            startTime,
+            endTime,
+          );
+          print('Points to add for completion: $points');
+        } else {
+          // Always calculate points when uncompleting
+          points = await _pointsService.removePointsForScheduleTask(
+            startTime,
+            endTime,
+          );
+          print('Points to remove for uncompletion: $points');
+        }
+
+        // Show notification if context is available and points changed
+        if (_context != null && points != 0) {
+          print('Showing points notification: $points');
+          _pointsService.showPointsNotification(_context!, points);
+        } else {
+          print(
+            'Not showing notification. Context available: ${_context != null}, Points: $points',
+          );
+        }
 
         // Update the timeBoxStatus
         await _repository!.updateScheduleTimeBoxStatus(
@@ -534,16 +614,12 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       // Get the schedules for the current date
       final schedules = await _repository!.getSchedulesByDate(date);
 
-      if (schedules != null &&
-          event.timeBoxIndex >= 0 &&
-          event.timeBoxIndex < schedules.length) {
-        // Get the schedule to update
-        final existingSchedule = schedules[event.timeBoxIndex];
+      // Find the schedule with the matching ID
+      final existingScheduleList =
+          schedules?.where((schedule) => schedule.id == event.id).toList();
 
-        // Make sure it has an ID
-        if (existingSchedule.id == null) {
-          throw Exception('Schedule ID not found');
-        }
+      if (existingScheduleList != null && existingScheduleList.isNotEmpty) {
+        final existingSchedule = existingScheduleList.first;
 
         // Parse todo list if provided
         String todoJson = existingSchedule.todo ?? '[]';
@@ -633,7 +709,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
 
         print('===== UPDATE COMPLETE =====\n');
       } else {
-        emit(state.copyWith(isLoading: false, error: 'Invalid timebox index'));
+        emit(state.copyWith(isLoading: false, error: 'Schedule not found'));
       }
     } catch (e) {
       emit(
@@ -667,36 +743,20 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         state.selectedDay,
       );
 
-      // Get the schedules for the current date
-      final schedules = await _repository!.getSchedulesByDate(date);
+      // Delete the schedule with the given ID
+      await _repository!.deleteSchedule(event.id);
 
-      if (schedules != null &&
-          event.timeBoxIndex >= 0 &&
-          event.timeBoxIndex < schedules.length) {
-        // Get the schedule to delete
-        final scheduleToDelete = schedules[event.timeBoxIndex];
+      // Reload the schedule
+      add(
+        LoadSchedule(
+          year: state.selectedYear,
+          month: state.selectedMonth,
+          day: state.selectedDay,
+        ),
+      );
 
-        // Make sure it has an ID
-        if (scheduleToDelete.id == null) {
-          throw Exception('Schedule ID not found');
-        }
-
-        await _repository!.deleteSchedule(scheduleToDelete.id!);
-
-        // Reload the schedule
-        add(
-          LoadSchedule(
-            year: state.selectedYear,
-            month: state.selectedMonth,
-            day: state.selectedDay,
-          ),
-        );
-
-        // Update notifications for this date
-        await _proClockRepository.scheduleNotificationsForDate(date);
-      } else {
-        emit(state.copyWith(isLoading: false, error: 'Invalid timebox index'));
-      }
+      // Update notifications for this date
+      await _proClockRepository.scheduleNotificationsForDate(date);
     } catch (e) {
       emit(
         state.copyWith(

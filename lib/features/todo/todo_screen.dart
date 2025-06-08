@@ -438,6 +438,9 @@ class _TodoScreenState extends State<TodoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Set context in the bloc for showing points notifications
+    context.read<TodoBloc>().add(SetContext(context: context));
+
     final settingsState = app_main.settingsBloc.state;
 
     return Scaffold(

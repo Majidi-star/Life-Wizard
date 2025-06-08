@@ -67,6 +67,9 @@ class _HabitsScreenState extends State<HabitsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Set context in the bloc for showing points notifications
+    context.read<HabitsBloc>().add(SetContext(context: context));
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(

@@ -69,9 +69,9 @@ class ScheduleWidgets {
                     if (args.value is DateTime) {
                       final selectedDate = args.value as DateTime;
                       scheduleBloc
-                        ..add(UpdateSelectedYear(selectedDate.year))
-                        ..add(UpdateSelectedMonth(selectedDate.month))
-                        ..add(UpdateSelectedDay(selectedDate.day));
+                        ..add(UpdateSelectedYear(year: selectedDate.year))
+                        ..add(UpdateSelectedMonth(month: selectedDate.month))
+                        ..add(UpdateSelectedDay(day: selectedDate.day));
                       // Close the popup immediately after selection
                       Navigator.of(context).pop();
                     }
