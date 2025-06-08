@@ -76,10 +76,6 @@ void main() async {
   // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
   final db = await DatabaseInitializer.database;
 
-  // Do NOT initialize notifications here!
-  // await NotificationUtils.initialize();
-  // await ProClockRepository().scheduleNotificationsForDate(DateTime.now());
-
   // Create a single SettingsBloc instance that will be used throughout the app
   settingsBloc = SettingsBloc(preferences);
 
@@ -104,7 +100,7 @@ void main() async {
 
   // Run state tests and print their output
   // Set this to true to see all states printed in the console
-  bool runStateTests = true;
+  bool runStateTests = false;
   if (runStateTests) {
     print('\n\n=========== FEATURE STATES ===========');
     settings_test.main();
@@ -135,16 +131,39 @@ class AppWithNotificationInit extends StatefulWidget {
       _AppWithNotificationInitState();
 }
 
-class _AppWithNotificationInitState extends State<AppWithNotificationInit> {
+class _AppWithNotificationInitState extends State<AppWithNotificationInit>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initNotifications();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When app resumes from background, restore notifications
+    if (state == AppLifecycleState.resumed) {
+      _restoreNotifications();
+    }
   }
 
   Future<void> _initNotifications() async {
     await NotificationUtils.initialize(context);
+    await _scheduleNotifications();
+  }
 
+  Future<void> _restoreNotifications() async {
+    await NotificationUtils.restoreNotifications();
+  }
+
+  Future<void> _scheduleNotifications() async {
     // Schedule notifications for today and the next 6 days
     final now = DateTime.now();
     for (int i = 0; i < 7; i++) {

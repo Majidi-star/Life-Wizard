@@ -3,11 +3,16 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class NotificationUtils {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+
+  // Constants for shared preferences keys
+  static const String _notificationsKey = 'scheduled_notifications';
 
   static Future<void> initialize([BuildContext? context]) async {
     if (_initialized) return;
@@ -16,14 +21,32 @@ class NotificationUtils {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings =
-        DarwinInitializationSettings();
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
-    await _notificationsPlugin.initialize(initSettings);
+
+    await _notificationsPlugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
+
     _initialized = true;
     await requestPermissions();
+
+    // Restore notifications that might have been lost due to app restart
+    await restoreNotifications();
+  }
+
+  // Callback for when user taps on a notification
+  static void _onNotificationTapped(NotificationResponse response) {
+    // Handle notification tap
+    debugPrint('Notification tapped: ${response.payload}');
   }
 
   static Future<void> requestPermissions() async {
@@ -74,6 +97,112 @@ class NotificationUtils {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+
+    // Save notification data for persistence
+    await _saveNotificationData(id, title, body, scheduledTime);
+  }
+
+  /// Saves notification data to SharedPreferences for persistence
+  static Future<void> _saveNotificationData(
+    int id,
+    String title,
+    String body,
+    DateTime scheduledTime,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Get existing notifications
+    final String? notificationsJson = prefs.getString(_notificationsKey);
+    List<Map<String, dynamic>> notifications = [];
+
+    if (notificationsJson != null) {
+      notifications = List<Map<String, dynamic>>.from(
+        jsonDecode(notificationsJson) as List,
+      );
+    }
+
+    // Remove existing notification with same ID if exists
+    notifications.removeWhere((notification) => notification['id'] == id);
+
+    // Add new notification data
+    notifications.add({
+      'id': id,
+      'title': title,
+      'body': body,
+      'scheduledTime': scheduledTime.millisecondsSinceEpoch,
+    });
+
+    // Filter out past notifications
+    final now = DateTime.now().millisecondsSinceEpoch;
+    notifications =
+        notifications.where((notification) {
+          return notification['scheduledTime'] > now;
+        }).toList();
+
+    // Save back to shared preferences
+    await prefs.setString(_notificationsKey, jsonEncode(notifications));
+  }
+
+  /// Restores all saved notifications
+  static Future<void> restoreNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? notificationsJson = prefs.getString(_notificationsKey);
+
+    if (notificationsJson != null) {
+      final List<Map<String, dynamic>> notifications =
+          List<Map<String, dynamic>>.from(
+            jsonDecode(notificationsJson) as List,
+          );
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      // Filter out past notifications
+      final futureNotifications =
+          notifications.where((notification) {
+            return notification['scheduledTime'] > now;
+          }).toList();
+
+      // Reschedule each notification
+      for (final notification in futureNotifications) {
+        final scheduledTime = DateTime.fromMillisecondsSinceEpoch(
+          notification['scheduledTime'] as int,
+        );
+
+        // Only schedule if it's in the future
+        if (scheduledTime.isAfter(DateTime.now())) {
+          await _notificationsPlugin.zonedSchedule(
+            notification['id'] as int,
+            notification['title'] as String,
+            notification['body'] as String,
+            tz.TZDateTime.from(scheduledTime, tz.local),
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'schedule_channel',
+                'Schedule Notifications',
+                channelDescription: 'Notifies about scheduled activities',
+                importance: Importance.max,
+                priority: Priority.high,
+                playSound: true,
+              ),
+              iOS: DarwinNotificationDetails(
+                presentSound: true,
+                sound: 'default',
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
+          );
+        }
+      }
+
+      // Update the storage with only future notifications
+      if (futureNotifications.length != notifications.length) {
+        await prefs.setString(
+          _notificationsKey,
+          jsonEncode(futureNotifications),
+        );
+      }
+    }
   }
 
   /// Cancels all notifications for a specific date
@@ -91,6 +220,35 @@ class NotificationUtils {
       if (notification.id >= idPrefix && notification.id < idPrefix + 1000) {
         await _notificationsPlugin.cancel(notification.id);
       }
+    }
+
+    // Also remove from saved notifications
+    await _removeNotificationsWithIdPrefix(idPrefix);
+  }
+
+  /// Removes notifications with specific ID prefix from SharedPreferences
+  static Future<void> _removeNotificationsWithIdPrefix(int idPrefix) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? notificationsJson = prefs.getString(_notificationsKey);
+
+    if (notificationsJson != null) {
+      final List<Map<String, dynamic>> notifications =
+          List<Map<String, dynamic>>.from(
+            jsonDecode(notificationsJson) as List,
+          );
+
+      // Filter out notifications with the given prefix
+      final filteredNotifications =
+          notifications.where((notification) {
+            final id = notification['id'] as int;
+            return id < idPrefix || id >= idPrefix + 1000;
+          }).toList();
+
+      // Save back to shared preferences
+      await prefs.setString(
+        _notificationsKey,
+        jsonEncode(filteredNotifications),
+      );
     }
   }
 
@@ -143,5 +301,9 @@ class NotificationUtils {
 
   static Future<void> cancelAll() async {
     await _notificationsPlugin.cancelAll();
+
+    // Also clear saved notifications
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_notificationsKey);
   }
 }

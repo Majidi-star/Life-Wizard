@@ -36,7 +36,7 @@ dependencies:
   logging: ^1.2.0
   flutter_bloc: ^8.1.4
   equatable: ^2.0.5
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.3
   syncfusion_flutter_datepicker: ^24.1.47
   cupertino_icons: ^1.0.2
   flutter_gemini: ^3.0.0
