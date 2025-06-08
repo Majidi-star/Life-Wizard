@@ -386,6 +386,13 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
             endTime,
           );
           print('Points to add for completion: $points');
+
+          // Track hours worked (but don't show notification)
+          final hoursWorked = await _pointsService.addHoursWorked(
+            startTime,
+            endTime,
+          );
+          print('Hours worked to add: $hoursWorked');
         } else {
           // Always calculate points when uncompleting
           points = await _pointsService.removePointsForScheduleTask(
@@ -393,6 +400,13 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
             endTime,
           );
           print('Points to remove for uncompletion: $points');
+
+          // Remove hours worked (but don't show notification)
+          final hoursRemoved = await _pointsService.removeHoursWorked(
+            startTime,
+            endTime,
+          );
+          print('Hours worked to remove: $hoursRemoved');
         }
 
         // Show notification if context is available and points changed

@@ -162,6 +162,15 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
         return; // Habit not found in database
       }
 
+      // Check if the status is actually changing to avoid duplicate points
+      final bool isStatusChanging =
+          (event.completed &&
+              habitEntity.consecutiveProgress ==
+                  habit.habitConsecutiveProgress) ||
+          (!event.completed &&
+              habitEntity.consecutiveProgress ==
+                  habit.habitConsecutiveProgress + 1);
+
       // Update the habit's progress
       final updatedHabit = Habit(
         id: habitEntity.id,
@@ -183,17 +192,19 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
       // Save to database
       await _habitsRepository.updateHabit(updatedHabit);
 
-      // Update points based on completion status
-      int points = 0;
-      if (event.completed) {
-        points = await _pointsService.addPointsForCompletion();
-      } else {
-        points = await _pointsService.removePointsForUncompletion();
-      }
+      // Update points based on completion status, but only if status is actually changing
+      if (isStatusChanging) {
+        int points = 0;
+        if (event.completed) {
+          points = await _pointsService.addPointsForCompletion();
+        } else {
+          points = await _pointsService.removePointsForUncompletion();
+        }
 
-      // Show notification if context is available
-      if (_context != null) {
-        _pointsService.showPointsNotification(_context!, points);
+        // Show notification if context is available
+        if (_context != null) {
+          _pointsService.showPointsNotification(_context!, points);
+        }
       }
 
       // Refresh habits to show updated data

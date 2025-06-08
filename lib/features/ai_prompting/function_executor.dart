@@ -157,10 +157,23 @@ class FunctionExecutor {
               parameters['newPriority'] != null
                   ? int.tryParse(parameters['newPriority'].toString())
                   : null;
-          final bool? newStatus =
-              parameters['newStatus'] != null
-                  ? parameters['newStatus'].toString().toLowerCase() == 'true'
-                  : null;
+
+          // Fix boolean parsing for newStatus
+          bool? newStatus;
+          if (parameters['newStatus'] != null) {
+            // Handle different possible formats from AI
+            final statusValue = parameters['newStatus'];
+            if (statusValue is bool) {
+              newStatus = statusValue;
+            } else if (statusValue is String) {
+              newStatus = statusValue.toLowerCase() == 'true';
+            } else if (statusValue is num) {
+              newStatus = statusValue != 0;
+            }
+            debugPrint(
+              "FUNCTION_EXECUTOR: Parsed newStatus as $newStatus from ${parameters['newStatus']}",
+            );
+          }
 
           debugPrint(
             "FUNCTION_EXECUTOR: Calling update_todo with name: $todoName",
@@ -833,7 +846,7 @@ class FunctionExecutor {
               timeboxes: timeboxes,
             );
             debugPrint(
-              "FUNCTION_EXECUTOR: update_schedule_timeboxes result: \\${result.length}",
+              "FUNCTION EXECUTOR: update_schedule_timeboxes result: \\${result.length}",
             );
             // Refresh UI if context is provided
             if (context != null) {

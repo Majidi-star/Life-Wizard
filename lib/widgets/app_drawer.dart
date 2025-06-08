@@ -31,6 +31,7 @@ class AppDrawer extends StatelessWidget {
                   final points = snapshot.data?['points'] ?? 0;
                   final badges = snapshot.data?['badges'] ?? 'beginner';
                   final cookieJar = snapshot.data?['cookie_jar'] ?? [];
+                  final hoursWorked = snapshot.data?['hours_worked'] ?? 0.0;
                   return Column(
                     children: [
                       ListTile(
@@ -41,6 +42,24 @@ class AppDrawer extends StatelessWidget {
                         ),
                         trailing: Text(
                           points.toString(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      ListTile(
+                        leading: Icon(
+                          Icons.timer,
+                          color: Colors.lightGreenAccent,
+                        ),
+                        title: const Text(
+                          'Hours Worked',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        trailing: Text(
+                          (hoursWorked is double)
+                              ? hoursWorked.toStringAsFixed(1)
+                              : double.parse(
+                                hoursWorked.toString(),
+                              ).toStringAsFixed(1),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),

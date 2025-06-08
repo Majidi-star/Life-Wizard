@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import '../../database_initializer.dart';
 import 'dart:convert';
+import '../progress_dashboard/points_service.dart';
 
 /// AI Functions that can be called by the AI assistant
 class AIFunctions {
@@ -118,6 +119,9 @@ class AIFunctions {
       debugPrint("Starting update_todo with name: $todoName");
       final db = await DatabaseInitializer.database;
 
+      // Get points service for updating points
+      final pointsService = PointsService();
+
       // First, find the todo by name (search both active and completed todos)
       final List<Map<String, dynamic>> todos = await db.query(
         'todo',
@@ -133,8 +137,10 @@ class AIFunctions {
       // If multiple todos match, use the first one
       final todo = todos.first;
       final int todoId = todo['id'];
+      final int currentStatus = todo['todoStatus'] as int;
 
       debugPrint("Found todo with ID: $todoId, updating it...");
+      debugPrint("Current status: $currentStatus, New status: $newStatus");
 
       // Prepare the update fields
       final Map<String, dynamic> updateFields = {};
@@ -158,6 +164,12 @@ class AIFunctions {
 
       // Handle status update
       if (newStatus != null) {
+        final bool isStatusChanging =
+            (newStatus && currentStatus == 0) ||
+            (!newStatus && currentStatus == 1);
+
+        debugPrint("Status changing: $isStatusChanging");
+
         // Convert bool to int (0 = active, 1 = completed)
         updateFields['todoStatus'] = newStatus ? 1 : 0;
 
@@ -168,6 +180,19 @@ class AIFunctions {
         } else {
           // If marked active, clear completedAt
           updateFields['completedAt'] = null;
+        }
+
+        // Update points if status is changing
+        if (isStatusChanging) {
+          if (newStatus) {
+            // Todo is being completed - add points
+            await pointsService.addPointsForCompletion();
+            debugPrint('AI Function: Added points for completing todo');
+          } else {
+            // Todo is being uncompleted - remove points
+            await pointsService.removePointsForUncompletion();
+            debugPrint('AI Function: Removed points for uncompleting todo');
+          }
         }
       }
 
@@ -1178,6 +1203,10 @@ class AIFunctions {
   }) async {
     final db = await DatabaseInitializer.database;
     final List<String> results = [];
+
+    // Import the points service for updating points and hours worked
+    final pointsService = PointsService();
+
     for (final timebox in timeboxes) {
       try {
         final String date = timebox['date'];
@@ -1204,6 +1233,68 @@ class AIFunctions {
           );
           continue;
         }
+
+        // Check if timeBoxStatus is being updated
+        if (updateFields.containsKey('timeBoxStatus')) {
+          final currentStatus = found.first['timeBoxStatus'];
+          final newStatus = updateFields['timeBoxStatus'];
+
+          // Only process points if status is actually changing
+          if (currentStatus != newStatus) {
+            // Parse the date string
+            final dateParts = date.split('-');
+            if (dateParts.length == 3) {
+              final year = int.parse(dateParts[0]);
+              final month = int.parse(dateParts[1]);
+              final day = int.parse(dateParts[2]);
+
+              // Create DateTime objects for start and end times
+              final startTime = DateTime(
+                year,
+                month,
+                day,
+                startTimeHour,
+                startTimeMinute,
+              );
+
+              final endTimeHour = found.first['endTimeHour'] as int;
+              final endTimeMinute = found.first['endTimeMinute'] as int;
+
+              final endTime = DateTime(
+                year,
+                month,
+                day,
+                endTimeHour,
+                endTimeMinute,
+              );
+
+              // Update points and hours worked based on the status change
+              if (newStatus == 'completed') {
+                // Timebox is being completed - add points and hours
+                await pointsService.addPointsForScheduleTask(
+                  startTime,
+                  endTime,
+                );
+                await pointsService.addHoursWorked(startTime, endTime);
+                debugPrint(
+                  'AI Function: Added points and hours for completing timebox',
+                );
+              } else if (currentStatus == 'completed' &&
+                  newStatus != 'completed') {
+                // Timebox is being uncompleted - remove points and hours
+                await pointsService.removePointsForScheduleTask(
+                  startTime,
+                  endTime,
+                );
+                await pointsService.removeHoursWorked(startTime, endTime);
+                debugPrint(
+                  'AI Function: Removed points and hours for uncompleting timebox',
+                );
+              }
+            }
+          }
+        }
+
         final int updatedRows = await db.update(
           'schedule',
           updateFields,
