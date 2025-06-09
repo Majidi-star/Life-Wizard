@@ -1170,33 +1170,107 @@ class AIFunctions {
   static Future<String> add_schedule_timeboxes({
     required List<Map<String, dynamic>> timeboxes,
   }) async {
+    debugPrint('=== START add_schedule_timeboxes ===');
+    debugPrint('Received ${timeboxes.length} timeboxes to add');
+
     final List<String> results = [];
-    for (final timebox in timeboxes) {
+    for (int i = 0; i < timeboxes.length; i++) {
+      final timebox = timeboxes[i];
+      debugPrint(
+        'Processing timebox ${i + 1}/${timeboxes.length}: ${timebox['activity']} on ${timebox['date']}',
+      );
+
       try {
+        // Debug print all fields and their types
+        debugPrint('TIMEBOX FIELDS:');
+        timebox.forEach((key, value) {
+          debugPrint('  $key: $value (${value.runtimeType})');
+        });
+
+        // Ensure all required fields exist with proper defaults
+        final Map<String, dynamic> safeTimebox = Map.from(timebox);
+
+        // Check heatmapProductivity specifically
+        if (!safeTimebox.containsKey('heatmapProductivity')) {
+          debugPrint(
+            'WARNING: heatmapProductivity is missing, defaulting to 0.0',
+          );
+          safeTimebox['heatmapProductivity'] = 0.0;
+        }
+
+        final heatmapValue = safeTimebox['heatmapProductivity'];
+        debugPrint(
+          'HEATMAP VALUE: $heatmapValue (${heatmapValue.runtimeType})',
+        );
+
+        final double safeHeatmap =
+            heatmapValue is double
+                ? heatmapValue
+                : (double.tryParse(heatmapValue.toString()) ?? 0.0);
+        debugPrint(
+          'SAFE HEATMAP VALUE: $safeHeatmap (${safeHeatmap.runtimeType})',
+        );
+
+        // Ensure other required fields have defaults
+        if (!safeTimebox.containsKey('challenge')) {
+          safeTimebox['challenge'] = false;
+        }
+
+        if (!safeTimebox.containsKey('priority')) {
+          safeTimebox['priority'] = 5;
+        }
+
+        if (!safeTimebox.containsKey('notes')) {
+          safeTimebox['notes'] = '';
+        }
+
+        if (!safeTimebox.containsKey('todo')) {
+          safeTimebox['todo'] = '[]';
+        }
+
+        if (!safeTimebox.containsKey('habits')) {
+          safeTimebox['habits'] = '[]';
+        }
+
+        if (!safeTimebox.containsKey('timeBoxStatus')) {
+          safeTimebox['timeBoxStatus'] = 'planned';
+        }
+
         final int id = await DatabaseInitializer.addScheduleTimebox(
-          date: timebox['date'],
-          challenge: timebox['challenge'],
-          startTimeHour: timebox['startTimeHour'],
-          startTimeMinute: timebox['startTimeMinute'],
-          endTimeHour: timebox['endTimeHour'],
-          endTimeMinute: timebox['endTimeMinute'],
-          activity: timebox['activity'],
-          notes: timebox['notes'],
-          todo: timebox['todo'],
-          timeBoxStatus: timebox['timeBoxStatus'],
-          priority: timebox['priority'],
-          heatmapProductivity: timebox['heatmapProductivity'],
-          habits: timebox['habits'],
+          date: safeTimebox['date'],
+          challenge:
+              safeTimebox['challenge'] is bool
+                  ? (safeTimebox['challenge'] ? 1 : 0)
+                  : (safeTimebox['challenge'] ?? 0),
+          startTimeHour: safeTimebox['startTimeHour'],
+          startTimeMinute: safeTimebox['startTimeMinute'],
+          endTimeHour: safeTimebox['endTimeHour'],
+          endTimeMinute: safeTimebox['endTimeMinute'],
+          activity: safeTimebox['activity'],
+          notes: safeTimebox['notes'],
+          todo: safeTimebox['todo'],
+          timeBoxStatus: safeTimebox['timeBoxStatus'],
+          priority: safeTimebox['priority'],
+          heatmapProductivity: safeHeatmap,
+          habits: safeTimebox['habits'],
         );
         if (id > 0) {
-          results.add('Success: ${timebox['date']} - ${timebox['activity']}');
+          results.add(
+            'Success: ${safeTimebox['date']} - ${safeTimebox['activity']}',
+          );
+          debugPrint('Successfully added timebox with ID: $id');
         } else {
-          results.add('Failed: ${timebox['date']} - ${timebox['activity']}');
+          results.add(
+            'Failed: ${safeTimebox['date']} - ${safeTimebox['activity']}',
+          );
+          debugPrint('Failed to add timebox (ID: $id)');
         }
       } catch (e) {
+        debugPrint('ERROR adding timebox: $e');
         results.add('Error: ${timebox['date']} - ${timebox['activity']}: $e');
       }
     }
+    debugPrint('=== END add_schedule_timeboxes ===');
     return results.join('\n');
   }
 

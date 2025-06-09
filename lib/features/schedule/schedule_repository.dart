@@ -82,6 +82,17 @@ class Schedule {
 
     print('Schedule.fromMap - Converted timeBoxStatus: $timeBoxStatus');
 
+    // Handle heatmapProductivity conversion
+    final rawHeatmap = map['heatmapProductivity'];
+    final double heatmapProductivity =
+        rawHeatmap is double
+            ? rawHeatmap
+            : (double.tryParse(rawHeatmap.toString()) ?? 0.0);
+
+    print(
+      'Schedule.fromMap - Converted heatmapProductivity: $heatmapProductivity (from ${rawHeatmap.runtimeType})',
+    );
+
     return Schedule(
       id: map['id'],
       date: DateTime.parse(map['date']),
@@ -95,7 +106,7 @@ class Schedule {
       todo: map['todo'],
       timeBoxStatus: timeBoxStatus,
       priority: map['priority'],
-      heatmapProductivity: map['heatmapProductivity'],
+      heatmapProductivity: heatmapProductivity,
       habits: map['habits'],
     );
   }
@@ -110,24 +121,82 @@ class ScheduleRepository {
   /// Gets all schedules
   /// Returns null if no schedules exist
   Future<List<Schedule>?> getAllSchedules() async {
-    final List<Map<String, dynamic>> maps = await _db.query(
-      _tableName,
-      orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
-    );
-    if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
+    try {
+      final List<Map<String, dynamic>> maps = await _db.query(
+        _tableName,
+        orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
+      );
+
+      if (maps.isEmpty) return null;
+
+      // Process each schedule with safety checks
+      final List<Schedule> schedules = [];
+      for (var map in maps) {
+        try {
+          // Check and fix heatmapProductivity if needed
+          if (map['heatmapProductivity'] != null &&
+              map['heatmapProductivity'] is! double) {
+            print(
+              'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+            final rawValue = map['heatmapProductivity'];
+            map = Map<String, dynamic>.from(map); // Create a mutable copy
+            map['heatmapProductivity'] =
+                double.tryParse(rawValue.toString()) ?? 0.0;
+            print(
+              'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+          }
+
+          // Create the Schedule object
+          final schedule = Schedule.fromMap(map);
+          schedules.add(schedule);
+        } catch (e) {
+          print('ERROR processing schedule: $e');
+          print('Problematic schedule data: $map');
+        }
+      }
+
+      return schedules;
+    } catch (e) {
+      print('ERROR in getAllSchedules: $e');
+      return null;
+    }
   }
 
   /// Gets a specific schedule by ID
   /// Returns null if schedule doesn't exist
   Future<Schedule?> getScheduleById(int id) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
-      _tableName,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    if (maps.isEmpty) return null;
-    return Schedule.fromMap(maps.first);
+    try {
+      final List<Map<String, dynamic>> maps = await _db.query(
+        _tableName,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (maps.isEmpty) return null;
+
+      // Check and fix heatmapProductivity if needed
+      var map = maps.first;
+      if (map['heatmapProductivity'] != null &&
+          map['heatmapProductivity'] is! double) {
+        print(
+          'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+        );
+        final rawValue = map['heatmapProductivity'];
+        map = Map<String, dynamic>.from(map); // Create a mutable copy
+        map['heatmapProductivity'] =
+            double.tryParse(rawValue.toString()) ?? 0.0;
+        print(
+          'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+        );
+      }
+
+      return Schedule.fromMap(map);
+    } catch (e) {
+      print('ERROR in getScheduleById: $e');
+      return null;
+    }
   }
 
   /// Gets schedules for a specific date
@@ -140,53 +209,162 @@ class ScheduleRepository {
     print('Date parameter: $date');
     print('Date string used for query: $dateStr');
 
-    // Debug: Show all schedules in the database first
-    final allSchedules = await _db.query(_tableName);
-    print('Total schedules in database: ${allSchedules.length}');
-    for (var schedule in allSchedules) {
-      print(
-        'Schedule ID: ${schedule['id']}, Date: ${schedule['date']}, Activity: ${schedule['activity']}',
+    try {
+      // Debug: Show all schedules in the database first
+      final allSchedules = await _db.query(_tableName);
+      print('Total schedules in database: ${allSchedules.length}');
+      for (var schedule in allSchedules) {
+        print(
+          'Schedule ID: ${schedule['id']}, Date: ${schedule['date']}, Activity: ${schedule['activity']}',
+        );
+      }
+
+      // Query for the specific date
+      final List<Map<String, dynamic>> maps = await _db.query(
+        _tableName,
+        where: 'date LIKE ?', // Use LIKE for more flexible matching
+        whereArgs: ['$dateStr%'], // Add wildcard to match any time component
+        orderBy: 'startTimeHour ASC, startTimeMinute ASC',
       );
+
+      print('Found ${maps.length} schedules for date $dateStr');
+
+      if (maps.isEmpty) return null;
+
+      // Process each schedule with safety checks
+      final List<Schedule> schedules = [];
+      for (var map in maps) {
+        try {
+          print(
+            'Processing schedule ID: ${map['id']}, Activity: ${map['activity']}',
+          );
+
+          // Check and fix heatmapProductivity if needed
+          if (map['heatmapProductivity'] != null &&
+              map['heatmapProductivity'] is! double) {
+            print(
+              'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+            final rawValue = map['heatmapProductivity'];
+            map = Map<String, dynamic>.from(map); // Create a mutable copy
+            map['heatmapProductivity'] =
+                double.tryParse(rawValue.toString()) ?? 0.0;
+            print(
+              'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+          }
+
+          // Create the Schedule object
+          final schedule = Schedule.fromMap(map);
+          schedules.add(schedule);
+        } catch (e) {
+          print('ERROR processing schedule: $e');
+          print('Problematic schedule data: $map');
+        }
+      }
+
+      print('Successfully processed ${schedules.length} schedules');
+      return schedules;
+    } catch (e) {
+      print('ERROR in getSchedulesByDate: $e');
+      return null;
     }
-
-    // Query for the specific date
-    final List<Map<String, dynamic>> maps = await _db.query(
-      _tableName,
-      where: 'date LIKE ?', // Use LIKE for more flexible matching
-      whereArgs: ['$dateStr%'], // Add wildcard to match any time component
-      orderBy: 'startTimeHour ASC, startTimeMinute ASC',
-    );
-
-    print('Found ${maps.length} schedules for date $dateStr');
-
-    if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
   }
 
   /// Gets schedules by time box status
   /// Returns null if no schedules match the status
   Future<List<Schedule>?> getSchedulesByTimeBoxStatus(bool status) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
-      _tableName,
-      where: 'timeBoxStatus = ?',
-      whereArgs: [status ? 1 : 0],
-      orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
-    );
-    if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
+    try {
+      final List<Map<String, dynamic>> maps = await _db.query(
+        _tableName,
+        where: 'timeBoxStatus = ?',
+        whereArgs: [status ? 'completed' : 'planned'],
+        orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
+      );
+
+      if (maps.isEmpty) return null;
+
+      // Process each schedule with safety checks
+      final List<Schedule> schedules = [];
+      for (var map in maps) {
+        try {
+          // Check and fix heatmapProductivity if needed
+          if (map['heatmapProductivity'] != null &&
+              map['heatmapProductivity'] is! double) {
+            print(
+              'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+            final rawValue = map['heatmapProductivity'];
+            map = Map<String, dynamic>.from(map); // Create a mutable copy
+            map['heatmapProductivity'] =
+                double.tryParse(rawValue.toString()) ?? 0.0;
+            print(
+              'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+          }
+
+          // Create the Schedule object
+          final schedule = Schedule.fromMap(map);
+          schedules.add(schedule);
+        } catch (e) {
+          print('ERROR processing schedule: $e');
+          print('Problematic schedule data: $map');
+        }
+      }
+
+      return schedules;
+    } catch (e) {
+      print('ERROR in getSchedulesByTimeBoxStatus: $e');
+      return null;
+    }
   }
 
   /// Gets schedules by priority
   /// Returns null if no schedules match the priority
   Future<List<Schedule>?> getSchedulesByPriority(int priority) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
-      _tableName,
-      where: 'priority = ?',
-      whereArgs: [priority],
-      orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
-    );
-    if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
+    try {
+      final List<Map<String, dynamic>> maps = await _db.query(
+        _tableName,
+        where: 'priority = ?',
+        whereArgs: [priority],
+        orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
+      );
+
+      if (maps.isEmpty) return null;
+
+      // Process each schedule with safety checks
+      final List<Schedule> schedules = [];
+      for (var map in maps) {
+        try {
+          // Check and fix heatmapProductivity if needed
+          if (map['heatmapProductivity'] != null &&
+              map['heatmapProductivity'] is! double) {
+            print(
+              'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+            final rawValue = map['heatmapProductivity'];
+            map = Map<String, dynamic>.from(map); // Create a mutable copy
+            map['heatmapProductivity'] =
+                double.tryParse(rawValue.toString()) ?? 0.0;
+            print(
+              'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+          }
+
+          // Create the Schedule object
+          final schedule = Schedule.fromMap(map);
+          schedules.add(schedule);
+        } catch (e) {
+          print('ERROR processing schedule: $e');
+          print('Problematic schedule data: $map');
+        }
+      }
+
+      return schedules;
+    } catch (e) {
+      print('ERROR in getSchedulesByPriority: $e');
+      return null;
+    }
   }
 
   /// Inserts a new schedule
@@ -197,6 +375,18 @@ class ScheduleRepository {
     scheduleMap.forEach((key, value) {
       print('  $key: $value (${value.runtimeType})');
     });
+
+    // Double check that heatmapProductivity is a double
+    if (scheduleMap['heatmapProductivity'] != null &&
+        scheduleMap['heatmapProductivity'] is! double) {
+      print('WARNING: Converting heatmapProductivity to double');
+      final rawValue = scheduleMap['heatmapProductivity'];
+      scheduleMap['heatmapProductivity'] =
+          double.tryParse(rawValue.toString()) ?? 0.0;
+      print(
+        'Converted: ${scheduleMap['heatmapProductivity']} (${scheduleMap['heatmapProductivity'].runtimeType})',
+      );
+    }
 
     try {
       final id = await _db.insert(_tableName, scheduleMap);
@@ -244,14 +434,49 @@ class ScheduleRepository {
   /// Searches schedules by activity
   /// Returns null if no schedules match the search
   Future<List<Schedule>?> searchSchedules(String query) async {
-    final List<Map<String, dynamic>> maps = await _db.query(
-      _tableName,
-      where: 'activity LIKE ?',
-      whereArgs: ['%$query%'],
-      orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
-    );
-    if (maps.isEmpty) return null;
-    return List.generate(maps.length, (i) => Schedule.fromMap(maps[i]));
+    try {
+      final List<Map<String, dynamic>> maps = await _db.query(
+        _tableName,
+        where: 'activity LIKE ?',
+        whereArgs: ['%$query%'],
+        orderBy: 'date ASC, startTimeHour ASC, startTimeMinute ASC',
+      );
+
+      if (maps.isEmpty) return null;
+
+      // Process each schedule with safety checks
+      final List<Schedule> schedules = [];
+      for (var map in maps) {
+        try {
+          // Check and fix heatmapProductivity if needed
+          if (map['heatmapProductivity'] != null &&
+              map['heatmapProductivity'] is! double) {
+            print(
+              'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+            final rawValue = map['heatmapProductivity'];
+            map = Map<String, dynamic>.from(map); // Create a mutable copy
+            map['heatmapProductivity'] =
+                double.tryParse(rawValue.toString()) ?? 0.0;
+            print(
+              'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
+            );
+          }
+
+          // Create the Schedule object
+          final schedule = Schedule.fromMap(map);
+          schedules.add(schedule);
+        } catch (e) {
+          print('ERROR processing schedule: $e');
+          print('Problematic schedule data: $map');
+        }
+      }
+
+      return schedules;
+    } catch (e) {
+      print('ERROR in searchSchedules: $e');
+      return null;
+    }
   }
 
   /// Updates specific fields of a schedule

@@ -822,34 +822,65 @@ class DatabaseInitializer {
     required double heatmapProductivity,
     String? habits, // JSON string, optional
   }) async {
-    final db = await database;
-    // Check for existing timeboxes for the same date
-    final existing = await db.query(
-      'schedule',
-      columns: ['habits'],
-      where: 'date = ?',
-      whereArgs: [date],
+    _logger.info('Adding schedule timebox: $activity on $date');
+    _logger.info(
+      'heatmapProductivity: $heatmapProductivity (${heatmapProductivity.runtimeType})',
     );
-    String habitsValue = habits ?? '[]';
-    if (existing.isNotEmpty) {
-      // Use the habits value from the first found row for that date
-      habitsValue = existing.first['habits'] as String? ?? '[]';
+
+    try {
+      final db = await database;
+      // Check for existing timeboxes for the same date
+      final existing = await db.query(
+        'schedule',
+        columns: ['habits'],
+        where: 'date = ?',
+        whereArgs: [date],
+      );
+      String habitsValue = habits ?? '[]';
+      if (existing.isNotEmpty) {
+        // Use the habits value from the first found row for that date
+        habitsValue = existing.first['habits'] as String? ?? '[]';
+      }
+
+      // Ensure heatmapProductivity is a double
+      final double safeHeatmapProductivity =
+          heatmapProductivity is double
+              ? heatmapProductivity
+              : (double.tryParse(heatmapProductivity.toString()) ?? 0.0);
+
+      _logger.info(
+        'Safe heatmapProductivity: $safeHeatmapProductivity (${safeHeatmapProductivity.runtimeType})',
+      );
+
+      final row = {
+        'date': date,
+        'challenge': challenge,
+        'startTimeHour': startTimeHour,
+        'startTimeMinute': startTimeMinute,
+        'endTimeHour': endTimeHour,
+        'endTimeMinute': endTimeMinute,
+        'activity': activity,
+        'notes': notes,
+        'todo': todo,
+        'timeBoxStatus': timeBoxStatus,
+        'priority': priority,
+        'heatmapProductivity': safeHeatmapProductivity,
+        'habits': habitsValue,
+      };
+
+      // Debug print all fields and their types
+      _logger.info('ROW TO INSERT:');
+      row.forEach((key, value) {
+        _logger.info('  $key: $value (${value.runtimeType})');
+      });
+
+      final id = await db.insert('schedule', row);
+      _logger.info('Successfully inserted timebox with ID: $id');
+      return id;
+    } catch (e, stackTrace) {
+      _logger.severe('ERROR inserting schedule: $e');
+      _logger.severe('Stack trace: $stackTrace');
+      rethrow;
     }
-    final row = {
-      'date': date,
-      'challenge': challenge,
-      'startTimeHour': startTimeHour,
-      'startTimeMinute': startTimeMinute,
-      'endTimeHour': endTimeHour,
-      'endTimeMinute': endTimeMinute,
-      'activity': activity,
-      'notes': notes,
-      'todo': todo,
-      'timeBoxStatus': timeBoxStatus,
-      'priority': priority,
-      'heatmapProductivity': heatmapProductivity,
-      'habits': habitsValue,
-    };
-    return await db.insert('schedule', row);
   }
 }
