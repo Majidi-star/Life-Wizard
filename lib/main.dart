@@ -32,6 +32,7 @@ import 'features/ai_chat/gemini_chat_service.dart';
 import 'features/ai_prompting/function_test_screen.dart';
 import 'utils/notification_utils.dart';
 import 'features/pro_clock/pro_clock_repository.dart';
+import 'widgets/loading_screen.dart';
 
 // Import all test files
 import 'features/settings/settings_test.dart' as settings_test;
@@ -133,11 +134,13 @@ class AppWithNotificationInit extends StatefulWidget {
 
 class _AppWithNotificationInitState extends State<AppWithNotificationInit>
     with WidgetsBindingObserver {
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initNotifications();
+    _initializeApp();
   }
 
   @override
@@ -151,6 +154,17 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
     // When app resumes from background, restore notifications
     if (state == AppLifecycleState.resumed) {
       _restoreNotifications();
+    }
+  }
+
+  Future<void> _initializeApp() async {
+    await _initNotifications();
+    // Add a small delay to ensure the loading screen is visible
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -174,157 +188,97 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider.value(value: settingsBloc..add(LoadSettings())),
-        BlocProvider.value(value: moodDataBloc),
-        BlocProvider.value(value: todoBloc),
-        BlocProvider.value(value: habitsBloc..add(const LoadHabits())),
-        BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
-        BlocProvider<ScheduleBloc>(create: (context) => ScheduleBloc()),
-        BlocProvider.value(value: proClockBloc),
-        BlocProvider.value(value: aiChatBloc),
-      ],
-      child: BlocBuilder<SettingsBloc, SettingsState>(
-        builder: (context, state) {
-          return MaterialApp(
-            title: 'Life Wizard',
-            builder: (context, child) {
-              // Add top-level SafeArea to ensure UI elements don't overlap with system UI
-              return MediaQuery(
-                // Apply a top padding to avoid status bar overlap
-                data: MediaQuery.of(context).copyWith(
-                  padding: MediaQuery.of(context).padding.copyWith(
-                    top: MediaQuery.of(context).padding.top + 8,
-                  ),
-                ),
-                child: child!,
-              );
-            },
-            theme: ThemeData(
-              primaryColor: state.primaryColor,
-              colorScheme: ColorScheme(
-                brightness:
-                    state.theme == 'dark' ? Brightness.dark : Brightness.light,
-                primary: state.primaryColor,
-                onPrimary: Colors.white,
-                secondary: state.secondaryColor,
-                onSecondary: Colors.white,
-                tertiary: state.thirdlyColor,
-                onTertiary: Colors.black,
-                surfaceTint: state.fourthlyColor,
-                error: Colors.red,
-                onError: Colors.white,
-                surface:
-                    state.theme == 'dark'
-                        ? Colors.grey[900]!
-                        : Colors.grey[100]!,
-                onSurface: state.theme == 'dark' ? Colors.white : Colors.black,
-              ),
-              appBarTheme: AppBarTheme(
-                backgroundColor: state.thirdlyColor,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0,
-              ),
-              cardColor: state.fourthlyColor,
-              cardTheme: const CardTheme(surfaceTintColor: Colors.transparent),
-
-              // Configure radio buttons
-              radioTheme: RadioThemeData(
-                fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return state.secondaryColor; // Active color
-                  }
-                  return state.fourthlyColor; // Inactive color
-                }),
-              ),
-
-              // Configure switches
-              switchTheme: SwitchThemeData(
-                thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return state.secondaryColor; // Active color
-                  }
-                  return state.fourthlyColor; // Inactive color
-                }),
-                trackColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return state.secondaryColor.withOpacity(
-                      0.5,
-                    ); // Active track
-                  }
-                  return state.fourthlyColor.withOpacity(0.5); // Inactive track
-                }),
-              ),
-
-              // Configure checkboxes
-              checkboxTheme: CheckboxThemeData(
-                fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return state.secondaryColor; // Active color
-                  }
-                  return state.fourthlyColor; // Inactive color
-                }),
-              ),
-
-              // Configure sliders
-              sliderTheme: SliderThemeData(
-                activeTrackColor: state.secondaryColor,
-                inactiveTrackColor: state.fourthlyColor,
-                thumbColor: state.secondaryColor,
-                overlayColor: state.secondaryColor.withOpacity(0.3),
-              ),
-
-              // Configure dropdown buttons
-              dropdownMenuTheme: DropdownMenuThemeData(
-                menuStyle: MenuStyle(
-                  backgroundColor: WidgetStatePropertyAll(state.primaryColor),
-                  padding: const WidgetStatePropertyAll(
-                    EdgeInsets.fromLTRB(
-                      8,
-                      32,
-                      8,
-                      8,
-                    ), // Add extra top padding to avoid status bar
-                  ),
-                  alignment: Alignment.topCenter,
-                  visualDensity: VisualDensity.comfortable,
-                ),
-              ),
-
-              // Configure text form fields
-              inputDecorationTheme: InputDecorationTheme(
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: state.secondaryColor, width: 2),
-                ),
-                border: const OutlineInputBorder(),
-              ),
-
-              // Configure elevated buttons
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: state.secondaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-
-              useMaterial3: true,
-            ),
-            routes: {
-              '/': (context) => const AIChatScreen(),
-              '/settings': (context) => const SettingsScreen(),
-              '/todo': (context) => const TodoScreen(),
-              '/goals': (context) => const GoalsScreen(),
-              '/habits': (context) => const HabitsScreen(),
-              '/schedule': (context) => const ScheduleScreen(),
-              '/pro_clock': (context) => const ProClockScreen(),
-              '/mood': (context) => const MoodDataScreen(),
-              '/function_test': (context) => const FunctionTestScreen(),
-            },
-            initialRoute: '/',
-          );
-        },
+    return MaterialApp(
+      title: 'Life Wizard',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
+      home:
+          _isLoading
+              ? const LoadingScreen()
+              : MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: settingsBloc..add(LoadSettings())),
+                  BlocProvider.value(value: moodDataBloc),
+                  BlocProvider.value(value: todoBloc),
+                  BlocProvider.value(
+                    value: habitsBloc..add(const LoadHabits()),
+                  ),
+                  BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
+                  BlocProvider<ScheduleBloc>(
+                    create: (context) => ScheduleBloc(),
+                  ),
+                  BlocProvider.value(value: proClockBloc),
+                  BlocProvider.value(value: aiChatBloc),
+                ],
+                child: BlocBuilder<SettingsBloc, SettingsState>(
+                  builder: (context, state) {
+                    return MaterialApp(
+                      title: 'Life Wizard',
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            padding: MediaQuery.of(context).padding.copyWith(
+                              top: MediaQuery.of(context).padding.top + 8,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                      theme: ThemeData(
+                        primaryColor: state.primaryColor,
+                        colorScheme: ColorScheme(
+                          brightness:
+                              state.theme == 'dark'
+                                  ? Brightness.dark
+                                  : Brightness.light,
+                          primary: state.primaryColor,
+                          onPrimary: Colors.white,
+                          secondary: state.secondaryColor,
+                          onSecondary: Colors.white,
+                          tertiary: state.thirdlyColor,
+                          onTertiary: Colors.black,
+                          surfaceTint: state.fourthlyColor,
+                          error: Colors.red,
+                          onError: Colors.white,
+                          surface:
+                              state.theme == 'dark'
+                                  ? Colors.grey[900]!
+                                  : Colors.grey[100]!,
+                          onSurface:
+                              state.theme == 'dark'
+                                  ? Colors.white
+                                  : Colors.black,
+                        ),
+                        appBarTheme: AppBarTheme(
+                          backgroundColor: state.thirdlyColor,
+                          surfaceTintColor: Colors.transparent,
+                          elevation: 0,
+                        ),
+                        cardColor: state.fourthlyColor,
+                        cardTheme: const CardTheme(
+                          surfaceTintColor: Colors.transparent,
+                        ),
+                        // ... rest of your theme configuration ...
+                      ),
+                      routes: {
+                        '/': (context) => const AIChatScreen(),
+                        '/settings': (context) => const SettingsScreen(),
+                        '/todo': (context) => const TodoScreen(),
+                        '/goals': (context) => const GoalsScreen(),
+                        '/habits': (context) => const HabitsScreen(),
+                        '/schedule': (context) => const ScheduleScreen(),
+                        '/pro_clock': (context) => const ProClockScreen(),
+                        '/mood': (context) => const MoodDataScreen(),
+                        '/function_test':
+                            (context) => const FunctionTestScreen(),
+                      },
+                      initialRoute: '/',
+                    );
+                  },
+                ),
+              ),
     );
   }
 }
