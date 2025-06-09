@@ -207,7 +207,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('Progress: ${goal.goalProgress}%'),
+                // Text('Progress: ${goal.goalProgress}%'),
               ],
             ),
           ),
@@ -655,11 +655,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
     int? goalIndex,
   ]) {
     final theme = Theme.of(context);
-    final progress = (taskGroup['taskGroupProgress'] as int?) ?? 0;
     final time = (taskGroup['taskGroupTime'] as int?) ?? 0;
     final timeFormat = taskGroup['taskGroupTimeFormat'] as String? ?? 'hours';
-    final settingsState = app_main.settingsBloc.state;
-    // Use task color for consistency with milestone tasks
     final taskColor = _getTaskColor(index);
 
     return Card(
@@ -680,53 +677,6 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     child: Text(taskGroup['taskGroupName'] ?? 'Untitled Group'),
                   ),
                   Text('($time $timeFormat)'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.donut_large,
-                          size: 14,
-                          color: theme.textTheme.bodySmall?.color,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Progress',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: theme.textTheme.bodySmall?.color,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '$progress%',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: theme.textTheme.bodySmall?.color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: 5,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: progress / 100,
-                        backgroundColor:
-                            theme.colorScheme.surfaceContainerHighest,
-                        color: taskColor, // Use color order for progress line
-                        minHeight: 5,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ],
