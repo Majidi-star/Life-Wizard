@@ -62,15 +62,17 @@ class ToggleHabitCompletion extends ScheduleEvent {
   final String habitName;
   final bool isCompleted;
   final int? timeBoxId;
+  final DateTime date;
 
   const ToggleHabitCompletion({
     required this.habitName,
     required this.isCompleted,
     this.timeBoxId,
+    required this.date,
   });
 
   @override
-  List<Object?> get props => [habitName, isCompleted, timeBoxId];
+  List<Object?> get props => [habitName, isCompleted, timeBoxId, date];
 }
 
 class ToggleTimeBoxCompletion extends ScheduleEvent {

@@ -6,6 +6,7 @@ import '../../main.dart' as app_main;
 import 'schedule_bloc.dart';
 import 'schedule_event.dart' as schedule_events;
 import 'schedule_state.dart';
+import 'schedule_model.dart';
 import 'schedule_widgets.dart';
 import '../habits/habits_bloc.dart';
 import '../habits/habits_event.dart' as habits_events;
@@ -80,6 +81,42 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     super.dispose();
   }
 
+  // Function to load completed habits from the schedule model
+  void _updateCompletedHabitsFromModel(ScheduleModel? model) {
+    // Clear the current set of completed habits
+    Set<String> checkedHabits = {};
+
+    if (model != null && model.timeBoxes.isNotEmpty) {
+      print(
+        'Updating completed habits from model with ${model.timeBoxes.length} timeboxes',
+      );
+
+      // Go through all timeboxes and extract completed habits
+      for (final timebox in model.timeBoxes) {
+        if (timebox.habits.isNotEmpty) {
+          try {
+            final habitsJson = jsonDecode(timebox.habits);
+            if (habitsJson is List) {
+              // Add all habits from this timebox to the set
+              for (final habit in habitsJson) {
+                checkedHabits.add(habit.toString());
+              }
+            }
+          } catch (e) {
+            print('Error parsing habits JSON in timebox: $e');
+          }
+        }
+      }
+
+      print('Found ${checkedHabits.length} completed habits: $checkedHabits');
+    } else {
+      print('No timeboxes available to extract completed habits');
+    }
+
+    // Update the ValueNotifier with the completed habits
+    completedHabits.value = checkedHabits;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Set context in the bloc for showing points notifications
@@ -134,6 +171,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 ),
               );
             }
+
+            // Update completed habits whenever the schedule model changes
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _updateCompletedHabitsFromModel(state.scheduleModel);
+            });
 
             if (state.scheduleModel?.timeBoxes.isEmpty ?? true) {
               return Center(
@@ -771,12 +813,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
           // Update database without causing scroll reset
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint(
+              'DEBUG: Sending ToggleHabitCompletion event for $habitName, isCompleted: $newValue',
+            );
             context.read<ScheduleBloc>().add(
               schedule_events.ToggleHabitCompletion(
                 habitName: habitName,
                 isCompleted: newValue,
                 timeBoxId:
                     null, // This indicates it's from the consolidated habits section
+                date: DateTime(
+                  context.read<ScheduleBloc>().state.selectedYear,
+                  context.read<ScheduleBloc>().state.selectedMonth,
+                  context.read<ScheduleBloc>().state.selectedDay,
+                ),
               ),
             );
           });
@@ -834,6 +884,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             isCompleted: value,
                             timeBoxId:
                                 null, // This indicates it's from the consolidated habits section
+                            date: DateTime(
+                              context.read<ScheduleBloc>().state.selectedYear,
+                              context.read<ScheduleBloc>().state.selectedMonth,
+                              context.read<ScheduleBloc>().state.selectedDay,
+                            ),
                           ),
                         );
                       });
@@ -926,6 +981,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 habitName: habitName,
                 isCompleted: newValue,
                 timeBoxId: timeBoxId,
+                date: DateTime(
+                  context.read<ScheduleBloc>().state.selectedYear,
+                  context.read<ScheduleBloc>().state.selectedMonth,
+                  context.read<ScheduleBloc>().state.selectedDay,
+                ),
               ),
             );
           });
@@ -959,6 +1019,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         habitName: habitName,
                         isCompleted: value,
                         timeBoxId: timeBoxId,
+                        date: DateTime(
+                          context.read<ScheduleBloc>().state.selectedYear,
+                          context.read<ScheduleBloc>().state.selectedMonth,
+                          context.read<ScheduleBloc>().state.selectedDay,
+                        ),
                       ),
                     );
                   });

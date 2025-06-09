@@ -4,6 +4,11 @@ import 'package:flutter/foundation.dart';
 import '../../database_initializer.dart';
 import 'dart:convert';
 import '../progress_dashboard/points_service.dart';
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
+import '../../features/schedule/schedule_repository.dart';
 
 /// AI Functions that can be called by the AI assistant
 class AIFunctions {
@@ -1356,5 +1361,393 @@ class AIFunctions {
       }
     }
     return results.join('\n');
+  }
+
+  /// Toggles the completion status of a habit in the schedule
+  ///
+  /// [habitName] is the name of the habit to toggle
+  /// [isCompleted] is the new completion status (true = completed, false = not completed)
+  /// [timeBoxId] is an optional parameter to specify which timebox the habit belongs to (null for all timeboxes)
+  /// [date] is an optional parameter to specify which date to toggle the habit for (defaults to today)
+  static Future<String> toggle_habit_completion({
+    required String habitName,
+    required bool isCompleted,
+    int? timeBoxId,
+    String? date,
+  }) async {
+    try {
+      debugPrint("Starting toggle_habit_completion with name: $habitName");
+
+      // Get the date to use - either the provided date or today
+      DateTime targetDate;
+      if (date != null && date.isNotEmpty) {
+        try {
+          targetDate = DateTime.parse(date);
+        } catch (e) {
+          debugPrint('Invalid date format: $date, using today instead');
+          final now = DateTime.now();
+          targetDate = DateTime(now.year, now.month, now.day);
+        }
+      } else {
+        final now = DateTime.now();
+        targetDate = DateTime(now.year, now.month, now.day);
+      }
+
+      final db = await DatabaseInitializer.database;
+
+      // Get points service for updating points
+      final pointsService = PointsService();
+      bool habitStatusChanged = false;
+
+      // First, check if the habit exists in the habits table
+      final List<Map<String, dynamic>> habits = await db.query(
+        'habits',
+        where: 'name LIKE ?',
+        whereArgs: ['%$habitName%'],
+      );
+
+      if (habits.isEmpty) {
+        return 'No habit found with name similar to "$habitName".';
+      }
+
+      // Get schedules for the target date
+      final List<Map<String, dynamic>> schedules = await db.query(
+        'schedule',
+        where: 'date = ?',
+        whereArgs: [targetDate.toIso8601String().split('T')[0]],
+      );
+
+      if (schedules.isEmpty) {
+        return 'No schedule found for ${targetDate.toIso8601String().split('T')[0]}.';
+      }
+
+      // Process each schedule (timebox)
+      for (final schedule in schedules) {
+        final int scheduleId = schedule['id'];
+        List<dynamic> habitsJson = [];
+
+        // Parse habits JSON
+        try {
+          if (schedule['habits'] != null &&
+              schedule['habits'].toString().isNotEmpty) {
+            habitsJson = jsonDecode(schedule['habits']);
+          }
+        } catch (e) {
+          debugPrint('Error parsing habits JSON: $e');
+          habitsJson = [];
+        }
+
+        // Check if we should update this specific timebox or all timeboxes
+        bool shouldUpdate = timeBoxId == null || timeBoxId == scheduleId;
+
+        if (shouldUpdate) {
+          bool changed = false;
+
+          // Add habit to the list if completing and not already present
+          if (isCompleted && !habitsJson.contains(habitName)) {
+            habitsJson.add(habitName);
+            changed = true;
+            habitStatusChanged = true;
+          }
+          // Remove habit from the list if uncompleting and present
+          else if (!isCompleted && habitsJson.contains(habitName)) {
+            habitsJson.remove(habitName);
+            changed = true;
+            habitStatusChanged = true;
+          }
+
+          // Update the database if changes were made
+          if (changed) {
+            final updatedHabits = jsonEncode(habitsJson);
+            await db.update(
+              'schedule',
+              {'habits': updatedHabits},
+              where: 'id = ?',
+              whereArgs: [scheduleId],
+            );
+            debugPrint(
+              'Updated habits for schedule $scheduleId: $updatedHabits',
+            );
+          }
+
+          // If we're only updating a specific timebox, break after processing it
+          if (timeBoxId != null) {
+            break;
+          }
+        }
+      }
+
+      // If habit status changed, update the habit's progress in the habits table
+      if (habitStatusChanged) {
+        final habit = habits.first;
+        final int habitId = habit['id'];
+
+        // Recalculate habit progress based on all schedules
+        await _recalculateHabitProgress(db, habitId, habitName);
+
+        // Award points
+        if (isCompleted) {
+          await pointsService.addPointsForCompletion();
+          debugPrint('AI Function: Added points for completing habit');
+        } else {
+          await pointsService.removePointsForUncompletion();
+          debugPrint('AI Function: Removed points for uncompleting habit');
+        }
+      }
+
+      // Find the habit in the habits table to get its updated details
+      final updatedHabit = await db.query(
+        'habits',
+        where: 'id = ?',
+        whereArgs: [habits.first['id']],
+      );
+
+      // Return a success message
+      final StringBuffer response = StringBuffer();
+      response.writeln('Habit status updated successfully:');
+      response.writeln('-----------');
+      response.writeln('Habit: ${updatedHabit.first['name']}');
+      response.writeln(
+        'Status: ${isCompleted ? 'Completed' : 'Not completed'}',
+      );
+      if (updatedHabit.first['description'] != null &&
+          updatedHabit.first['description'].toString().isNotEmpty) {
+        response.writeln('Description: ${updatedHabit.first['description']}');
+      }
+      response.writeln(
+        'Consecutive Progress: ${updatedHabit.first['consecutiveProgress']}',
+      );
+      response.writeln(
+        'Total Progress: ${updatedHabit.first['totalProgress']}',
+      );
+      response.writeln('-----------');
+
+      return response.toString();
+    } catch (e, stackTrace) {
+      debugPrint("Error in toggle_habit_completion: $e\n$stackTrace");
+      return 'Error updating habit completion status: $e';
+    }
+  }
+
+  /// Recalculates a habit's consecutive and total progress based on its completion history
+  static Future<void> _recalculateHabitProgress(
+    Database db,
+    int habitId,
+    String habitName,
+  ) async {
+    debugPrint('Recalculating habit progress for habitId: $habitId');
+    try {
+      // Get all schedules from the database
+      final List<Map<String, dynamic>> allSchedules = await db.query(
+        'schedule',
+      );
+
+      // Group schedules by date and track unique dates with completed habits
+      final Map<String, List<Map<String, dynamic>>> schedulesByDate = {};
+      final Set<String> datesWithCompletedHabit = {};
+
+      for (final schedule in allSchedules) {
+        final dateStr = schedule['date'].toString().split('T')[0];
+        if (!schedulesByDate.containsKey(dateStr)) {
+          schedulesByDate[dateStr] = [];
+        }
+        schedulesByDate[dateStr]!.add(schedule);
+
+        // Check if this schedule has the habit completed
+        if (schedule['habits'] != null &&
+            schedule['habits'].toString().isNotEmpty) {
+          try {
+            final habitsJson = jsonDecode(schedule['habits'].toString());
+            if (habitsJson.contains(habitName)) {
+              // Add this date to the set of dates with completed habits
+              datesWithCompletedHabit.add(dateStr);
+            }
+          } catch (e) {
+            debugPrint('Error parsing habits JSON: $e');
+          }
+        }
+      }
+
+      // Sort dates in ascending order
+      final sortedDates = schedulesByDate.keys.toList()..sort();
+
+      // Total progress is simply the count of unique dates with completed habits
+      final int totalProgress = datesWithCompletedHabit.length;
+
+      // For consecutive progress, we need to check the streak
+      int consecutiveProgress = 0;
+      bool streakBroken = false;
+
+      // Start from the most recent date and go backward
+      for (int i = sortedDates.length - 1; i >= 0; i--) {
+        final dateStr = sortedDates[i];
+        final date = DateTime.parse(dateStr);
+
+        // Check if the habit was completed on this date
+        final bool completedOnDate = datesWithCompletedHabit.contains(dateStr);
+
+        if (completedOnDate) {
+          // For consecutive progress, only count if the streak is unbroken
+          if (!streakBroken) {
+            // Check if this date is consecutive with the previous one
+            if (consecutiveProgress == 0 ||
+                i < sortedDates.length - 1 &&
+                    _areDatesConsecutive(
+                      date,
+                      DateTime.parse(sortedDates[i + 1]),
+                    )) {
+              consecutiveProgress++;
+            } else {
+              // If we find a gap in dates, the streak is broken
+              streakBroken = true;
+            }
+          }
+        } else {
+          // If the habit wasn't completed on this date, the streak is broken
+          streakBroken = true;
+        }
+      }
+
+      debugPrint(
+        'Recalculated habit progress: consecutive=$consecutiveProgress, total=$totalProgress',
+      );
+
+      // Generate timeline data (start and end values)
+      List<int> startPoints = [];
+      List<int> endPoints = [];
+
+      // Get the existing habit to check if we need to update the timeline
+      final List<Map<String, dynamic>> existingHabit = await db.query(
+        'habits',
+        where: 'id = ?',
+        whereArgs: [habitId],
+      );
+
+      if (existingHabit.isNotEmpty) {
+        // Get existing start and end values if they exist
+        String existingStart = existingHabit.first['start'] ?? '';
+        String existingEnd = existingHabit.first['end'] ?? '';
+
+        // Parse existing values if they exist
+        List<int> existingStartPoints = [];
+        List<int> existingEndPoints = [];
+
+        if (existingStart.isNotEmpty) {
+          existingStartPoints =
+              existingStart
+                  .split(',')
+                  .map((s) => int.tryParse(s.trim()) ?? 0)
+                  .toList();
+        }
+
+        if (existingEnd.isNotEmpty) {
+          existingEndPoints =
+              existingEnd
+                  .split(',')
+                  .map((s) => int.tryParse(s.trim()) ?? 0)
+                  .toList();
+        }
+
+        // Analyze the dates with completed habits to build timeline segments
+        if (datesWithCompletedHabit.isNotEmpty) {
+          // Convert dates to day numbers for timeline (relative to creation date)
+          final creationDate = DateTime.parse(existingHabit.first['createdAt']);
+
+          // Create a set of day numbers for quick lookup
+          final Set<int> completedDays = {};
+          debugPrint(
+            'Converting dates to day numbers (relative to creation date: $creationDate):',
+          );
+          for (final dateStr in datesWithCompletedHabit) {
+            final date = DateTime.parse(dateStr);
+            final dayNumber =
+                date.difference(creationDate).inDays + 1; // +1 to avoid day 0
+            debugPrint('  Date: $dateStr → Day number: $dayNumber');
+            completedDays.add(dayNumber);
+          }
+
+          // Sort the days for processing
+          final List<int> sortedDays = completedDays.toList()..sort();
+
+          // Process the days to find streaks
+          if (sortedDays.isNotEmpty) {
+            int currentStart = sortedDays[0];
+            int currentEnd = sortedDays[0];
+            debugPrint('Starting new streak with day: $currentStart');
+
+            for (int i = 1; i < sortedDays.length; i++) {
+              if (sortedDays[i] == currentEnd + 1) {
+                // Consecutive day, extend the current streak
+                currentEnd = sortedDays[i];
+                debugPrint('Extended streak to day: $currentEnd');
+              } else {
+                // Non-consecutive day, end the current streak and start a new one
+                debugPrint(
+                  'Found gap after day $currentEnd. Next day is ${sortedDays[i]}',
+                );
+                startPoints.add(currentStart);
+                endPoints.add(currentEnd);
+                debugPrint(
+                  'Added streak: start=$currentStart, end=$currentEnd',
+                );
+                currentStart = sortedDays[i];
+                currentEnd = sortedDays[i];
+                debugPrint('Starting new streak with day: $currentStart');
+              }
+            }
+
+            // Add the final streak
+            startPoints.add(currentStart);
+            endPoints.add(currentEnd);
+            debugPrint(
+              'Added final streak: start=$currentStart, end=$currentEnd',
+            );
+          }
+        } else {
+          // If no dates have completed habits, keep the existing timeline data
+          startPoints = existingStartPoints;
+          endPoints = existingEndPoints;
+        }
+      }
+
+      // Convert points to comma-separated strings
+      final String startString = startPoints.join(',');
+      final String endString = endPoints.join(',');
+
+      debugPrint('Timeline data - Start points: $startPoints');
+      debugPrint('Timeline data - End points: $endPoints');
+      debugPrint(
+        'Timeline data - Start string: $startString, End string: $endString',
+      );
+
+      // Update the habit in the database
+      await db.update(
+        'habits',
+        {
+          'consecutiveProgress': consecutiveProgress,
+          'totalProgress': totalProgress,
+          'start': startString,
+          'end': endString,
+        },
+        where: 'id = ?',
+        whereArgs: [habitId],
+      );
+    } catch (e) {
+      debugPrint('Error recalculating habit progress: $e');
+    }
+  }
+
+  /// Checks if two dates are consecutive (one day apart)
+  static bool _areDatesConsecutive(DateTime date1, DateTime date2) {
+    // Ensure date2 is after date1
+    if (date1.isAfter(date2)) {
+      final temp = date1;
+      date1 = date2;
+      date2 = temp;
+    }
+
+    // Calculate the difference in days
+    final difference = date2.difference(date1).inDays;
+    return difference == 1;
   }
 }

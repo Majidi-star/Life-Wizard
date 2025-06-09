@@ -5,6 +5,7 @@ import 'dart:developer' as developer;
 import 'AI_functions.dart';
 import 'package:flutter/widgets.dart';
 import '../schedule/schedule_bloc.dart';
+import '../schedule/schedule_event.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Handles executing functions called by the AI in tagged responses
@@ -830,40 +831,47 @@ class FunctionExecutor {
           }
 
         case 'update_schedule_timeboxes':
-          // Expects a list of timeboxes in parameters['timeboxes']
-          final List<dynamic> timeboxesRaw = parameters['timeboxes'];
+          // Extract required parameters
           final List<Map<String, dynamic>> timeboxes =
-              timeboxesRaw.cast<Map<String, dynamic>>();
+              List<Map<String, dynamic>>.from(parameters['timeboxes']);
+
           debugPrint(
-            "FUNCTION_EXECUTOR: Calling update_schedule_timeboxes with count: \\${timeboxes.length}",
+            "FUNCTION_EXECUTOR: Calling update_schedule_timeboxes with ${timeboxes.length} timeboxes",
           );
           developer.log(
-            "FUNCTION EXECUTOR: Calling update_schedule_timeboxes with count: \\${timeboxes.length}",
+            "FUNCTION EXECUTOR: Calling update_schedule_timeboxes with ${timeboxes.length} timeboxes",
             name: "FunctionExecutor",
           );
+
           try {
             final result = await AIFunctions.update_schedule_timeboxes(
               timeboxes: timeboxes,
             );
             debugPrint(
-              "FUNCTION EXECUTOR: update_schedule_timeboxes result: \\${result.length}",
+              "FUNCTION EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: update_schedule_timeboxes result: ${result.length}",
+              name: "FunctionExecutor",
             );
             // Refresh UI if context is provided
             if (context != null) {
-              try {
-                context.read<ScheduleBloc>().refreshCurrentDateSchedule();
-              } catch (e) {
-                debugPrint('Could not refresh schedule: $e');
-              }
+              // Get the ScheduleBloc instance
+              final scheduleBloc = context.read<ScheduleBloc>();
+              // Trigger a reload of the schedule for today
+              final now = DateTime.now();
+              scheduleBloc.add(
+                LoadSchedule(year: now.year, month: now.month, day: now.day),
+              );
             }
             return result;
           } catch (e, stackTrace) {
             developer.log(
-              "FUNCTION EXECUTOR: Error in AIFunctions.update_schedule_timeboxes: $e\\n$stackTrace",
+              "FUNCTION EXECUTOR: Error in AIFunctions.update_schedule_timeboxes: $e\n$stackTrace",
               name: "FunctionExecutor",
             );
             debugPrint(
-              "FUNCTION_EXECUTOR: Error in update_schedule_timeboxes: $e",
+              "FUNCTION_EXECUTOR: Error in AIFunctions.update_schedule_timeboxes: $e",
             );
             return "Error executing update_schedule_timeboxes: $e";
           }
@@ -885,7 +893,7 @@ class FunctionExecutor {
               timeboxes: timeboxes,
             );
             debugPrint(
-              "FUNCTION_EXECUTOR: delete_schedule_timeboxes result: \\${result.length}",
+              "FUNCTION EXECUTOR: delete_schedule_timeboxes result: \\${result.length}",
             );
             // Refresh UI if context is provided
             if (context != null) {
@@ -905,6 +913,82 @@ class FunctionExecutor {
               "FUNCTION_EXECUTOR: Error in delete_schedule_timeboxes: $e",
             );
             return "Error executing delete_schedule_timeboxes: $e";
+          }
+
+        case 'toggle_habit_completion':
+          // Extract required parameters
+          final String habitName = parameters['habitName'];
+
+          // Fix boolean parsing for isCompleted
+          bool isCompleted;
+          if (parameters['isCompleted'] is bool) {
+            isCompleted = parameters['isCompleted'];
+          } else if (parameters['isCompleted'] is String) {
+            isCompleted =
+                parameters['isCompleted'].toString().toLowerCase() == 'true';
+          } else if (parameters['isCompleted'] is num) {
+            isCompleted = parameters['isCompleted'] != 0;
+          } else {
+            isCompleted = false;
+          }
+
+          // Parse timeBoxId if provided
+          int? timeBoxId;
+          if (parameters.containsKey('timeBoxId') &&
+              parameters['timeBoxId'] != null) {
+            timeBoxId = int.tryParse(parameters['timeBoxId'].toString());
+          }
+
+          // Parse date if provided
+          String? date;
+          if (parameters.containsKey('date') && parameters['date'] != null) {
+            date = parameters['date'].toString();
+          }
+
+          debugPrint(
+            "FUNCTION_EXECUTOR: Calling toggle_habit_completion with name: $habitName, isCompleted: $isCompleted",
+          );
+          developer.log(
+            "FUNCTION EXECUTOR: Calling toggle_habit_completion with name: $habitName, isCompleted: $isCompleted",
+            name: "FunctionExecutor",
+          );
+
+          try {
+            final result = await AIFunctions.toggle_habit_completion(
+              habitName: habitName,
+              isCompleted: isCompleted,
+              timeBoxId: timeBoxId,
+              date: date,
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Function returned result with length: ${result.length}",
+            );
+            developer.log(
+              "FUNCTION EXECUTOR: toggle_habit_completion result: ${result.length}",
+              name: "FunctionExecutor",
+            );
+
+            // Refresh UI if context is provided
+            if (context != null) {
+              // Get the ScheduleBloc instance
+              final scheduleBloc = context.read<ScheduleBloc>();
+              // Trigger a reload of the schedule for today
+              final now = DateTime.now();
+              scheduleBloc.add(
+                LoadSchedule(year: now.year, month: now.month, day: now.day),
+              );
+            }
+
+            return result;
+          } catch (e, stackTrace) {
+            developer.log(
+              "FUNCTION EXECUTOR: Error in AIFunctions.toggle_habit_completion: $e\n$stackTrace",
+              name: "FunctionExecutor",
+            );
+            debugPrint(
+              "FUNCTION_EXECUTOR: Error in AIFunctions.toggle_habit_completion: $e",
+            );
+            return "Error executing toggle_habit_completion: $e";
           }
 
         // Add more function cases as they're implemented in AIFunctions
