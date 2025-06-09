@@ -125,7 +125,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     },
                   ),
         ),
-        _buildDebugButton(context, state),
+        // _buildDebugButton(context, state),
       ],
     );
   }

@@ -112,19 +112,6 @@ class _HabitsScreenState extends State<HabitsScreen>
                   },
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    context.read<HabitsBloc>().add(const DebugHabitsState());
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.secondary,
-                    minimumSize: const Size.fromHeight(50),
-                  ),
-                  child: const Text('Debug Habit States'),
-                ),
-              ),
             ],
           );
         },

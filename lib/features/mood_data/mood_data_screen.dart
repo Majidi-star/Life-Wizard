@@ -41,18 +41,6 @@ class MoodDataScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: MoodDataWidgets.buildDebugButton(context, () async {
-                    await app_main.printFeatureState('mood_data');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Mood Data state printed to console'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  }),
-                ),
               ],
             ),
           );

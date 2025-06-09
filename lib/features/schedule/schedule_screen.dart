@@ -705,58 +705,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: () {
-            final state = context.read<ScheduleBloc>().state;
-            print('\n===== Schedule State =====');
-            print(
-              'Selected Date: ${state.selectedYear}-${state.selectedMonth}-${state.selectedDay}',
-            );
-            print('Loading: ${state.isLoading}');
-            print('Error: ${state.error}');
-            if (state.scheduleModel != null) {
-              print('\nTimeBoxes:');
-              for (var i = 0; i < state.scheduleModel!.timeBoxes.length; i++) {
-                final timeBox = state.scheduleModel!.timeBoxes[i];
-                print('\nTimeBox ${i + 1}:');
-                print(
-                  '  Time: ${timeBox.startTimeHour}:${timeBox.startTimeMinute} - ${timeBox.endTimeHour}:${timeBox.endTimeMinute}',
-                );
-                print('  Activity: ${timeBox.activity}');
-                print('  Notes: ${timeBox.notes}');
-                print('  Todos: ${timeBox.todos.join(", ")}');
-                print('  Status: ${timeBox.timeBoxStatus}');
-                print('  Priority: ${timeBox.priority}');
-                print('  Heatmap Productivity: ${timeBox.heatmapProductivity}');
-                print('  Is Challenge: ${timeBox.isChallenge}');
-                print('  Habits: ${timeBox.habits}');
-              }
-            }
-
-            // Debug habits state
-            app_main.habitsBloc.add(const habits_events.DebugHabitsState());
-
-            print('\n==========================\n');
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: settingsState.secondaryColor,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            'Debug Schedule States',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
     );
   }
 

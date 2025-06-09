@@ -511,21 +511,6 @@ class _TodoScreenState extends State<TodoScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Replace with debug button only
-                ElevatedButton(
-                  onPressed: () async {
-                    await app_main.printFeatureState('todo');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Todo state printed to console'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[700],
-                  ),
-                  child: const Text('Debug Todo State'),
-                ),
               ],
             ),
           );

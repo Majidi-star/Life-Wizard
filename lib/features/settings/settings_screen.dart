@@ -27,14 +27,14 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             children: [
               SettingsWidgets.buildThemeSection(context, state),
-              Divider(color: Theme.of(context).colorScheme.surfaceTint),
-              SettingsWidgets.buildLanguageSection(context, state),
-              Divider(color: Theme.of(context).colorScheme.surfaceTint),
-              SettingsWidgets.buildNotificationsSection(context, state),
-              Divider(color: Theme.of(context).colorScheme.surfaceTint),
-              SettingsWidgets.buildMoodTrackingSection(context, state),
-              Divider(color: Theme.of(context).colorScheme.surfaceTint),
-              SettingsWidgets.buildFeedbackSection(context, state),
+              // Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              // SettingsWidgets.buildLanguageSection(context, state),
+              // Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              // SettingsWidgets.buildNotificationsSection(context, state),
+              // Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              // SettingsWidgets.buildMoodTrackingSection(context, state),
+              // Divider(color: Theme.of(context).colorScheme.surfaceTint),
+              // SettingsWidgets.buildFeedbackSection(context, state),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
               SettingsWidgets.buildAiGuidelinesSection(context, state),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
@@ -46,24 +46,6 @@ class SettingsScreen extends StatelessWidget {
                 child: SettingsWidgets.buildGeminiModelSection(context, state),
               ),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
-              // Debug section
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: Center(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await app_main.printFeatureState('settings');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('State printed to console'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    child: const Text('Debug Settings State'),
-                  ),
-                ),
-              ),
             ],
           );
         },
