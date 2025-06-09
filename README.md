@@ -2,7 +2,7 @@
 
 **Life Wizard** is a cross-platform productivity and personal development application built with Flutter. Its mission is to empower users to set, track, and achieve their life goals through a blend of structured planning, intelligent assistance, and motivational support.
 
-[Alt text](docs/App_screenshots.png)
+![App Screenshots](docs/App_screenshots.png)
 
 ---
 
