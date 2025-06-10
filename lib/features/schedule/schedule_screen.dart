@@ -897,7 +897,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         );
 
         // Use the index as a proxy for the ID
-        timeBoxId = timeboxes.indexOf(matchingTimebox);
+        timeBoxId = matchingTimebox.id;
         if (timeBoxId >= 0) {
           print(
             'In dialog - using timeBox index: $timeBoxId for habit $habitName',
@@ -1377,7 +1377,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     // We need to get the actual database ID for this timeBox
     // For now, we'll use the timeBoxIndex since that's what the API expects
-    final timeBoxId = timeBoxIndex;
+    final timeBoxId = timeBox.id;
+    ;
 
     // Controllers for text fields
     final activityController = TextEditingController(text: timeBox.activity);
