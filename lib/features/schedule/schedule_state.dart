@@ -61,6 +61,7 @@ class ScheduleState extends Equatable {
     // Create a new timebox with the updated status
     final oldTimeBox = updatedTimeBoxes[index];
     final updatedTimeBox = TimeBox(
+      id: oldTimeBox.id,
       startTimeHour: oldTimeBox.startTimeHour,
       startTimeMinute: oldTimeBox.startTimeMinute,
       endTimeHour: oldTimeBox.endTimeHour,

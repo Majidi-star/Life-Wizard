@@ -22,6 +22,7 @@ class ScheduleModel {
 }
 
 class TimeBox {
+  final int id;
   final int startTimeHour; // Start time of the time box (hour)
   final int startTimeMinute; // Start time of the time box (minute)
   final int endTimeHour; // End time of the time box (hour)
@@ -38,6 +39,7 @@ class TimeBox {
   final String habits; // JSON string containing associated habits
 
   TimeBox({
+    required this.id,
     required this.startTimeHour,
     required this.startTimeMinute,
     required this.endTimeHour,

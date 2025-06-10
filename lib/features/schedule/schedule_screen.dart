@@ -1741,7 +1741,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     // We need to get the actual database ID for this timeBox
     // For now, we'll use the timeBoxIndex since that's what the API expects
-    final timeBoxId = timeBoxIndex;
+    final timeBoxId = timeBox.id;
 
     showDialog(
       context: context,

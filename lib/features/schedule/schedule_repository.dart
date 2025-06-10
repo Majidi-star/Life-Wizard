@@ -650,6 +650,7 @@ class ScheduleRepository {
       }
 
       final timeBox = TimeBox(
+        id: schedule.id!, // <-- Add this line
         startTimeHour: schedule.startTimeHour,
         startTimeMinute: schedule.startTimeMinute,
         endTimeHour: schedule.endTimeHour,
@@ -661,7 +662,7 @@ class ScheduleRepository {
         priority: schedule.priority,
         heatmapProductivity: schedule.heatmapProductivity,
         isChallenge: schedule.challenge,
-        habits: schedule.habits ?? '', // Make sure habits is properly passed
+        habits: schedule.habits ?? '',
       );
 
       print(
