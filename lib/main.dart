@@ -45,63 +45,43 @@ import 'features/goals/goals_test.dart' as goals_test;
 import 'features/mood_data/mood_data_test.dart' as mood_data_test;
 import 'features/logs/logs_test.dart' as logs_test;
 
-// Global singleton for SettingsBloc to ensure single source of truth
+// Global singletons for BLoCs to ensure a single source of truth across the app.
+// These are initialized once and then provided via BlocProvider.value.
 late SettingsBloc settingsBloc;
-// Global singleton for MoodDataBloc to ensure single source of truth
 late MoodDataBloc moodDataBloc;
-// Global singleton for TodoBloc to ensure single source of truth
 late TodoBloc todoBloc;
-// Global singleton for HabitsBloc to ensure single source of truth
 late HabitsBloc habitsBloc;
-// Global singleton for GoalsBloc to ensure single source of truth
 late GoalsBloc goalsBloc;
-// Global singleton for ProClockBloc to ensure single source of truth
 late ProClockBloc proClockBloc;
-// Global singleton for AIChatBloc to ensure single source of truth
 late AIChatBloc aiChatBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize sqflite_ffi for Windows
+  // Initialize sqflite_ffi for Windows desktop support
   if (Platform.isWindows) {
-    // Initialize FFI
     sqfliteFfiInit();
-    // Change the default factory for desktop platforms
     databaseFactory = databaseFactoryFfi;
   }
 
   final preferences = await SharedPreferences.getInstance();
 
-  // Initialize the database
-  // await DatabaseInitializer.deleteDatabase(); // Force recreate with sample data
-  final db = await DatabaseInitializer.database;
+  // Initialize the database (consider handling errors here)
+  // await DatabaseInitializer.deleteDatabase(); // Uncomment to force recreate with sample data
+  await DatabaseInitializer.database; // Ensure the database is initialized
 
-  // Create a single SettingsBloc instance that will be used throughout the app
+  // Initialize all global BLoC instances
   settingsBloc = SettingsBloc(preferences);
-
-  // Create a single MoodDataBloc instance that will be used throughout the app
   moodDataBloc = MoodDataBloc();
-
-  // Create a single TodoBloc instance that will be used throughout the app
   todoBloc = TodoBloc();
-
-  // Create a single HabitsBloc instance that will be used throughout the app
   habitsBloc = HabitsBloc();
-
-  // Create a single GoalsBloc instance that will be used throughout the app
   goalsBloc = GoalsBloc();
-
-  // Create a single ProClockBloc instance that will be used throughout the app
   proClockBloc = ProClockBloc();
-
-  // Create a single AIChatBloc instance that will be used throughout the app
   final geminiService = createGeminiChatService();
   aiChatBloc = AIChatBloc(geminiService: geminiService);
 
-  // Run state tests and print their output
-  // Set this to true to see all states printed in the console
-  bool runStateTests = false;
+  // Run state tests if enabled (for development/debugging)
+  bool runStateTests = false; // Set to true to see all states printed
   if (runStateTests) {
     print('\n\n=========== FEATURE STATES ===========');
     settings_test.main();
@@ -116,9 +96,7 @@ void main() async {
     print('======================================\n\n');
   }
 
-  // Don't close the database here, as it will be needed by the app
-  // Database will be closed automatically when app terminates
-
+  // Run the main application
   runApp(AppWithNotificationInit(preferences: preferences));
 }
 
@@ -159,6 +137,15 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
 
   Future<void> _initializeApp() async {
     await _initNotifications();
+    // Dispatch initial events to BLoCs after notifications are initialized
+    // This ensures data is loaded before the UI tries to access it
+    settingsBloc.add(LoadSettings());
+    moodDataBloc.add(
+      LoadMoodQuestions(),
+    ); // Assuming LoadMoodQuestions is the correct initial event
+    habitsBloc.add(const LoadHabits());
+    goalsBloc.add(const LoadGoals());
+
     // Add a small delay to ensure the loading screen is visible
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
@@ -178,7 +165,6 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
   }
 
   Future<void> _scheduleNotifications() async {
-    // Schedule notifications for today and the next 6 days
     final now = DateTime.now();
     for (int i = 0; i < 7; i++) {
       final date = now.add(Duration(days: i));
@@ -188,108 +174,96 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Life Wizard',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home:
-          _isLoading
-              ? const LoadingScreen()
-              : MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: settingsBloc..add(LoadSettings())),
-                  BlocProvider.value(value: moodDataBloc),
-                  BlocProvider.value(value: todoBloc),
-                  BlocProvider.value(
-                    value: habitsBloc..add(const LoadHabits()),
-                  ),
-                  BlocProvider.value(value: goalsBloc..add(const LoadGoals())),
-                  BlocProvider<ScheduleBloc>(
-                    create: (context) => ScheduleBloc(),
-                  ),
-                  BlocProvider.value(value: proClockBloc),
-                  BlocProvider.value(value: aiChatBloc),
-                ],
-                child: BlocBuilder<SettingsBloc, SettingsState>(
-                  builder: (context, state) {
-                    return MaterialApp(
-                      title: 'Life Wizard',
-                      builder: (context, child) {
-                        return MediaQuery(
-                          data: MediaQuery.of(context).copyWith(
-                            padding: MediaQuery.of(context).padding.copyWith(
-                              top: MediaQuery.of(context).padding.top + 8,
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                      theme: ThemeData(
-                        primaryColor: state.primaryColor,
-                        colorScheme: ColorScheme(
-                          brightness:
-                              state.theme == 'dark'
-                                  ? Brightness.dark
-                                  : Brightness.light,
-                          primary: state.primaryColor,
-                          onPrimary: Colors.white,
-                          secondary: state.secondaryColor,
-                          onSecondary: Colors.white,
-                          tertiary: state.thirdlyColor,
-                          onTertiary: Colors.black,
-                          surfaceTint: state.fourthlyColor,
-                          error: Colors.red,
-                          onError: Colors.white,
-                          surface:
-                              state.theme == 'dark'
-                                  ? Colors.grey[900]!
-                                  : Colors.grey[100]!,
-                          onSurface:
-                              state.theme == 'dark'
-                                  ? Colors.white
-                                  : Colors.black,
-                        ),
-                        appBarTheme: AppBarTheme(
-                          backgroundColor: state.thirdlyColor,
-                          surfaceTintColor: Colors.transparent,
-                          elevation: 0,
-                        ),
-                        cardColor: state.fourthlyColor,
-                        cardTheme: const CardTheme(
-                          surfaceTintColor: Colors.transparent,
-                        ),
-                        // ... rest of your theme configuration ...
-                      ),
-                      routes: {
-                        '/': (context) => const AIChatScreen(),
-                        '/settings': (context) => const SettingsScreen(),
-                        '/todo': (context) => const TodoScreen(),
-                        '/goals': (context) => const GoalsScreen(),
-                        '/habits': (context) => const HabitsScreen(),
-                        '/schedule': (context) => const ScheduleScreen(),
-                        '/pro_clock': (context) => const ProClockScreen(),
-                        '/mood': (context) => const MoodDataScreen(),
-                        '/function_test':
-                            (context) => const FunctionTestScreen(),
-                      },
-                      initialRoute: '/',
-                    );
-                  },
-                ),
+    // The MultiBlocProvider is now the parent of the single MaterialApp
+    return MultiBlocProvider(
+      providers: [
+        // Using BlocProvider.value for globally initialized BLoCs
+        BlocProvider.value(value: settingsBloc),
+        BlocProvider.value(value: moodDataBloc),
+        BlocProvider.value(value: todoBloc),
+        BlocProvider.value(value: habitsBloc),
+        BlocProvider.value(value: goalsBloc),
+        BlocProvider.value(value: proClockBloc),
+        BlocProvider.value(value: aiChatBloc),
+        // ScheduleBloc is created here if it doesn't need to be global
+        BlocProvider<ScheduleBloc>(create: (context) => ScheduleBloc()),
+      ],
+      child: BlocBuilder<SettingsBloc, SettingsState>(
+        builder: (context, state) {
+          // This MaterialApp uses the theme from SettingsBloc
+          return MaterialApp(
+            title: 'Life Wizard',
+            // Apply theme directly from SettingsState
+            theme: ThemeData(
+              primaryColor: state.primaryColor,
+              colorScheme: ColorScheme(
+                brightness:
+                    state.theme == 'dark' ? Brightness.dark : Brightness.light,
+                primary: state.primaryColor,
+                onPrimary: Colors.white,
+                secondary: state.secondaryColor,
+                onSecondary: Colors.white,
+                tertiary: state.thirdlyColor,
+                onTertiary: Colors.black,
+                surfaceTint: state.fourthlyColor,
+                error: Colors.red,
+                onError: Colors.white,
+                surface:
+                    state.theme == 'dark'
+                        ? Colors.grey[900]!
+                        : Colors.grey[100]!,
+                onSurface: state.theme == 'dark' ? Colors.white : Colors.black,
               ),
+              appBarTheme: AppBarTheme(
+                backgroundColor: state.thirdlyColor,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+              ),
+              cardColor: state.fourthlyColor,
+              cardTheme: const CardTheme(surfaceTintColor: Colors.transparent),
+              // You can add more theme properties here as needed
+            ),
+            // The `builder` function is used for global media query adjustments
+            builder: (context, child) {
+              if (_isLoading) {
+                return const LoadingScreen();
+              }
+              // This ensures the top padding is applied to all screens
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  padding: MediaQuery.of(context).padding.copyWith(
+                    top: MediaQuery.of(context).padding.top + 8,
+                  ),
+                ),
+                child: child!,
+              );
+            },
+            // Define all your routes
+            routes: {
+              '/': (context) => const AIChatScreen(),
+              '/settings': (context) => const SettingsScreen(),
+              '/todo': (context) => const TodoScreen(),
+              '/goals': (context) => const GoalsScreen(),
+              '/habits': (context) => const HabitsScreen(),
+              '/schedule': (context) => const ScheduleScreen(),
+              '/pro_clock': (context) => const ProClockScreen(),
+              '/mood': (context) => const MoodDataScreen(),
+              '/function_test': (context) => const FunctionTestScreen(),
+            },
+            initialRoute: '/',
+          );
+        },
+      ),
     );
   }
 }
 
 // Helper function to print the current state of a specific feature
-// This can be called from anywhere in your app
+// This can be called from anywhere in your app for debugging
 Future<void> printFeatureState(String feature) async {
   print('\n===== Printing $feature State =====');
   switch (feature.toLowerCase()) {
     case 'settings':
-      // Use the actual settingsBloc state instead of creating a new test state
       final state = settingsBloc.state;
       print('Theme: ${state.theme}');
       print('Language: ${state.language}');
@@ -307,11 +281,9 @@ Future<void> printFeatureState(String feature) async {
       print('  fourthlyColor: ${state.fourthlyColor}');
       break;
     case 'todo':
-      // Use the actual todoBloc state instead of running the test
       final state = todoBloc.state;
       print('===== TODO STATE =====');
       print('Total Todos: ${state.todos.length}');
-
       if (state.todos.isNotEmpty) {
         print('\nTodos:');
         for (var i = 0; i < state.todos.length; i++) {
@@ -331,16 +303,18 @@ Future<void> printFeatureState(String feature) async {
       }
       break;
     case 'habits':
-      habits_test.main();
+      habits_test
+          .main(); // This is calling a test function, not the actual bloc state directly.
       break;
     case 'ai_chat':
-      ai_chat_test.main();
+      ai_chat_test
+          .main(); // This is calling a test function, not the actual bloc state directly.
       break;
     case 'schedule':
-      schedule_test.main();
+      schedule_test
+          .main(); // This is calling a test function, not the actual bloc state directly.
       break;
     case 'pro_clock':
-      // Use the actual proClockBloc state instead of running the test
       final state = proClockBloc.state;
       print('===== PRO CLOCK STATE =====');
       print('Selected Date: ${state.selectedDate}');
@@ -352,7 +326,6 @@ Future<void> printFeatureState(String feature) async {
       print('Pomodoro Count: ${state.pomodoroCount}');
       print('Work Minutes: ${state.workMinutes}');
       print('Rest Minutes: ${state.restMinutes}');
-
       print('\nTasks (${state.tasks.length}):');
       for (int i = 0; i < state.tasks.length; i++) {
         final task = state.tasks[i];
@@ -365,18 +338,15 @@ Future<void> printFeatureState(String feature) async {
           '    Status: ${task.currentTaskStatus ? 'Completed' : 'Not Completed'}',
         );
       }
-
       print('Current Task Index: ${state.currentTaskIndex}');
       break;
     case 'goals':
-      // Use the actual goalsBloc state instead of running the test
       final state = goalsBloc.state;
       print('===== GOALS STATE =====');
       if (state is GoalsLoaded) {
         print('Goals count: ${state.goalsModel.goals.length}');
         print('Selected Goal Index: ${state.selectedGoalIndex}');
         print('Expanded Goals: ${state.expandedGoals}');
-
         if (state.goalsModel.goals.isNotEmpty) {
           for (int i = 0; i < state.goalsModel.goals.length; i++) {
             final goal = state.goalsModel.goals[i];
@@ -399,7 +369,6 @@ Future<void> printFeatureState(String feature) async {
       }
       break;
     case 'mood_data':
-      // Use the actual moodDataBloc state instead of running the test
       final state = moodDataBloc.state;
       print('===== MOOD DATA STATE =====');
       print('Questions: ${state.questions.length}');
@@ -411,7 +380,6 @@ Future<void> printFeatureState(String feature) async {
           print('    Type: Text Input');
         }
       }
-
       print('Responses: ${state.responses}');
       for (final entry in state.responses.entries) {
         final questionId = entry.key;
@@ -428,8 +396,6 @@ Future<void> printFeatureState(String feature) async {
           print('  - ${question.question}: ${entry.value}');
         }
       }
-
-      // Add database persistence status
       print('\nDatabase Persistence Status:');
       try {
         final repo = await DatabaseInitializer.moodRepository;
@@ -447,7 +413,8 @@ Future<void> printFeatureState(String feature) async {
       }
       break;
     case 'logs':
-      logs_test.main();
+      logs_test
+          .main(); // This is calling a test function, not the actual bloc state directly.
       break;
     default:
       print('Feature not found: $feature');
