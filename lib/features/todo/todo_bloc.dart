@@ -39,8 +39,8 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     emit(state.copyWith(isLoading: true));
 
     try {
-      // Use getTodosByStatus(false) to only fetch active (not completed) todos
-      final todos = await _repository.getTodosByStatus(false);
+      // Use getActiveOrRecentlyCompletedTodos to fetch active and recently completed todos
+      final todos = await _repository.getActiveOrRecentlyCompletedTodos();
 
       if (todos != null) {
         final sortedTodos =

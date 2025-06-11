@@ -93,6 +93,21 @@ class TodoRepository {
     return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
   }
 
+  /// Gets todos that are either incomplete or completed within the last 24 hours
+  Future<List<TodoEntity>?> getActiveOrRecentlyCompletedTodos() async {
+    final now = DateTime.now();
+    final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
+    final List<Map<String, dynamic>> maps = await _db.query(
+      _tableName,
+      where:
+          'todoStatus = 0 OR (todoStatus = 1 AND completedAt IS NOT NULL AND completedAt > ?)',
+      whereArgs: [twentyFourHoursAgo.toIso8601String()],
+      orderBy: 'priority DESC, todoCreatedAt DESC',
+    );
+    if (maps.isEmpty) return null;
+    return List.generate(maps.length, (i) => TodoEntity.fromMap(maps[i]));
+  }
+
   /// Gets todos by priority
   /// Returns null if no todos match the priority
   Future<List<TodoEntity>?> getTodosByPriority(int priority) async {
