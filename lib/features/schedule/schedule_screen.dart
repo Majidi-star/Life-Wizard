@@ -1709,6 +1709,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           endTimeMinute: endMinute,
                           activity: activity,
                           notes: notes,
+                          todos: todos,
                           isChallenge: isChallenge,
                           priority: priority,
                         ),
