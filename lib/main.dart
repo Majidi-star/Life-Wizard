@@ -137,10 +137,11 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     // When app resumes from background, restore notifications
     if (state == AppLifecycleState.resumed) {
       _restoreNotifications();
+      await NotificationUtils.cleanupOldNotifications();
     }
   }
 

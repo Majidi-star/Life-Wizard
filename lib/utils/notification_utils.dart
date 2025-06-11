@@ -42,6 +42,7 @@ class NotificationUtils {
 
     // Restore notifications that might have been lost due to app restart
     await restoreNotifications();
+    await cleanupOldNotifications();
   }
 
   // Callback for when user taps on a notification
@@ -347,5 +348,30 @@ class NotificationUtils {
     // Also clear saved notifications
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_notificationsKey);
+  }
+
+  static Future<void> cleanupOldNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? notificationsJson = prefs.getString(_notificationsKey);
+
+    if (notificationsJson != null) {
+      final List<Map<String, dynamic>> notifications =
+          List<Map<String, dynamic>>.from(
+            jsonDecode(notificationsJson) as List,
+          );
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final validNotifications =
+          notifications.where((notification) {
+            return notification['scheduledTime'] > now;
+          }).toList();
+
+      if (validNotifications.length != notifications.length) {
+        await prefs.setString(
+          _notificationsKey,
+          jsonEncode(validNotifications),
+        );
+      }
+    }
   }
 }
