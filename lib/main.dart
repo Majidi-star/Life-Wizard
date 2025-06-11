@@ -147,7 +147,7 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
     goalsBloc.add(const LoadGoals());
 
     // Add a small delay to ensure the loading screen is visible
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 5));
     if (mounted) {
       setState(() {
         _isLoading = false;
