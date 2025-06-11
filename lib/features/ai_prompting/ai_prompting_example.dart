@@ -29,7 +29,7 @@ class _AiPromptingExampleState extends State<AiPromptingExample> {
     // Initialize the AI message service with the chat service
     _aiMessageService = AiMessageService(
       chatService: chatService,
-      maxHistoryLength: 15, // Keep up to 15 messages in history
+      maxHistoryLength: 30, // Keep up to 15 messages in history
       debugMode: true, // Enable debug mode to see formatted messages
     );
   }

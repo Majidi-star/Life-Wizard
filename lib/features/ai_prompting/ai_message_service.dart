@@ -32,7 +32,7 @@ class AiMessageService {
   /// @param debugMode Whether to print debug information
   AiMessageService({
     required GeminiChatService chatService,
-    int maxHistoryLength = 10,
+    int maxHistoryLength = 30,
     this.debugMode = true,
   }) : _chatService = chatService,
        _maxHistoryLength = maxHistoryLength;
