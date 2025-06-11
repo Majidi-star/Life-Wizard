@@ -33,6 +33,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     on<UpdateTimeBox>(_onUpdateTimeBox);
     on<DeleteTimeBox>(_onDeleteTimeBox);
     on<SetContext>(_onSetContext);
+    on<RescheduleNotifications>(_onRescheduleNotifications);
 
     // Initialize repository and load initial data
     add(InitializeRepository());
@@ -41,6 +42,17 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   // Set the BuildContext for showing notifications
   void _onSetContext(SetContext event, Emitter<ScheduleState> emit) {
     _context = event.context;
+  }
+
+  Future<void> _onRescheduleNotifications(
+    RescheduleNotifications event,
+    Emitter<ScheduleState> emit,
+  ) async {
+    try {
+      await _proClockRepository.scheduleNotificationsForDate(event.date);
+    } catch (e) {
+      print('Error rescheduling notifications: $e');
+    }
   }
 
   Future<void> _onInitializeRepository(

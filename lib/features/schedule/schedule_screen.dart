@@ -1347,7 +1347,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           isChallenge: isChallenge,
                         ),
                       );
-
+                      final currentDate = DateTime(
+                        context.read<ScheduleBloc>().state.selectedYear,
+                        context.read<ScheduleBloc>().state.selectedMonth,
+                        context.read<ScheduleBloc>().state.selectedDay,
+                      );
+                      context.read<ScheduleBloc>().add(
+                        schedule_events.RescheduleNotifications(
+                          date: currentDate,
+                        ),
+                      );
                       Navigator.of(context).pop();
                     },
                     child: Text(
@@ -1714,7 +1723,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           priority: priority,
                         ),
                       );
-
+                      final currentDate = DateTime(
+                        context.read<ScheduleBloc>().state.selectedYear,
+                        context.read<ScheduleBloc>().state.selectedMonth,
+                        context.read<ScheduleBloc>().state.selectedDay,
+                      );
+                      context.read<ScheduleBloc>().add(
+                        schedule_events.RescheduleNotifications(
+                          date: currentDate,
+                        ),
+                      );
                       Navigator.of(context).pop();
                     },
                     child: Text(
@@ -1767,6 +1785,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   // Close both dialogs
                   Navigator.of(context).pop();
                   Navigator.of(context).pop();
+                  final currentDate = DateTime(
+                    context.read<ScheduleBloc>().state.selectedYear,
+                    context.read<ScheduleBloc>().state.selectedMonth,
+                    context.read<ScheduleBloc>().state.selectedDay,
+                  );
+                  context.read<ScheduleBloc>().add(
+                    schedule_events.RescheduleNotifications(date: currentDate),
+                  );
                 },
                 child: const Text(
                   'Delete',

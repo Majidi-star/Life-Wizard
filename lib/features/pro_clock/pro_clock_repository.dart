@@ -12,16 +12,19 @@ class ProClockRepository {
 
   // Fetch tasks for a specific date, filtering for current timebox
   Future<List<ProClockModel>> getTasksForDate(DateTime date) async {
+    print("date: $date");
     try {
       final db = await _database;
+
       final dateString =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
       // Get all timeboxes for the selected date - using the correct column names
+      print("dateString: $dateString");
       final scheduleData = await db.query(
         'schedule',
-        where: 'date = ?',
-        whereArgs: [dateString],
+        where: 'date LIKE ?',
+        whereArgs: ['${dateString}%'],
         orderBy:
             'startTimeHour ASC, startTimeMinute ASC', // Order by hour and minute
       );
@@ -37,6 +40,7 @@ class ProClockRepository {
       final allTasks =
           scheduleData.map((record) {
             // Format time fields from separate hour and minute columns
+            final id = record['id'] as int? ?? 0;
             final startTimeHour = record['startTimeHour'] as int? ?? 0;
             final startTimeMinute = record['startTimeMinute'] as int? ?? 0;
             final endTimeHour = record['endTimeHour'] as int? ?? 23;
@@ -62,6 +66,7 @@ class ProClockRepository {
 
             // Use the correct field names from the schedule table
             return ProClockModel(
+              id: id,
               date: DateTime.parse(record['date'] as String? ?? dateString),
               currentTask: record['activity'] as String? ?? 'Untitled Task',
               currentTaskDescription:
@@ -184,63 +189,30 @@ class ProClockRepository {
     }
   }
 
-  // Get sample data for testing
-  Future<List<ProClockModel>> getSampleTasks() async {
-    final now = DateTime.now();
-    final currentHour = now.hour;
-
-    return [
-      ProClockModel(
-        date: now,
-        currentTask: 'Morning Routine',
-        currentTaskDescription: 'Morning self-care activities',
-        currentTaskNotes: 'Remember to drink water',
-        currentTaskTodos: ['Brush teeth', 'Shower', 'Breakfast'],
-        currentTaskStatus: false,
-        startTime: '06:00',
-        endTime: '08:00',
-      ),
-      ProClockModel(
-        date: now,
-        currentTask: 'Project Work',
-        currentTaskDescription: 'Work on Flutter project',
-        currentTaskNotes: 'Focus on BLoC implementation',
-        currentTaskTodos: ['Setup state', 'Implement UI', 'Test functionality'],
-        currentTaskStatus: false,
-        startTime: '09:00',
-        endTime: '12:00',
-      ),
-      ProClockModel(
-        date: now,
-        currentTask: 'Lunch Break',
-        currentTaskDescription: 'Take a break for lunch',
-        currentTaskNotes: 'Eat something healthy',
-        currentTaskTodos: [],
-        currentTaskStatus: false,
-        startTime: '12:00',
-        endTime: '13:00',
-      ),
-      ProClockModel(
-        date: now,
-        currentTask: 'Exercise',
-        currentTaskDescription: '30 minutes workout',
-        currentTaskNotes: 'Don\'t forget to stretch',
-        currentTaskTodos: ['Warm up', 'Main workout', 'Cool down'],
-        currentTaskStatus: false,
-        startTime: '17:00',
-        endTime: '18:00',
-      ),
-    ];
-  }
-
   // Schedule notifications for all tasks of a given date
   Future<void> scheduleNotificationsForDate(DateTime date) async {
     // First cancel all existing notifications for this date
     await NotificationUtils.cancelNotificationsForDate(date);
 
     final tasks = await getTasksForDate(date);
+    print("tasks: $tasks"); // Make sure 'tasks' here already contains the 'id'
+    final db = await _database; // Get the database instance
+    // The dateString is not strictly needed anymore if 'tasks' already have their IDs.
+    // Keeping it for debugging or if getTasksForDate still relies on it.
+    final dateString = date.toIso8601String().split('T')[0];
+
     for (int i = 0; i < tasks.length; i++) {
       final task = tasks[i];
+      // Ensure your 'Task' model/class has an 'id' property.
+      // We'll use this id directly for the notification.
+      // If task.id is null or not the correct DB ID, this will fail.
+      if (task.id == null) {
+        print(
+          'Warning: Task ${task.currentTask} does not have an ID. Skipping notification.',
+        );
+        continue; // Skip this task if it doesn't have an ID
+      }
+
       // Parse start time
       final startParts = task.startTime.split(':');
       if (startParts.length == 2) {
@@ -254,9 +226,18 @@ class ProClockRepository {
             hour,
             minute,
           );
+
+          print("scheduledTime: $scheduledTime");
+
+          // Directly use task.id for the notification.
+          // No need to query the database again to find the ID.
+          final taskId =
+              task.id as int; // Cast to int, assuming task.id is dynamic/Object
+
           if (scheduledTime.isAfter(DateTime.now())) {
+            print("taskId: $taskId");
             await NotificationUtils.scheduleNotification(
-              id: date.day * 1000 + i, // unique id per task per day
+              id: taskId, // Use the ID from the 'task' object
               title: 'Task Reminder',
               body:
                   'It\'s time! "${task.currentTask}" has just started. Check your schedule!',
@@ -264,7 +245,7 @@ class ProClockRepository {
             );
           }
         } catch (e) {
-          print('Error scheduling notification: $e');
+          print('Error scheduling notification for task ID ${task.id}: $e');
         }
       }
     }

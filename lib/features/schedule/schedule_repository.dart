@@ -202,8 +202,10 @@ class ScheduleRepository {
   /// Gets schedules for a specific date
   /// Returns null if no schedules exist for the date
   Future<List<Schedule>?> getSchedulesByDate(DateTime date) async {
+    print("date 2 : $date");
     // Format: YYYY-MM-DD - strip time component
     final dateStr = date.toIso8601String().split('T')[0];
+    print("dateStr: $dateStr");
 
     print('\n===== FETCHING SCHEDULES BY DATE =====');
     print('Date parameter: $date');

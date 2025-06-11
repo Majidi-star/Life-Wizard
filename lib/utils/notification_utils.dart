@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../database_initializer.dart';
 
 class NotificationUtils {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -78,6 +79,12 @@ class NotificationUtils {
     required String body,
     required DateTime scheduledTime,
   }) async {
+    print('[DEBUG] Scheduling notification:');
+    print('  ID: $id');
+    print('  Title: $title');
+    print('  Body: $body');
+    print('  ScheduledTime: $scheduledTime');
+    print('  Now: ${DateTime.now()}');
     await _notificationsPlugin.zonedSchedule(
       id,
       title,
@@ -97,6 +104,7 @@ class NotificationUtils {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+    print('[DEBUG] Notification scheduled (ID: $id)');
 
     // Save notification data for persistence
     await _saveNotificationData(id, title, body, scheduledTime);
@@ -161,13 +169,15 @@ class NotificationUtils {
           notifications.where((notification) {
             return notification['scheduledTime'] > now;
           }).toList();
-
+      print('[DEBUG] Restoring notifications:');
       // Reschedule each notification
       for (final notification in futureNotifications) {
         final scheduledTime = DateTime.fromMillisecondsSinceEpoch(
           notification['scheduledTime'] as int,
         );
-
+        print(
+          '  [DEBUG] Restoring notification ID: ${notification['id']} at $scheduledTime',
+        );
         // Only schedule if it's in the future
         if (scheduledTime.isAfter(DateTime.now())) {
           await _notificationsPlugin.zonedSchedule(
@@ -208,22 +218,56 @@ class NotificationUtils {
   /// Cancels all notifications for a specific date
   /// Uses the date's day as part of the notification ID to identify which ones to cancel
   static Future<void> cancelNotificationsForDate(DateTime date) async {
-    // Get all pending notifications
-    final pendingNotifications =
-        await _notificationsPlugin.pendingNotificationRequests();
+    // Get the database instance
+    final db = await DatabaseInitializer.database;
+    final dateString = date.toIso8601String().split('T')[0];
 
-    // The ID prefix for notifications of this date (day * 1000)
-    final idPrefix = date.day * 1000;
-
-    // Cancel each notification that matches the prefix
-    for (var notification in pendingNotifications) {
-      if (notification.id >= idPrefix && notification.id < idPrefix + 1000) {
-        await _notificationsPlugin.cancel(notification.id);
-      }
+    // Query all task IDs for this date
+    final taskData = await db.query(
+      'schedule',
+      columns: ['id'],
+      where: 'date = ?',
+      whereArgs: [dateString],
+    );
+    print('[DEBUG] Cancelling notifications for date: $dateString');
+    // Cancel each notification by its task ID
+    for (final task in taskData) {
+      final taskId = task['id'] as int;
+      print('  [DEBUG] Cancelling notification with ID: $taskId');
+      await _notificationsPlugin.cancel(taskId);
     }
 
     // Also remove from saved notifications
-    await _removeNotificationsWithIdPrefix(idPrefix);
+    // Remove all notifications whose IDs match any of the task IDs for this date
+    await _removeNotificationsWithIdList(
+      taskData.map((t) => t['id'] as int).toList(),
+    );
+  }
+
+  // Add this helper method to your NotificationUtils class:
+  static Future<void> _removeNotificationsWithIdList(List<int> idList) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? notificationsJson = prefs.getString(_notificationsKey);
+
+    if (notificationsJson != null) {
+      final List<Map<String, dynamic>> notifications =
+          List<Map<String, dynamic>>.from(
+            jsonDecode(notificationsJson) as List,
+          );
+
+      // Filter out notifications with the given IDs
+      final filteredNotifications =
+          notifications.where((notification) {
+            final id = notification['id'] as int;
+            return !idList.contains(id);
+          }).toList();
+
+      // Save back to shared preferences
+      await prefs.setString(
+        _notificationsKey,
+        jsonEncode(filteredNotifications),
+      );
+    }
   }
 
   /// Removes notifications with specific ID prefix from SharedPreferences

@@ -11,6 +11,7 @@ void testProClockState() {
     selectedDate: DateTime.now(),
     tasks: [
       ProClockModel(
+        id: 1,
         date: DateTime.now(),
         currentTask: 'Test Task',
         currentTaskDescription: 'Description of test task',

@@ -1,6 +1,7 @@
 // Pro Clock model
 
 class ProClockModel {
+  final int id; // ID of the schedule
   final DateTime date; // Date of the schedule
   final String currentTask; // Current task of the datetime
   final String currentTaskDescription; // Description of the current task
@@ -12,6 +13,7 @@ class ProClockModel {
   final String endTime; // End time of the task in format "HH:MM"
 
   ProClockModel({
+    required this.id,
     required this.date,
     required this.currentTask,
     required this.currentTaskDescription,

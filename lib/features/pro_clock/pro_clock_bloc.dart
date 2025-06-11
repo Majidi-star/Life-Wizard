@@ -494,6 +494,7 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
 
     // Create new instance with updated status
     updatedTasks[event.taskIndex] = ProClockModel(
+      id: task.id,
       date: task.date,
       currentTask: task.currentTask,
       currentTaskDescription: task.currentTaskDescription,

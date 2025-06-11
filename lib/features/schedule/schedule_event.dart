@@ -184,3 +184,8 @@ class SetContext extends ScheduleEvent {
   @override
   List<Object?> get props => [context];
 }
+
+class RescheduleNotifications extends ScheduleEvent {
+  final DateTime date;
+  RescheduleNotifications({required this.date});
+}

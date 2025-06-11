@@ -96,6 +96,15 @@ void main() async {
     print('======================================\n\n');
   }
 
+  final db = await DatabaseInitializer.database;
+  final allSchedules = await db.query('schedule');
+  print('[DEBUG] All schedule rows:');
+  for (final row in allSchedules) {
+    print(
+      '  “date”: “${row['date']}” (bytes: ${(row['date'] as String).codeUnits})',
+    );
+  }
+
   // Run the main application
   runApp(AppWithNotificationInit(preferences: preferences));
 }
