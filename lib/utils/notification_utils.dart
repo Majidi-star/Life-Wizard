@@ -102,7 +102,6 @@ class NotificationUtils {
         iOS: DarwinNotificationDetails(presentSound: true, sound: 'default'),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
     print('[DEBUG] Notification scheduled (ID: $id)');
 
@@ -200,7 +199,6 @@ class NotificationUtils {
               ),
             ),
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            matchDateTimeComponents: DateTimeComponents.time,
           );
         }
       }

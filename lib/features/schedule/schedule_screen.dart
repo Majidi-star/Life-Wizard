@@ -13,6 +13,7 @@ import '../habits/habits_event.dart' as habits_events;
 import '../habits/habits_state.dart';
 import '../habits/habits_repository.dart';
 import 'dart:convert';
+import '../../utils/notification_utils.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -1778,7 +1779,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 child: const Text('Cancel'),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   context.read<ScheduleBloc>().add(
                     schedule_events.DeleteTimeBox(id: timeBoxId),
                   );
@@ -1789,6 +1790,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     context.read<ScheduleBloc>().state.selectedYear,
                     context.read<ScheduleBloc>().state.selectedMonth,
                     context.read<ScheduleBloc>().state.selectedDay,
+                  );
+                  await NotificationUtils.cancelNotificationsForDate(
+                    currentDate,
                   );
                   context.read<ScheduleBloc>().add(
                     schedule_events.RescheduleNotifications(date: currentDate),
