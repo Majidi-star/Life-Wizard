@@ -79,7 +79,7 @@ class DatabaseInitializer {
     ''');
 
     // Insert sample todo items
-    await _insertSampleTodos(db);
+    // await _insertSampleTodos(db);
 
     // Schedule table
     await db.execute('''
@@ -106,85 +106,85 @@ class DatabaseInitializer {
     final todayStr =
         today.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
 
-    await db.insert('schedule', {
-      'date': todayStr,
-      'challenge': 1,
-      'startTimeHour': 9,
-      'startTimeMinute': 0,
-      'endTimeHour': 10,
-      'endTimeMinute': 30,
-      'activity': 'Morning Planning Session',
-      'notes': 'Review goals and plan day',
-      'todo': '["Set daily priorities", "Check emails", "Update task list"]',
-      'timeBoxStatus': 'planned',
-      'priority': 8,
-      'heatmapProductivity': 0.85,
-      'habits': '[]',
-    });
+    // await db.insert('schedule', {
+    //   'date': todayStr,
+    //   'challenge': 1,
+    //   'startTimeHour': 9,
+    //   'startTimeMinute': 0,
+    //   'endTimeHour': 10,
+    //   'endTimeMinute': 30,
+    //   'activity': 'Morning Planning Session',
+    //   'notes': 'Review goals and plan day',
+    //   'todo': '["Set daily priorities", "Check emails", "Update task list"]',
+    //   'timeBoxStatus': 'planned',
+    //   'priority': 8,
+    //   'heatmapProductivity': 0.85,
+    //   'habits': '[]',
+    // });
 
-    await db.insert('schedule', {
-      'date': todayStr,
-      'challenge': 0,
-      'startTimeHour': 10,
-      'startTimeMinute': 30,
-      'endTimeHour': 12,
-      'endTimeMinute': 0,
-      'activity': 'Project Development',
-      'notes': 'Focus on core features',
-      'todo': '["Implement new UI", "Fix bugs", "Write tests"]',
-      'timeBoxStatus': 'planned',
-      'priority': 9,
-      'heatmapProductivity': 0.75,
-      'habits': '[]',
-    });
+    // await db.insert('schedule', {
+    //   'date': todayStr,
+    //   'challenge': 0,
+    //   'startTimeHour': 10,
+    //   'startTimeMinute': 30,
+    //   'endTimeHour': 12,
+    //   'endTimeMinute': 0,
+    //   'activity': 'Project Development',
+    //   'notes': 'Focus on core features',
+    //   'todo': '["Implement new UI", "Fix bugs", "Write tests"]',
+    //   'timeBoxStatus': 'planned',
+    //   'priority': 9,
+    //   'heatmapProductivity': 0.75,
+    //   'habits': '[]',
+    // });
 
-    await db.insert('schedule', {
-      'date': todayStr,
-      'challenge': 0,
-      'startTimeHour': 13,
-      'startTimeMinute': 0,
-      'endTimeHour': 14,
-      'endTimeMinute': 0,
-      'activity': 'Learning Session',
-      'notes': 'Study new technologies',
-      'todo': '["Read documentation", "Watch tutorials", "Practice coding"]',
-      'timeBoxStatus': 'planned',
-      'priority': 7,
-      'heatmapProductivity': 0.65,
-      'habits': '[]',
-    });
+    // await db.insert('schedule', {
+    //   'date': todayStr,
+    //   'challenge': 0,
+    //   'startTimeHour': 13,
+    //   'startTimeMinute': 0,
+    //   'endTimeHour': 14,
+    //   'endTimeMinute': 0,
+    //   'activity': 'Learning Session',
+    //   'notes': 'Study new technologies',
+    //   'todo': '["Read documentation", "Watch tutorials", "Practice coding"]',
+    //   'timeBoxStatus': 'planned',
+    //   'priority': 7,
+    //   'heatmapProductivity': 0.65,
+    //   'habits': '[]',
+    // });
 
-    await db.insert('schedule', {
-      'date': todayStr,
-      'challenge': 1,
-      'startTimeHour': 15,
-      'startTimeMinute': 0,
-      'endTimeHour': 16,
-      'endTimeMinute': 0,
-      'activity': 'Exercise and Wellness',
-      'notes': 'Physical activity and mindfulness',
-      'todo': '["Workout", "Stretching", "Meditation"]',
-      'timeBoxStatus': 'planned',
-      'priority': 6,
-      'heatmapProductivity': 0.90,
-      'habits': '[]',
-    });
+    // await db.insert('schedule', {
+    //   'date': todayStr,
+    //   'challenge': 1,
+    //   'startTimeHour': 15,
+    //   'startTimeMinute': 0,
+    //   'endTimeHour': 16,
+    //   'endTimeMinute': 0,
+    //   'activity': 'Exercise and Wellness',
+    //   'notes': 'Physical activity and mindfulness',
+    //   'todo': '["Workout", "Stretching", "Meditation"]',
+    //   'timeBoxStatus': 'planned',
+    //   'priority': 6,
+    //   'heatmapProductivity': 0.90,
+    //   'habits': '[]',
+    // });
 
-    await db.insert('schedule', {
-      'date': todayStr,
-      'challenge': 0,
-      'startTimeHour': 16,
-      'startTimeMinute': 30,
-      'endTimeHour': 17,
-      'endTimeMinute': 30,
-      'activity': 'Evening Review',
-      'notes': 'Reflect on day and plan tomorrow',
-      'todo': '["Review completed tasks", "Update progress", "Plan tomorrow"]',
-      'timeBoxStatus': 'planned',
-      'priority': 7,
-      'heatmapProductivity': 0.70,
-      'habits': '[]',
-    });
+    // await db.insert('schedule', {
+    //   'date': todayStr,
+    //   'challenge': 0,
+    //   'startTimeHour': 16,
+    //   'startTimeMinute': 30,
+    //   'endTimeHour': 17,
+    //   'endTimeMinute': 30,
+    //   'activity': 'Evening Review',
+    //   'notes': 'Reflect on day and plan tomorrow',
+    //   'todo': '["Review completed tasks", "Update progress", "Plan tomorrow"]',
+    //   'timeBoxStatus': 'planned',
+    //   'priority': 7,
+    //   'heatmapProductivity': 0.70,
+    //   'habits': '[]',
+    // });
 
     // MoodData table
     await db.execute('''
@@ -196,7 +196,7 @@ class DatabaseInitializer {
     ''');
 
     // Insert sample mood data with actual responses
-    await _insertSampleMoodData(db);
+    // await _insertSampleMoodData(db);
 
     // Habits table
     await db.execute('''
@@ -213,7 +213,7 @@ class DatabaseInitializer {
     ''');
 
     // Insert sample habits
-    await _insertSampleHabits(db);
+    // await _insertSampleHabits(db);
 
     // Goals table
     await db.execute('''
@@ -232,7 +232,7 @@ class DatabaseInitializer {
     ''');
 
     // Insert sample goals
-    await _insertSampleGoals(db);
+    // await _insertSampleGoals(db);
 
     // Logs table
     await db.execute('''
@@ -245,7 +245,7 @@ class DatabaseInitializer {
     ''');
 
     // Insert sample logs
-    await _insertSampleLogs(db);
+    // await _insertSampleLogs(db);
 
     // Rewards table for gamification
     await db.execute('''
