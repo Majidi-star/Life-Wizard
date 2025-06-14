@@ -18,7 +18,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 7),
       vsync: this,
     );
 
@@ -30,7 +30,7 @@ class _LoadingScreenState extends State<LoadingScreen>
     _controller.forward();
 
     // Change quote every 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 6), () {
       if (mounted) {
         setState(() {
           _currentQuote = StoicQuotes.getRandomQuote();

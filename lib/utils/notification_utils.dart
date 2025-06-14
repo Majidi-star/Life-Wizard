@@ -45,6 +45,13 @@ class NotificationUtils {
     await cleanupOldNotifications();
   }
 
+  static Future<void> cancelAllNotifications() async {
+    await _notificationsPlugin.cancelAll();
+    // Also clear the stored notification data
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_notificationsKey);
+  }
+
   // Callback for when user taps on a notification
   static void _onNotificationTapped(NotificationResponse response) {
     // Handle notification tap
@@ -80,6 +87,9 @@ class NotificationUtils {
     required String body,
     required DateTime scheduledTime,
   }) async {
+    if (!await areNotificationsEnabled()) {
+      return; // Don't schedule if notifications are disabled
+    }
     print('[DEBUG] Scheduling notification:');
     print('  ID: $id');
     print('  Title: $title');
@@ -108,6 +118,12 @@ class NotificationUtils {
 
     // Save notification data for persistence
     await _saveNotificationData(id, title, body, scheduledTime);
+  }
+
+  // Checking if the notifications are enabled
+  static Future<bool> areNotificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('notifications') ?? true; // true as default
   }
 
   /// Saves notification data to SharedPreferences for persistence
@@ -153,6 +169,9 @@ class NotificationUtils {
 
   /// Restores all saved notifications
   static Future<void> restoreNotifications() async {
+    if (!await areNotificationsEnabled()) {
+      return; // Don't schedule if notifications are disabled
+    }
     final prefs = await SharedPreferences.getInstance();
     final String? notificationsJson = prefs.getString(_notificationsKey);
 

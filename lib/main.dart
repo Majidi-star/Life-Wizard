@@ -171,10 +171,16 @@ class _AppWithNotificationInitState extends State<AppWithNotificationInit>
   }
 
   Future<void> _restoreNotifications() async {
+    if (!await NotificationUtils.areNotificationsEnabled()) {
+      return;
+    }
     await NotificationUtils.restoreNotifications();
   }
 
   Future<void> _scheduleNotifications() async {
+    if (!await NotificationUtils.areNotificationsEnabled()) {
+      return;
+    }
     final now = DateTime.now();
     for (int i = 0; i < 7; i++) {
       final date = now.add(Duration(days: i));

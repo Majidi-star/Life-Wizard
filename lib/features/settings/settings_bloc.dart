@@ -5,6 +5,8 @@ import '../../database_initializer.dart';
 import 'settings_event.dart';
 import 'settings_repository.dart';
 import 'settings_state.dart';
+import '../../utils/notification_utils.dart';
+import '../pro_clock/pro_clock_repository.dart';
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final SharedPreferences _preferences;
@@ -204,6 +206,19 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     _preferences.setBool('notifications', event.notifications);
     emit(state.copyWith(notifications: event.notifications));
     print('After update - notifications state: ${state.notifications}');
+
+    if (!event.notifications) {
+      // If notifications are being turned off, cancel all existing notifications
+      await NotificationUtils.cancelAllNotifications();
+    } else {
+      // If notifications are being turned on, reschedule notifications for the next 7 days
+      final now = DateTime.now();
+      for (int i = 0; i < 7; i++) {
+        final date = now.add(Duration(days: i));
+        await ProClockRepository().scheduleNotificationsForDate(date);
+      }
+    }
+
     add(SyncSettingsWithDatabase());
   }
 
