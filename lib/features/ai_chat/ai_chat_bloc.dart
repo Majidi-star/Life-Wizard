@@ -1,59 +1,112 @@
 // AI Chat BLoC file
 
+import 'dart:async';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../ai_prompting/ai_message_service.dart';
+import '../mood_data/mood_data_bloc.dart';
+import '../settings/settings_bloc.dart';
+import '../settings/settings_state.dart';
 import 'ai_chat_event.dart';
 import 'ai_chat_state.dart';
 import 'ai_chat_widgets.dart';
 import 'gemini_chat_service.dart';
-import '../ai_prompting/ai_message_service.dart';
-import '../../main.dart' as app_main;
-import 'package:flutter/foundation.dart';
 
 class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
+  final SettingsBloc _settingsBloc;
   final GeminiChatService _geminiService;
   final AiMessageService _aiMessageService;
+  StreamSubscription<SettingsState>? _settingsSubscription;
   String _currentModel = '';
 
-  // Constructor using dependency injection pattern
-  AIChatBloc({GeminiChatService? geminiService})
-    : _geminiService = geminiService ?? createGeminiChatService(),
-      _aiMessageService = AiMessageService(
-        chatService: geminiService ?? createGeminiChatService(),
-      ),
-      super(const AIChatState()) {
-    // Initialize the current model
-    _currentModel = app_main.settingsBloc.state.geminiModel;
+  // Constructor using dependency injection — builds a single GeminiChatService instance.
+  AIChatBloc({
+    required SettingsBloc settingsBloc,
+    required MoodDataBloc moodDataBloc,
+    GeminiChatService? geminiService,
+  }) : this._withService(
+         settingsBloc: settingsBloc,
+         moodDataBloc: moodDataBloc,
+         service:
+             geminiService ??
+             createGeminiChatService(
+               apiKey: settingsBloc.state.geminiApiKey,
+               model: settingsBloc.state.geminiModel,
+             ),
+       );
 
-    // Listen for settings changes to update the model
-    app_main.settingsBloc.stream.listen((settings) {
-      if (settings.geminiModel != _currentModel) {
-        _currentModel = settings.geminiModel;
-        _geminiService.updateModel(_currentModel);
-        add(
-          StartNewConversation(),
-        ); // Optionally start a new conversation when model changes
+  AIChatBloc._withService({
+    required SettingsBloc settingsBloc,
+    required MoodDataBloc moodDataBloc,
+    required GeminiChatService service,
+  }) : _settingsBloc = settingsBloc,
+       _geminiService = service,
+       _aiMessageService = AiMessageService(
+         chatService: service,
+         getAiGuidelines: () => settingsBloc.state.aiGuideLines,
+         getMoodDataState: () => moodDataBloc.state,
+       ),
+       super(
+         AIChatState(
+           currentModel:
+               settingsBloc.state.geminiModel.isNotEmpty
+                   ? settingsBloc.state.geminiModel
+                   : kDefaultGeminiModel,
+         ),
+       ) {
+    _currentModel = state.currentModel;
+
+    // Listen for settings changes to update the API key and model without leaking the subscription.
+    _settingsSubscription = _settingsBloc.stream.listen((settings) {
+      final resolvedModel =
+          settings.geminiModel.isNotEmpty
+              ? settings.geminiModel
+              : kDefaultGeminiModel;
+      final bool modelChanged = resolvedModel != _currentModel;
+      final bool keyChanged = settings.geminiApiKey != _geminiService.apiKey;
+
+      if (keyChanged || modelChanged) {
+        _geminiService.updateApiKey(
+          settings.geminiApiKey,
+          newModel: resolvedModel,
+        );
+        _currentModel = resolvedModel;
+        if (modelChanged && state.messages.isNotEmpty) {
+          add(StartNewConversation());
+        }
       }
     });
 
-    on<SendMessage>(_onSendMessage);
+    on<SendMessage>(_onSendMessage, transformer: droppable());
     on<ClearMessages>(_onClearMessages);
     on<StartNewConversation>(_onStartNewConversation);
   }
 
-  /// Handle the SendMessage event by sending a message to Gemini API
-  void _onSendMessage(SendMessage event, Emitter<AIChatState> emit) async {
-    // Add user message to the state
-    final userMessage = ChatMessage(text: event.message, isUser: true);
+  @override
+  Future<void> close() async {
+    await _settingsSubscription?.cancel();
+    return super.close();
+  }
 
+  /// Handle the SendMessage event by sending a message to Gemini API
+  Future<void> _onSendMessage(
+    SendMessage event,
+    Emitter<AIChatState> emit,
+  ) async {
+    final userMessage = ChatMessage(text: event.message, isUser: true);
     final updatedMessages = List<ChatMessage>.from(state.messages)
       ..add(userMessage);
     emit(state.copyWith(messages: updatedMessages, isLoading: true));
 
     try {
-      // Check if Gemini API key is set
-      final settings = app_main.settingsBloc.state;
+      // Always read the latest API key and model from settings per request.
+      final settings = _settingsBloc.state;
       final apiKey = settings.geminiApiKey;
-      final modelName = settings.geminiModel;
+      final modelName =
+          settings.geminiModel.isNotEmpty
+              ? settings.geminiModel
+              : kDefaultGeminiModel;
 
       if (apiKey.isEmpty) {
         final aiMessage = ChatMessage(
@@ -68,72 +121,66 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
         return;
       }
 
-      // Update API key or model if they have changed
-      if (_geminiService.apiKey != apiKey || _currentModel != modelName) {
+      // Update API key or model only on real change so history isn't wiped.
+      if (_geminiService.apiKey != apiKey || _geminiService.model != modelName) {
         await _geminiService.updateApiKey(apiKey, newModel: modelName);
-        _currentModel = modelName;
       }
+      _currentModel = modelName;
 
       // Get AI response using AI Message Service
       final response = await _aiMessageService.sendMessage(event.message);
+
+      if (response['success'] != true) {
+        final errorText = GeminiChatService.sanitizeErrorText(
+          response['error']?.toString() ??
+              "Sorry, I couldn't generate a response.",
+          secretKey: apiKey,
+        );
+        final errorMessage = ChatMessage(text: errorText, isUser: false);
+        final messagesWithError = List<ChatMessage>.from(updatedMessages)
+          ..add(errorMessage);
+        emit(
+          state.copyWith(
+            messages: messagesWithError,
+            isLoading: false,
+            currentModel: modelName,
+          ),
+        );
+        return;
+      }
+
       final rawResponse = response['rawResponse'] as String?;
 
       // Extract function call results with proper type handling
       final functionCallResultsRaw = response['functionCallResults'];
-      List<FunctionCallResult> functionCallResults = [];
+      final List<FunctionCallResult> functionCallResults = [];
 
-      if (functionCallResultsRaw != null) {
-        // Handle the case where functionCallResults might be a List<dynamic>
-        if (functionCallResultsRaw is List) {
-          for (var item in functionCallResultsRaw) {
-            if (item is FunctionCallResult) {
-              functionCallResults.add(item);
-            } else if (item is Map) {
-              // Try to convert from Map to FunctionCallResult
-              try {
-                final name = item['name']?.toString() ?? 'Unknown Function';
-                final success = item['success'] == true;
-                functionCallResults.add(
-                  FunctionCallResult(name: name, success: success),
-                );
-              } catch (e) {
-                debugPrint('Error converting function call result: $e');
-              }
-            }
+      if (functionCallResultsRaw is List) {
+        for (var item in functionCallResultsRaw) {
+          if (item is FunctionCallResult) {
+            functionCallResults.add(item);
+          } else if (item is Map) {
+            final name = item['name']?.toString() ?? 'Unknown Function';
+            final success = item['success'] == true;
+            functionCallResults.add(
+              FunctionCallResult(name: name, success: success),
+            );
           }
         }
       }
 
-      // Ensure we have at least one function call result if a function was executed
-      if (functionCallResults.isEmpty && response['functionResult'] != null) {
-        // Extract function name using regex as fallback
-        String functionName = 'Function Call';
-        final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
-        final match = nameRegex.firstMatch(
-          response['functionResult'].toString(),
-        );
-        if (match != null && match.groupCount >= 1) {
-          functionName = match.group(1) ?? 'Function Call';
-        }
-
-        functionCallResults.add(
-          FunctionCallResult(name: functionName, success: true),
-        );
+      if (kDebugMode) {
+        debugPrint('Function calls to display: ${functionCallResults.length}');
       }
 
-      debugPrint('Function calls to display: ${functionCallResults.length}');
-
-      // Add AI response to the state
       final aiMessage = ChatMessage(
         text: rawResponse ?? "Sorry, I couldn't generate a response.",
         isUser: false,
       );
 
-      // Create a list with the AI message and then add function call messages
       final messagesWithResponse = List<ChatMessage>.from(updatedMessages)
         ..add(aiMessage);
 
-      // Now add separate messages for each function call
       for (var functionCall in functionCallResults) {
         messagesWithResponse.add(
           ChatMessage(
@@ -154,9 +201,12 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
         ),
       );
     } catch (e) {
-      // Handle error
+      final sanitized = GeminiChatService.sanitizeErrorText(
+        e.toString(),
+        secretKey: _geminiService.apiKey,
+      );
       final aiMessage = ChatMessage(
-        text: "Error: ${e.toString()}",
+        text: "Error: $sanitized",
         isUser: false,
       );
 
@@ -186,7 +236,7 @@ class AIChatBloc extends Bloc<AIChatEvent, AIChatState> {
     _aiMessageService.clearConversation();
 
     // Update state to indicate a new conversation has started
-    final modelName = app_main.settingsBloc.state.geminiModel;
+    final modelName = _settingsBloc.state.geminiModel;
     _currentModel = modelName;
 
     // Clear all previous messages and add a system message

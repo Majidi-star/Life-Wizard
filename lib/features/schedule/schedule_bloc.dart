@@ -2,7 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../database_initializer.dart';
 import 'schedule_event.dart';
@@ -17,7 +17,6 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   Timer? _updateTimer;
   final ProClockRepository _proClockRepository = ProClockRepository();
   final PointsService _pointsService = PointsService();
-  BuildContext? _context;
 
   ScheduleBloc() : super(ScheduleState.initial()) {
     on<UpdateSelectedYear>(_onUpdateSelectedYear);
@@ -32,16 +31,10 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     on<AddTimeBox>(_onAddTimeBox);
     on<UpdateTimeBox>(_onUpdateTimeBox);
     on<DeleteTimeBox>(_onDeleteTimeBox);
-    on<SetContext>(_onSetContext);
     on<RescheduleNotifications>(_onRescheduleNotifications);
 
     // Initialize repository and load initial data
     add(InitializeRepository());
-  }
-
-  // Set the BuildContext for showing notifications
-  void _onSetContext(SetContext event, Emitter<ScheduleState> emit) {
-    _context = event.context;
   }
 
   Future<void> _onRescheduleNotifications(
@@ -51,7 +44,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     try {
       await _proClockRepository.scheduleNotificationsForDate(event.date);
     } catch (e) {
-      print('Error rescheduling notifications: $e');
+      if (kDebugMode) debugPrint('Error rescheduling notifications: $e');
     }
   }
 
@@ -123,28 +116,28 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       return;
     }
 
-    print('\n===== LOADING SCHEDULE =====');
-    print('Date: ${event.year}-${event.month}-${event.day}');
+    if (kDebugMode) debugPrint('\n===== LOADING SCHEDULE =====');
+    if (kDebugMode) debugPrint('Date: ${event.year}-${event.month}-${event.day}');
 
     emit(state.copyWith(isLoading: true, error: null));
 
     try {
       final date = DateTime(event.year, event.month, event.day);
-      print('Fetching schedules for date: $date');
+      if (kDebugMode) debugPrint('Fetching schedules for date: $date');
 
       final schedules = await _repository!.getSchedulesByDate(date);
 
       if (schedules != null) {
-        print('Found ${schedules.length} schedules for the date');
+        if (kDebugMode) debugPrint('Found ${schedules.length} schedules for the date');
         final scheduleModel = _repository!.transformToScheduleModel(schedules);
 
         // Print some details about the loaded schedules
-        print(
+        if (kDebugMode) debugPrint(
           'Transformed to ScheduleModel with ${scheduleModel.timeBoxes.length} timeboxes',
         );
         for (int i = 0; i < scheduleModel.timeBoxes.length; i++) {
           final timeBox = scheduleModel.timeBoxes[i];
-          print(
+          if (kDebugMode) debugPrint(
             'TimeBox $i: ${timeBox.activity} (Status: ${timeBox.timeBoxStatus})',
           );
 
@@ -152,9 +145,9 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           if (timeBox.habits.isNotEmpty) {
             try {
               final habitsJson = jsonDecode(timeBox.habits);
-              print('TimeBox $i habits: $habitsJson');
+              if (kDebugMode) debugPrint('TimeBox $i habits: $habitsJson');
             } catch (e) {
-              print('Error parsing habits JSON for TimeBox $i: $e');
+              if (kDebugMode) debugPrint('Error parsing habits JSON for TimeBox $i: $e');
             }
           }
         }
@@ -169,7 +162,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           ),
         );
       } else {
-        print('No schedules found for the date');
+        if (kDebugMode) debugPrint('No schedules found for the date');
         emit(
           state.copyWith(
             scheduleModel: ScheduleModel(timeBoxes: [], currentTimeBox: null),
@@ -180,11 +173,11 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           ),
         );
       }
-      print('===== SCHEDULE LOADED =====\n');
+      if (kDebugMode) debugPrint('===== SCHEDULE LOADED =====\n');
     } catch (e) {
-      print('ERROR loading schedule: $e');
+      if (kDebugMode) debugPrint('ERROR loading schedule: $e');
       emit(state.copyWith(isLoading: false, error: e.toString()));
-      print('===== SCHEDULE LOAD FAILED =====\n');
+      if (kDebugMode) debugPrint('===== SCHEDULE LOAD FAILED =====\n');
     }
   }
 
@@ -193,17 +186,17 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     Emitter<ScheduleState> emit,
   ) async {
     if (_repository == null) {
-      print('Repository not initialized');
+      if (kDebugMode) debugPrint('Repository not initialized');
       emit(state.copyWith(error: 'Repository not initialized'));
       return;
     }
 
     try {
-      print('\n===== TOGGLING HABIT COMPLETION =====');
-      print('Habit: ${event.habitName}');
-      print('Is Completed: ${event.isCompleted}');
-      print('Date: ${event.date}');
-      print('TimeBox ID: ${event.timeBoxId}');
+      if (kDebugMode) debugPrint('\n===== TOGGLING HABIT COMPLETION =====');
+      if (kDebugMode) debugPrint('Habit: ${event.habitName}');
+      if (kDebugMode) debugPrint('Is Completed: ${event.isCompleted}');
+      if (kDebugMode) debugPrint('Date: ${event.date}');
+      if (kDebugMode) debugPrint('TimeBox ID: ${event.timeBoxId}');
       debugPrint('DEBUG: ToggleHabitCompletion event received');
 
       bool habitStatusChanged = false;
@@ -231,7 +224,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
                     habitsJson = jsonDecode(schedule.habits!);
                   }
                 } catch (e) {
-                  print('Error parsing habits JSON: $e');
+                  if (kDebugMode) debugPrint('Error parsing habits JSON: $e');
                   habitsJson = [];
                 }
 
@@ -254,7 +247,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
                     scheduleId,
                     updatedHabits,
                   );
-                  print(
+                  if (kDebugMode) debugPrint(
                     'Updated habits for timeBox $scheduleId (index ${event.timeBoxId}): $updatedHabits',
                   );
                 }
@@ -277,7 +270,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
                 habitsJson = jsonDecode(schedule.habits!);
               }
             } catch (e) {
-              print(
+              if (kDebugMode) debugPrint(
                 'Error parsing habits JSON for schedule ${schedule.id}: $e',
               );
               habitsJson = [];
@@ -291,7 +284,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
                 schedule.id!,
                 updatedHabits,
               );
-              print(
+              if (kDebugMode) debugPrint(
                 'Added habit ${event.habitName} to timeBox ${schedule.id}: $updatedHabits',
               );
               habitStatusChanged = true;
@@ -306,7 +299,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
                 schedule.id!,
                 updatedHabits,
               );
-              print(
+              if (kDebugMode) debugPrint(
                 'Removed habit ${event.habitName} from timeBox ${schedule.id}: $updatedHabits',
               );
               habitStatusChanged = true;
@@ -340,20 +333,12 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       }
 
       // If habit status changed, award points
+      int points = 0;
       if (habitStatusChanged) {
-        debugPrint('DEBUG: Habit status changed, will award points');
-
-        // Award points
-        int points = 0;
         if (event.isCompleted) {
           points = await _pointsService.addPointsForCompletion();
         } else {
           points = await _pointsService.removePointsForUncompletion();
-        }
-
-        // Show notification if context is available and points changed
-        if (_context != null && points != 0) {
-          _pointsService.showPointsNotification(_context!, points);
         }
       }
 
@@ -362,16 +347,29 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
 
       if (schedules != null) {
         final scheduleModel = _repository!.transformToScheduleModel(schedules);
-        print(
-          'Reloaded schedule after habit toggle, found ${schedules.length} timeboxes',
+        emit(
+          state.copyWith(
+            scheduleModel: scheduleModel,
+            lastPointsDelta: points != 0 ? points : state.lastPointsDelta,
+            pointsNotificationCounter:
+                points != 0
+                    ? state.pointsNotificationCounter + 1
+                    : state.pointsNotificationCounter,
+          ),
         );
-        emit(state.copyWith(scheduleModel: scheduleModel));
+      } else if (points != 0) {
+        emit(
+          state.copyWith(
+            lastPointsDelta: points,
+            pointsNotificationCounter: state.pointsNotificationCounter + 1,
+          ),
+        );
       }
 
-      print('===== HABIT TOGGLE COMPLETE =====\n');
+      if (kDebugMode) debugPrint('===== HABIT TOGGLE COMPLETE =====\n');
     } catch (e) {
       emit(state.copyWith(error: 'Failed to update habit: ${e.toString()}'));
-      print('Error updating habit completion: $e');
+      if (kDebugMode) debugPrint('Error updating habit completion: $e');
     }
   }
 
@@ -420,7 +418,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
               );
             }
           } catch (e) {
-            print('Error parsing habits JSON: $e');
+            if (kDebugMode) debugPrint('Error parsing habits JSON: $e');
           }
         }
       }
@@ -465,7 +463,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         }
       }
 
-      print(
+      if (kDebugMode) debugPrint(
         'Recalculated habit progress: consecutive=$consecutiveProgress, total=$totalProgress',
       );
 
@@ -512,14 +510,14 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
 
           // Create a set of day numbers for quick lookup
           final Set<int> completedDays = {};
-          print(
+          if (kDebugMode) debugPrint(
             'Converting dates to day numbers (relative to creation date: $creationDate):',
           );
           for (final dateStr in datesWithCompletedHabit) {
             final date = DateTime.parse(dateStr);
             final dayNumber =
                 date.difference(creationDate).inDays + 1; // +1 to avoid day 0
-            print('  Date: $dateStr → Day number: $dayNumber');
+            if (kDebugMode) debugPrint('  Date: $dateStr → Day number: $dayNumber');
             completedDays.add(dayNumber);
           }
 
@@ -530,31 +528,31 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           if (sortedDays.isNotEmpty) {
             int currentStart = sortedDays[0];
             int currentEnd = sortedDays[0];
-            print('Starting new streak with day: $currentStart');
+            if (kDebugMode) debugPrint('Starting new streak with day: $currentStart');
 
             for (int i = 1; i < sortedDays.length; i++) {
               if (sortedDays[i] == currentEnd + 1) {
                 // Consecutive day, extend the current streak
                 currentEnd = sortedDays[i];
-                print('Extended streak to day: $currentEnd');
+                if (kDebugMode) debugPrint('Extended streak to day: $currentEnd');
               } else {
                 // Non-consecutive day, end the current streak and start a new one
-                print(
+                if (kDebugMode) debugPrint(
                   'Found gap after day $currentEnd. Next day is ${sortedDays[i]}',
                 );
                 startPoints.add(currentStart);
                 endPoints.add(currentEnd);
-                print('Added streak: start=$currentStart, end=$currentEnd');
+                if (kDebugMode) debugPrint('Added streak: start=$currentStart, end=$currentEnd');
                 currentStart = sortedDays[i];
                 currentEnd = sortedDays[i];
-                print('Starting new streak with day: $currentStart');
+                if (kDebugMode) debugPrint('Starting new streak with day: $currentStart');
               }
             }
 
             // Add the final streak
             startPoints.add(currentStart);
             endPoints.add(currentEnd);
-            print('Added final streak: start=$currentStart, end=$currentEnd');
+            if (kDebugMode) debugPrint('Added final streak: start=$currentStart, end=$currentEnd');
           }
         } else {
           // If no dates have completed habits, keep the existing timeline data
@@ -567,9 +565,9 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       final String startString = startPoints.join(',');
       final String endString = endPoints.join(',');
 
-      print('Timeline data - Start points: $startPoints');
-      print('Timeline data - End points: $endPoints');
-      print(
+      if (kDebugMode) debugPrint('Timeline data - Start points: $startPoints');
+      if (kDebugMode) debugPrint('Timeline data - End points: $endPoints');
+      if (kDebugMode) debugPrint(
         'Timeline data - Start string: $startString, End string: $endString',
       );
 
@@ -586,7 +584,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         whereArgs: [habitId],
       );
     } catch (e) {
-      print('Error recalculating habit progress: $e');
+      if (kDebugMode) debugPrint('Error recalculating habit progress: $e');
     }
   }
 
@@ -614,165 +612,99 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     }
 
     try {
-      // Get the current date
+      final scheduleToUpdate = await _repository!.getScheduleById(event.id);
+      if (scheduleToUpdate == null || scheduleToUpdate.id == null) {
+        emit(state.copyWith(error: 'Schedule not found'));
+        return;
+      }
+
+      // Guard against duplicate points/hours when status hasn't changed.
+      if (scheduleToUpdate.timeBoxStatus == event.isCompleted) {
+        return;
+      }
+
+      final scheduleId = scheduleToUpdate.id!;
       final date = DateTime(
-        state.selectedYear,
-        state.selectedMonth,
-        state.selectedDay,
+        scheduleToUpdate.date.year,
+        scheduleToUpdate.date.month,
+        scheduleToUpdate.date.day,
       );
 
-      // Get the schedules for the current date
-      final schedules = await _repository!.getSchedulesByDate(date);
+      final startTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        scheduleToUpdate.startTimeHour,
+        scheduleToUpdate.startTimeMinute,
+      );
 
-      if (schedules != null &&
-          event.timeBoxIndex >= 0 &&
-          event.timeBoxIndex < schedules.length) {
-        // Get the schedule to update
-        final scheduleToUpdate = schedules[event.timeBoxIndex];
+      final endTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        scheduleToUpdate.endTimeHour,
+        scheduleToUpdate.endTimeMinute,
+      );
 
-        // Make sure it has an ID
-        if (scheduleToUpdate.id == null) {
-          throw Exception('Schedule ID not found');
-        }
-
-        final scheduleId = scheduleToUpdate.id!;
-
-        // Update the timeBoxStatus
-        print('\n===== UPDATING TIMEBOX STATUS =====');
-        print('Schedule ID: $scheduleId');
-        print('Current status: ${scheduleToUpdate.timeBoxStatus}');
-        print('New status: ${event.isCompleted}');
-
-        // Calculate start and end times for points calculation
-        final startTime = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          scheduleToUpdate.startTimeHour,
-          scheduleToUpdate.startTimeMinute,
-        );
-
-        final endTime = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          scheduleToUpdate.endTimeHour,
-          scheduleToUpdate.endTimeMinute,
-        );
-
-        // Calculate duration in minutes for debugging
-        final durationMinutes = endTime.difference(startTime).inMinutes;
-        print('Timebox duration: $durationMinutes minutes');
-
-        // Update points based on completion status - always calculate points regardless of previous status
-        int points = 0;
+      int points = 0;
+      if (endTime.isAfter(startTime)) {
         if (event.isCompleted) {
-          // Always calculate points when completing
           points = await _pointsService.addPointsForScheduleTask(
             startTime,
             endTime,
           );
-          print('Points to add for completion: $points');
-
-          // Track hours worked (but don't show notification)
-          final hoursWorked = await _pointsService.addHoursWorked(
-            startTime,
-            endTime,
-          );
-          print('Hours worked to add: $hoursWorked');
+          await _pointsService.addHoursWorked(startTime, endTime);
         } else {
-          // Always calculate points when uncompleting
           points = await _pointsService.removePointsForScheduleTask(
             startTime,
             endTime,
           );
-          print('Points to remove for uncompletion: $points');
-
-          // Remove hours worked (but don't show notification)
-          final hoursRemoved = await _pointsService.removeHoursWorked(
-            startTime,
-            endTime,
-          );
-          print('Hours worked to remove: $hoursRemoved');
+          await _pointsService.removeHoursWorked(startTime, endTime);
         }
-
-        // Show notification if context is available and points changed
-        if (_context != null && points != 0) {
-          print('Showing points notification: $points');
-          _pointsService.showPointsNotification(_context!, points);
-        } else {
-          print(
-            'Not showing notification. Context available: ${_context != null}, Points: $points',
-          );
-        }
-
-        // Update the timeBoxStatus
-        await _repository!.updateScheduleTimeBoxStatus(
-          scheduleId,
-          event.isCompleted,
-        );
-
-        // Verify the update worked by fetching the updated record
-        final verifySchedule = await _repository!.getScheduleById(scheduleId);
-        if (verifySchedule != null) {
-          print('Updated status: ${verifySchedule.timeBoxStatus}');
-
-          // Check if the update succeeded
-          if (verifySchedule.timeBoxStatus != event.isCompleted) {
-            print(
-              'ERROR: Database update failed! Status in DB does not match requested status.',
-            );
-            // Try to fix it one more time with direct SQL
-            print('Attempting to fix with direct SQL update...');
-            final db = await DatabaseInitializer.database;
-            final textValue = event.isCompleted ? 'completed' : 'planned';
-            final fixResult = await db.rawUpdate(
-              'UPDATE schedule SET timeBoxStatus = ? WHERE id = ?',
-              [textValue, scheduleId],
-            );
-            print('Fix attempt result: $fixResult rows affected');
-
-            // After fix attempt, check one more time
-            final finalCheck = await _repository!.getScheduleById(scheduleId);
-            if (finalCheck != null) {
-              print('After fix: Status = ${finalCheck.timeBoxStatus}');
-
-              // Force UI reload since we might have inconsistency
-              final updatedSchedules = await _repository!.getSchedulesByDate(
-                date,
-              );
-              if (updatedSchedules != null) {
-                final scheduleModel = _repository!.transformToScheduleModel(
-                  updatedSchedules,
-                );
-                emit(state.copyWith(scheduleModel: scheduleModel));
-                print('UI state refreshed from database after fix attempt');
-              }
-            }
-          } else {
-            print('SUCCESS: Database update confirmed.');
-          }
-        }
-
-        // Reload the schedule but don't emit loading state
-        final updatedSchedules = await _repository!.getSchedulesByDate(date);
-        if (updatedSchedules != null) {
-          final scheduleModel = _repository!.transformToScheduleModel(
-            updatedSchedules,
-          );
-          emit(state.copyWith(scheduleModel: scheduleModel));
-        }
-
-        // Update notifications for this date
-        await _proClockRepository.scheduleNotificationsForDate(date);
-
-        print('===== STATUS UPDATE COMPLETE =====\n');
-      } else {
-        emit(state.copyWith(error: 'Invalid timebox index'));
       }
+
+      await _repository!.updateScheduleTimeBoxStatus(
+        scheduleId,
+        event.isCompleted,
+      );
+
+      // Reload the schedule for the selected date without emitting loading state
+      final selectedDate = DateTime(
+        state.selectedYear,
+        state.selectedMonth,
+        state.selectedDay,
+      );
+      final updatedSchedules = await _repository!.getSchedulesByDate(
+        selectedDate,
+      );
+      if (updatedSchedules != null) {
+        final scheduleModel = _repository!.transformToScheduleModel(
+          updatedSchedules,
+        );
+        emit(
+          state.copyWith(
+            scheduleModel: scheduleModel,
+            error: null,
+            lastPointsDelta: points != 0 ? points : state.lastPointsDelta,
+            pointsNotificationCounter:
+                points != 0
+                    ? state.pointsNotificationCounter + 1
+                    : state.pointsNotificationCounter,
+          ),
+        );
+      } else if (points != 0) {
+        emit(
+          state.copyWith(
+            error: null,
+            lastPointsDelta: points,
+            pointsNotificationCounter: state.pointsNotificationCounter + 1,
+          ),
+        );
+      }
+
+      await _proClockRepository.scheduleNotificationsForDate(date);
     } catch (e) {
       emit(state.copyWith(error: 'Failed to update status: ${e.toString()}'));
-      print('Error updating timebox status: $e');
     }
   }
 
@@ -783,7 +715,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     _updateTimer?.cancel();
     // Use a less frequent update interval (10 seconds instead of 2)
     _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      print('Periodic update triggered');
+      if (kDebugMode) debugPrint('Periodic update triggered');
       // Only update if we're not already loading
       if (!state.isLoading) {
         add(
@@ -794,10 +726,10 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           ),
         );
       } else {
-        print('Skipping periodic update because loading is in progress');
+        if (kDebugMode) debugPrint('Skipping periodic update because loading is in progress');
       }
     });
-    print('Started periodic updates with 10-second interval');
+    if (kDebugMode) debugPrint('Started periodic updates with 10-second interval');
   }
 
   void _onStopPeriodicUpdate(
@@ -806,7 +738,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   ) {
     _updateTimer?.cancel();
     _updateTimer = null;
-    print('Stopped periodic updates');
+    if (kDebugMode) debugPrint('Stopped periodic updates');
   }
 
   @override
@@ -821,6 +753,18 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
   ) async {
     if (_repository == null) {
       emit(state.copyWith(error: 'Repository not initialized'));
+      return;
+    }
+
+    final startMinutes = event.startTimeHour * 60 + event.startTimeMinute;
+    final endMinutes = event.endTimeHour * 60 + event.endTimeMinute;
+    if (endMinutes <= startMinutes) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'End time must be after start time.',
+        ),
+      );
       return;
     }
 
@@ -852,26 +796,26 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       );
 
       // Debug print to verify the data
-      print('Adding new timebox with data:');
-      print('Activity: ${event.activity}');
-      print('Start time: ${event.startTimeHour}:${event.startTimeMinute}');
-      print('End time: ${event.endTimeHour}:${event.endTimeMinute}');
-      print('Date: $date');
+      if (kDebugMode) debugPrint('Adding new timebox with data:');
+      if (kDebugMode) debugPrint('Activity: ${event.activity}');
+      if (kDebugMode) debugPrint('Start time: ${event.startTimeHour}:${event.startTimeMinute}');
+      if (kDebugMode) debugPrint('End time: ${event.endTimeHour}:${event.endTimeMinute}');
+      if (kDebugMode) debugPrint('Date: $date');
 
       // Insert the new schedule
       final id = await _repository!.insertSchedule(newSchedule);
-      print('New timebox inserted with ID: $id');
+      if (kDebugMode) debugPrint('New timebox inserted with ID: $id');
 
       // Directly fetch the updated schedules instead of using the LoadSchedule event
       final updatedSchedules = await _repository!.getSchedulesByDate(date);
       if (updatedSchedules != null) {
-        print('Directly updating UI with ${updatedSchedules.length} schedules');
+        if (kDebugMode) debugPrint('Directly updating UI with ${updatedSchedules.length} schedules');
         final scheduleModel = _repository!.transformToScheduleModel(
           updatedSchedules,
         );
         emit(state.copyWith(scheduleModel: scheduleModel, isLoading: false));
       } else {
-        print('No schedules found after insertion - this is unexpected');
+        if (kDebugMode) debugPrint('No schedules found after insertion - this is unexpected');
         emit(
           state.copyWith(
             scheduleModel: ScheduleModel(timeBoxes: [], currentTimeBox: null),
@@ -883,7 +827,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
       // Update notifications for this date
       await _proClockRepository.scheduleNotificationsForDate(date);
     } catch (e) {
-      print('Error adding timebox: $e');
+      if (kDebugMode) debugPrint('Error adding timebox: $e');
       emit(
         state.copyWith(
           isLoading: false,
@@ -929,22 +873,39 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         }
 
         // Debug the update operation
-        print('\n===== UPDATING TIMEBOX =====');
-        print('ID: ${existingSchedule.id}');
-        print('Original activity: ${existingSchedule.activity}');
-        print('New activity: ${event.activity}');
-        print('Original timeBoxStatus: ${existingSchedule.timeBoxStatus}');
+        if (kDebugMode) debugPrint('\n===== UPDATING TIMEBOX =====');
+        if (kDebugMode) debugPrint('ID: ${existingSchedule.id}');
+        if (kDebugMode) debugPrint('Original activity: ${existingSchedule.activity}');
+        if (kDebugMode) debugPrint('New activity: ${event.activity}');
+        if (kDebugMode) debugPrint('Original timeBoxStatus: ${existingSchedule.timeBoxStatus}');
+
+        final newStartHour =
+            event.startTimeHour ?? existingSchedule.startTimeHour;
+        final newStartMinute =
+            event.startTimeMinute ?? existingSchedule.startTimeMinute;
+        final newEndHour = event.endTimeHour ?? existingSchedule.endTimeHour;
+        final newEndMinute =
+            event.endTimeMinute ?? existingSchedule.endTimeMinute;
+        if ((newEndHour * 60 + newEndMinute) <=
+            (newStartHour * 60 + newStartMinute)) {
+          emit(
+            state.copyWith(
+              isLoading: false,
+              error: 'End time must be after start time.',
+            ),
+          );
+          return;
+        }
 
         // Create updated schedule with new values or existing ones
         final updatedSchedule = Schedule(
           id: existingSchedule.id,
           date: date,
           challenge: event.isChallenge ?? existingSchedule.challenge,
-          startTimeHour: event.startTimeHour ?? existingSchedule.startTimeHour,
-          startTimeMinute:
-              event.startTimeMinute ?? existingSchedule.startTimeMinute,
-          endTimeHour: event.endTimeHour ?? existingSchedule.endTimeHour,
-          endTimeMinute: event.endTimeMinute ?? existingSchedule.endTimeMinute,
+          startTimeHour: newStartHour,
+          startTimeMinute: newStartMinute,
+          endTimeHour: newEndHour,
+          endTimeMinute: newEndMinute,
           activity: event.activity ?? existingSchedule.activity,
           notes: event.notes ?? existingSchedule.notes,
           todo: todoJson,
@@ -984,16 +945,16 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           ],
         );
 
-        print('Update result: $result rows affected');
+        if (kDebugMode) debugPrint('Update result: $result rows affected');
 
         // Verify the update worked by fetching the updated record
         final updatedRecord = await _repository!.getScheduleById(
           existingSchedule.id!,
         );
         if (updatedRecord != null) {
-          print('Updated successfully: ${updatedRecord.activity}');
+          if (kDebugMode) debugPrint('Updated successfully: ${updatedRecord.activity}');
         } else {
-          print('ERROR: Record not found after update!');
+          if (kDebugMode) debugPrint('ERROR: Record not found after update!');
         }
 
         // Reload the schedule
@@ -1008,7 +969,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
         // Update notifications for this date
         await _proClockRepository.scheduleNotificationsForDate(date);
 
-        print('===== UPDATE COMPLETE =====\n');
+        if (kDebugMode) debugPrint('===== UPDATE COMPLETE =====\n');
       } else {
         emit(state.copyWith(isLoading: false, error: 'Schedule not found'));
       }
@@ -1019,9 +980,9 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
           error: 'Failed to update timebox: ${e.toString()}',
         ),
       );
-      print('Error updating timebox: $e');
-      print('Stack trace:');
-      print('$e');
+      if (kDebugMode) debugPrint('Error updating timebox: $e');
+      if (kDebugMode) debugPrint('Stack trace:');
+      if (kDebugMode) debugPrint('$e');
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../widgets/app_drawer.dart';
 import '../../utils/theme_utils.dart';
+import '../progress_dashboard/points_service.dart';
 import 'habits_bloc.dart';
 import 'habits_event.dart';
 import 'habits_state.dart';
@@ -67,10 +68,18 @@ class _HabitsScreenState extends State<HabitsScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Set context in the bloc for showing points notifications
-    context.read<HabitsBloc>().add(SetContext(context: context));
-
-    return Scaffold(
+    return BlocListener<HabitsBloc, HabitsState>(
+      listenWhen:
+          (previous, current) =>
+              previous.pointsNotificationCounter !=
+                  current.pointsNotificationCounter &&
+              current.lastPointsDelta != null &&
+              current.lastPointsDelta != 0,
+      listener: (context, state) {
+        if (!mounted) return;
+        PointsService().showPointsNotification(context, state.lastPointsDelta!);
+      },
+      child: Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
         title: const Text('Habits'),
@@ -116,6 +125,7 @@ class _HabitsScreenState extends State<HabitsScreen>
           );
         },
       ),
+    ),
     );
   }
 

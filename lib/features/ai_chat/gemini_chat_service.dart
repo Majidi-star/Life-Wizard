@@ -1,595 +1,471 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_gemini/flutter_gemini.dart';
-import 'package:flutter/material.dart';
-import '../settings/settings_bloc.dart';
-import '../ai_prompting/sys_prompt.dart';
-import '../ai_prompting/respones_handler.dart';
-import '../ai_prompting/function_executor.dart';
-import '../../main.dart' as app_main;
-import '../mood_data/mood_data_bloc.dart';
-import '../mood_data/mood_data_state.dart';
+
+/// Default Gemini model used when none is configured.
+const String kDefaultGeminiModel = 'gemini-2.5-flash';
+
+/// Metadata for a model returned by the Gemini `/v1beta/models` endpoint.
+class GeminiModelInfo {
+  final String? name;
+  final String? displayName;
+  final String? description;
+  final List<String> supportedGenerationMethods;
+
+  const GeminiModelInfo({
+    this.name,
+    this.displayName,
+    this.description,
+    this.supportedGenerationMethods = const [],
+  });
+
+  factory GeminiModelInfo.fromJson(Map<String, dynamic> json) {
+    final methodsRaw = json['supportedGenerationMethods'];
+    return GeminiModelInfo(
+      name: json['name']?.toString(),
+      displayName: json['displayName']?.toString(),
+      description: json['description']?.toString(),
+      supportedGenerationMethods:
+          methodsRaw is List
+              ? methodsRaw.map((e) => e.toString()).toList()
+              : const [],
+    );
+  }
+
+  static List<GeminiModelInfo> jsonToList(List<dynamic> items) {
+    return items
+        .whereType<Map>()
+        .map((m) => GeminiModelInfo.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+  }
+}
+
+/// Base exception for Gemini transport errors.
+abstract class GeminiTransportException implements Exception {
+  final String message;
+  const GeminiTransportException(this.message);
+
+  bool get isRetryable => false;
+
+  @override
+  String toString() => message;
+}
+
+/// Thrown on network/timeout errors (safe to retry).
+class GeminiNetworkException extends GeminiTransportException {
+  const GeminiNetworkException(super.message);
+
+  @override
+  bool get isRetryable => true;
+}
+
+/// Thrown when the Gemini REST API returns a non-200 HTTP status.
+class GeminiApiException extends GeminiTransportException {
+  final int statusCode;
+  const GeminiApiException(this.statusCode, super.message);
+
+  @override
+  bool get isRetryable => statusCode >= 500 && statusCode < 600;
+}
+
+/// Thrown when a prompt or candidate response is blocked by safety/policy filters.
+class GeminiBlockedException extends GeminiTransportException {
+  final String? reason;
+  const GeminiBlockedException(super.message, {this.reason});
+}
+
+/// Thrown when the response payload is malformed or empty.
+class GeminiResponseException extends GeminiTransportException {
+  const GeminiResponseException(super.message);
+}
 
 class GeminiChatService {
-  final String apiKey;
+  static const int _maxHistoryLength = 30;
+
+  String apiKey;
   String model;
   bool _isInitialized = false;
-  int _retryCount = 0;
-  final int _maxRetries = 3;
-  Gemini? _gemini;
   List<Map<String, String>> _history = [];
 
-  /// Debug mode - when true, print detailed information about requests and responses
+  /// Debug mode - defaults to kDebugMode so production builds never log requests/responses.
   final bool debugMode;
-
-  // Previous messages to provide context
-  String _contextPrompt = '';
-  final int _maxContextLength = 20000; // Character limit for context
-
-  // Track if we're handling a function result to avoid nested function calls
-  bool _processingFunctionResult = false;
 
   GeminiChatService(
     this.apiKey, {
-    this.model = 'gemini-pro',
-    this.debugMode = true, // Default to true for debugging
+    this.model = kDefaultGeminiModel,
+    this.debugMode = kDebugMode,
   }) {
     if (apiKey.isNotEmpty) {
       _initialize();
     }
   }
 
+  /// Strips any query parameters or raw API key strings before surfacing messages.
+  static String sanitizeErrorText(String text, {String? secretKey}) {
+    var sanitized = text.replaceAll(
+      RegExp(r'([?&]key=)[^&\s]+', caseSensitive: false),
+      r'$1***',
+    );
+    if (secretKey != null && secretKey.isNotEmpty) {
+      sanitized = sanitized.replaceAll(secretKey, '***');
+    }
+    return sanitized;
+  }
+
   Future<void> _initialize() async {
-    try {
-      // Keep using Gemini package only for model listing
-      Gemini.init(apiKey: apiKey, enableDebugging: debugMode);
+    if (apiKey.isEmpty) {
+      _isInitialized = false;
+      return;
+    }
 
-      // We don't need _gemini instance for chat anymore, only for listing models
-      _gemini = Gemini.instance;
-
-      // Check connectivity by making a test request
-      final isConnected = await _checkConnectivity();
-      if (!isConnected) {
-        if (debugMode) {
-          debugPrint('========== INITIALIZATION ERROR ==========');
-          debugPrint('Connectivity check failed during initialization');
-          debugPrint('==========================================');
-        } else {
-          debugPrint('Connectivity check failed during initialization');
-        }
-        throw Exception('Network connectivity issue');
-      }
-
-      _isInitialized = true;
-      if (debugMode) {
-        debugPrint('========== INITIALIZATION SUCCESS ==========');
-        debugPrint(
-          'Gemini service initialized successfully with model: $model',
-        );
-        debugPrint(
-          'API Key: ${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}',
-        );
-        debugPrint('===========================================');
-      } else {
-        debugPrint(
-          'Gemini service initialized successfully with model: $model',
-        );
-      }
-    } catch (e) {
-      if (debugMode) {
-        debugPrint('========== INITIALIZATION ERROR ==========');
-        debugPrint('Error initializing Gemini service: $e');
-        debugPrint('Retry count: $_retryCount / $_maxRetries');
-        debugPrint('==========================================');
-      } else {
-        debugPrint('Error initializing Gemini service: $e');
-      }
-
-      if (_retryCount < _maxRetries) {
-        _retryCount++;
-        debugPrint('Retrying initialization ($_retryCount/$_maxRetries)');
-        await Future.delayed(const Duration(seconds: 1));
-        await _initialize();
-      }
+    _isInitialized = true;
+    if (debugMode) {
+      debugPrint('Gemini service initialized with model: $model');
     }
   }
 
-  // Fetch available Gemini models from the API
-  Future<List<dynamic>> getAvailableModels() async {
-    if (!_isInitialized && apiKey.isNotEmpty) {
-      await _initialize();
-    }
-
-    if (!_isInitialized) {
-      throw Exception('Gemini API not initialized. Please check your API key.');
+  /// Fetch available Gemini models from the API using the x-goog-api-key header.
+  Future<List<GeminiModelInfo>> getAvailableModels() async {
+    if (apiKey.isEmpty) {
+      throw const GeminiApiException(
+        401,
+        'Gemini API key is not set. Please set your API key in settings.',
+      );
     }
 
     try {
-      final models = await Gemini.instance.listModels();
-      debugPrint('Successfully fetched ${models.length} Gemini models');
+      final url = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models',
+      );
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey,
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
-      return models;
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> && decoded['models'] is List) {
+          final models = GeminiModelInfo.jsonToList(decoded['models'] as List);
+          if (debugMode) {
+            debugPrint('Successfully fetched ${models.length} Gemini models');
+          }
+          return models;
+        }
+        return [];
+      }
+
+      throw GeminiApiException(
+        response.statusCode,
+        'Failed to fetch Gemini models (HTTP ${response.statusCode}).',
+      );
     } on SocketException catch (_) {
-      throw Exception(
+      throw const GeminiNetworkException(
         'Network error: Please check your internet connection and try again.',
       );
-    } on GeminiException catch (e) {
-      throw Exception('Gemini API error: ${e.message}');
-    } catch (e) {
-      throw Exception('Error fetching models: $e');
+    } on TimeoutException catch (_) {
+      throw const GeminiNetworkException(
+        'Request timed out while fetching Gemini models.',
+      );
+    } on http.ClientException catch (e) {
+      throw GeminiNetworkException(
+        'Network error: ${sanitizeErrorText(e.message, secretKey: apiKey)}',
+      );
     }
   }
 
-  // Update API key when it changes in settings
+  /// Update API key and/or model only when they actually change.
   Future<void> updateApiKey(String newApiKey, {String? newModel}) async {
-    if ((apiKey != newApiKey && newApiKey.isNotEmpty) ||
-        (newModel != null && newModel != model)) {
-      _retryCount = 0;
-      try {
-        Gemini.init(
-          apiKey: newApiKey,
-          enableDebugging: true,
-          // Model will be specified when making the request
-        );
-
-        _gemini = Gemini.instance;
-
-        // Clear history when API key or model changes
-        _history = [];
-        _contextPrompt = '';
-
-        _isInitialized = true;
-        debugPrint('Gemini API key updated successfully');
-        if (newModel != null && newModel != model) {
-          // Update the model field
-          model = newModel;
-          debugPrint('Model changed to: $model');
-        }
-      } catch (e) {
-        debugPrint('Error updating Gemini API key: $e');
-        if (_retryCount < _maxRetries) {
-          _retryCount++;
-          debugPrint('Retrying key update ($_retryCount/$_maxRetries)');
-          await Future.delayed(const Duration(seconds: 1));
-          await updateApiKey(newApiKey, newModel: newModel);
-        }
-      }
+    final bool keyChanged = apiKey != newApiKey;
+    final bool modelChanged = newModel != null && newModel != model;
+    if (!keyChanged && !modelChanged) {
+      return;
     }
+
+    final bool hadPreviousKey = apiKey.isNotEmpty;
+    apiKey = newApiKey;
+    if (newModel != null) {
+      model = newModel;
+    }
+
+    if (apiKey.isEmpty) {
+      _isInitialized = false;
+      _history = [];
+      return;
+    }
+
+    // Clear history only if switching away from an existing key or changing model.
+    if ((keyChanged && hadPreviousKey) || modelChanged) {
+      _history = [];
+    }
+
+    await _initialize();
   }
 
-  // Update just the model when it changes in settings
+  /// Update just the model when it changes in settings.
   Future<void> updateModel(String newModel) async {
-    if (newModel != model) {
-      // Update the model field
-      model = newModel;
+    if (newModel == model) {
+      return;
+    }
+    model = newModel;
+    _history = [];
+    if (debugMode) {
       debugPrint('Model updated to: $model');
-
-      // Clear conversation history for new model
-      _history = [];
-      _contextPrompt = '';
     }
   }
 
   // Check if the service is initialized
   bool get isInitialized => _isInitialized;
 
-  // Check network connectivity
-  Future<bool> _checkConnectivity() async {
-    try {
-      // Use a more reliable endpoint for connectivity check
-      final response = await http
-          .get(
-            Uri.parse('https://www.google.com'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 5));
-
-      // Consider any response (even an error page) as having connectivity
-      return response.statusCode >= 200;
-    } on SocketException catch (_) {
-      debugPrint('Socket exception during connectivity check');
-      // Try an alternative endpoint before giving up
-      try {
-        final backup = await http
-            .get(Uri.parse('https://www.cloudflare.com'))
-            .timeout(const Duration(seconds: 5));
-        return backup.statusCode >= 200;
-      } catch (_) {
-        return false;
-      }
-    } on TimeoutException catch (_) {
-      debugPrint('Timeout during connectivity check');
-      // Try a fallback connection test with shorter timeout
-      try {
-        final backup = await http
-            .get(Uri.parse('https://1.1.1.1'))
-            .timeout(const Duration(seconds: 3));
-        return true;
-      } catch (_) {
-        return false;
-      }
-    } catch (e) {
-      debugPrint('Error checking connectivity: $e');
-      // Return true by default, assume connectivity unless proven otherwise
-      return true;
-    }
-  }
-
   void clearConversation() {
-    if (_isInitialized) {
-      _history = [];
-      _contextPrompt = '';
+    _history = [];
+    if (debugMode) {
       debugPrint('Conversation history cleared');
     }
   }
 
-  // Update context prompt with conversation history
-  void _updateContextPrompt() {
-    if (_history.isEmpty) {
-      _contextPrompt = '';
-      return;
+  void _appendToHistory(String role, String message) {
+    _history.add({'role': role, 'message': message});
+    if (_history.length > _maxHistoryLength) {
+      _history.removeRange(0, _history.length - _maxHistoryLength);
     }
+  }
 
-    // Create a context prompt from history
-    StringBuffer context = StringBuffer();
-    context.writeln("This is the conversation history so far:");
-
-    for (final entry in _history) {
-      final role = entry['role'] ?? 'user';
-      final message = entry['message'] ?? '';
-
-      if (role == 'user') {
-        context.writeln("User: $message");
-      } else {
-        context.writeln("Assistant: $message");
-      }
-    }
-
-    // Limit context size if too large
-    String fullContext = context.toString();
-    if (fullContext.length > _maxContextLength) {
-      fullContext = fullContext.substring(
-        fullContext.length - _maxContextLength,
+  /// Sends a request to Gemini.
+  ///
+  /// When [contents] is supplied (from [AiMessageService]), it is sent directly as
+  /// the alternating user/model `contents` list alongside optional [systemInstruction].
+  /// Throws typed [GeminiTransportException] subclasses on failure.
+  Future<String> sendMessage(
+    String message, {
+    String? systemInstruction,
+    List<Map<String, dynamic>>? contents,
+  }) async {
+    if (apiKey.isEmpty) {
+      throw const GeminiApiException(
+        401,
+        'Please set a Gemini API key in settings to use the AI chat feature.',
       );
-      // Find the first complete message after truncation
-      final firstUserIndex = fullContext.indexOf('User: ');
-      if (firstUserIndex > 0) {
-        fullContext = fullContext.substring(firstUserIndex);
-      }
     }
 
-    _contextPrompt = fullContext;
-  }
-
-  // Get formatted mood data for the system prompt
-  String _getFormattedMoodData() {
-    final moodDataBloc = app_main.moodDataBloc;
-    final state = moodDataBloc.state;
-
-    if (state.responses.isEmpty) {
-      return 'The user has not provided any mood data yet.';
-    }
-
-    final StringBuffer moodInfo = StringBuffer();
-    moodInfo.writeln('User Mood Data:');
-
-    for (final entry in state.responses.entries) {
-      final questionId = entry.key;
-      final question = state.questions.firstWhere(
-        (q) => q.id == questionId,
-        orElse: () => const MoodQuestion(id: '', question: '', options: []),
-      );
-
-      if (question.id.isNotEmpty) {
-        moodInfo.writeln('- ${question.question}: ${entry.value}');
-      }
-    }
-
-    return moodInfo.toString();
-  }
-
-  // Helper function to get the minimum of two integers
-  int _min(int a, int b) {
-    return a < b ? a : b;
-  }
-
-  // Send a message to Gemini and get a response
-  Future<String?> sendMessage(String message) async {
     if (!_isInitialized) {
-      if (apiKey.isEmpty) {
-        return "Please set a Gemini API key in settings to use the AI chat feature.";
-      }
       await _initialize();
       if (!_isInitialized) {
-        return "Failed to initialize the Gemini API. Please check your API key and internet connection.";
+        throw const GeminiApiException(
+          500,
+          'Failed to initialize the Gemini API. Please check your API key.',
+        );
       }
     }
 
-    // Check internet connection first - try multiple times before failing
-    bool hasConnectivity = false;
-    for (int i = 0; i < 3; i++) {
-      hasConnectivity = await _checkConnectivity();
-      if (hasConnectivity) break;
-      // Wait briefly before retry
-      await Future.delayed(const Duration(milliseconds: 500));
+    // Extract the actual model name without the "models/" prefix
+    String modelName = model.isNotEmpty ? model : kDefaultGeminiModel;
+    if (modelName.startsWith('models/')) {
+      modelName = modelName.substring('models/'.length);
     }
 
-    if (!hasConnectivity) {
-      debugPrint("Connectivity check failed after multiple attempts");
-      // Try to proceed anyway, the actual API call may still work
-    }
+    final url = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent',
+    );
 
-    _retryCount = 0;
-    return await _attemptSendMessage(message);
-  }
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    };
 
-  Future<String?> _attemptSendMessage(String message) async {
-    try {
-      // Format the message with <user_request> tags
-      final String formattedUserMessage =
-          '<user_request>$message</user_request>';
-
-      // Add user message to history
-      _history.add({'role': 'user', 'message': message});
-
-      // Update context with history
-      _updateContextPrompt();
-
-      // Extract the actual model name without the "models/" prefix
-      String modelName = model;
-      if (modelName.startsWith('models/')) {
-        modelName = modelName.substring('models/'.length);
-        debugPrint('Using model name without prefix: $modelName');
-      }
-
-      // Direct HTTP request to Gemini API
-      final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey',
-      );
-
-      final headers = {'Content-Type': 'application/json'};
-
-      // Format conversation history for the API
-      List<Map<String, dynamic>> contents = [];
-
-      // If no history, just send the current message with system prompt
-      if (_history.length <= 1) {
-        contents = [
-          {
+    final List<Map<String, dynamic>> requestContents =
+        contents ??
+        [
+          ..._history.map(
+            (entry) => <String, dynamic>{
+              'role': entry['role'] == 'model' ? 'model' : 'user',
+              'parts': [
+                {'text': entry['message'] ?? ''},
+              ],
+            },
+          ),
+          <String, dynamic>{
             'role': 'user',
             'parts': [
-              {'text': formattedUserMessage},
+              {'text': message},
             ],
           },
         ];
 
-        // Add system prompt after user message
-        if (SystemPrompt.prompt.isNotEmpty) {
-          // Replace mood data placeholder with actual mood data
-          final systemPrompt = SystemPrompt.prompt.replaceAll(
-            '{MOOD_DATA_PLACEHOLDER}',
-            _getFormattedMoodData(),
-          );
-
-          contents.add({
-            'role': 'user',
-            'parts': [
-              {'text': '<system_prompt>$systemPrompt</system_prompt>'},
-            ],
-          });
-        }
-      } else {
-        // Create a single content object with multiple message parts
-        Map<String, dynamic> contentObj = {'role': 'user', 'parts': []};
-
-        // Add all history messages as parts
-        for (int i = 0; i < _history.length - 1; i++) {
-          // Skip the last message (current one)
-          final entry = _history[i];
-          final role = entry['role'] == 'user' ? 'user' : 'model';
-          final text = entry['message'] ?? '';
-
-          // Change role for the content object when needed
-          if (i == 0 || role != _history[i - 1]['role']) {
-            // If this isn't the first message and role changed, add the previous content
-            if (i > 0) {
-              contents.add(contentObj);
-              contentObj = {'role': role, 'parts': []};
-            } else {
-              contentObj['role'] = role;
-            }
-          }
-
-          // Add this message as a part (normal formatting for history)
-          contentObj['parts'].add({'text': text});
-        }
-
-        // Add the final history content object
-        contents.add(contentObj);
-
-        // Now add the current message with <user_request> tags
-        contents.add({
-          'role': 'user',
+    final Map<String, dynamic> requestBody = {
+      if (systemInstruction != null && systemInstruction.isNotEmpty)
+        'systemInstruction': {
           'parts': [
-            {'text': formattedUserMessage},
+            {'text': systemInstruction},
           ],
-        });
+        },
+      'contents': requestContents,
+    };
 
-        // Add system prompt after the user message
-        if (SystemPrompt.prompt.isNotEmpty) {
-          // Replace mood data placeholder with actual mood data
-          final systemPrompt = SystemPrompt.prompt.replaceAll(
-            '{MOOD_DATA_PLACEHOLDER}',
-            _getFormattedMoodData(),
-          );
-
-          contents.add({
-            'role': 'user',
-            'parts': [
-              {'text': '<system_prompt>$systemPrompt</system_prompt>'},
-            ],
-          });
-        }
-      }
-
-      // Create the request body
-      final requestBody = {'contents': contents};
-      final bodys = jsonEncode(requestBody);
-
-      if (debugMode) {
-        debugPrint('========== DEBUG INFO ==========');
-        debugPrint('Sending request to model: $modelName');
-        debugPrint('The header: $headers');
-        debugPrint('The body: $bodys');
-        debugPrint('================================');
-      }
-
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: jsonEncode(requestBody),
+    if (debugMode) {
+      debugPrint(
+        'Sending Gemini request: model=$modelName, turns=${requestContents.length}',
       );
+    }
+
+    try {
+      final response = await http
+          .post(url, headers: headers, body: jsonEncode(requestBody))
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        final generatedText =
-            jsonResponse['candidates'][0]['content']['parts'][0]['text'];
-
-        // Process the response using ResponseHandler
-        final taggedContent = ResponseHandler.processResponse(generatedText);
-
-        // Print the tagged content if in debug mode
-        if (debugMode) {
-          debugPrint('========== RESPONSE ==========');
-          debugPrint('Response status: ${response.statusCode}');
-          debugPrint('Generated text: $generatedText');
-          debugPrint('Tagged content:');
-          ResponseHandler.printTaggedContent(taggedContent);
-          debugPrint('==============================');
+        final generatedText = _parseGeneratedText(response.body);
+        if (contents == null) {
+          _appendToHistory('user', message);
+          _appendToHistory('model', generatedText);
         }
-
-        // Add response to history
-        _history.add({'role': 'model', 'message': generatedText});
-
-        // Check for function calls and execute if found
-        if (!_processingFunctionResult &&
-            ResponseHandler.hasFunctionCall(taggedContent)) {
-          debugPrint("Found function call in response - executing it");
-
-          // Get the function call content
-          final functionCallContent = ResponseHandler.getFirstFunctionCall(
-            taggedContent,
-          );
-
-          if (functionCallContent != null) {
-            try {
-              debugPrint("Executing function: $functionCallContent");
-
-              // Execute the function
-              final functionResult = await FunctionExecutor.executeFunction(
-                functionCallContent,
-              );
-
-              debugPrint(
-                "Function executed successfully, result length: ${functionResult.length}",
-              );
-              if (functionResult.isNotEmpty) {
-                debugPrint(
-                  "Result preview: ${functionResult.substring(0, _min(50, functionResult.length))}",
-                );
-              }
-
-              // Add function result to conversation history
-              _history.add({
-                'role': 'user',
-                'message': 'Function result: $functionResult',
-              });
-
-              // Set flag to prevent nested function calls
-              _processingFunctionResult = true;
-
-              // Send function result back to AI
-              final functionResultMessage =
-                  'Here is the result of the function you called:\n\n$functionResult';
-              final aiResponseToResult = await sendMessage(
-                functionResultMessage,
-              );
-
-              // Reset flag
-              _processingFunctionResult = false;
-
-              // Return the AI's response to the function result instead
-              return aiResponseToResult;
-            } catch (e) {
-              debugPrint("Error executing function: $e");
-              // Still return original response on error
-              _processingFunctionResult = false;
-            }
-          }
-        }
-
         return generatedText;
-      } else {
-        if (debugMode) {
-          debugPrint('========== ERROR RESPONSE ==========');
-          debugPrint(
-            'API request failed with status code: ${response.statusCode}',
-          );
-          debugPrint('Response body: ${response.body}');
-          debugPrint('====================================');
-        } else {
-          debugPrint(
-            'API request failed with status code: ${response.statusCode}',
-          );
-          debugPrint('Response body: ${response.body}');
-        }
-
-        if (response.statusCode == 400 &&
-            response.body.contains('API key not valid')) {
-          return "Invalid API key. Please check your Gemini API key in settings and try again.";
-        } else if (response.statusCode == 404 &&
-            response.body.contains('Model not found')) {
-          return "Model error: The selected Gemini model ($modelName) is not available or not supported with your current API key. Please try a different model in settings.";
-        } else {
-          return "API Error (${response.statusCode}): ${response.reasonPhrase}";
-        }
       }
+
+      if (debugMode) {
+        debugPrint(
+          'Gemini API error: status=${response.statusCode}, body=${sanitizeErrorText(response.body, secretKey: apiKey)}',
+        );
+      }
+
+      if (response.statusCode == 404) {
+        throw GeminiApiException(
+          404,
+          'Model error: The selected Gemini model ($modelName) is not available or not supported with your current API key. Please try a different model in settings.',
+        );
+      }
+      if (response.statusCode == 401 ||
+          response.statusCode == 403 ||
+          (response.statusCode == 400 &&
+              response.body.contains('API key not valid'))) {
+        throw GeminiApiException(
+          response.statusCode,
+          'Invalid API key. Please check your Gemini API key in settings and try again.',
+        );
+      }
+      if (response.statusCode == 429) {
+        throw const GeminiApiException(
+          429,
+          'Rate limit exceeded. Please wait a moment and try again.',
+        );
+      }
+
+      throw GeminiApiException(
+        response.statusCode,
+        'API Error (${response.statusCode}): ${response.reasonPhrase ?? 'Request failed'}',
+      );
+    } on GeminiTransportException {
+      rethrow;
     } on SocketException catch (_) {
-      if (debugMode) {
-        debugPrint('========== NETWORK ERROR ==========');
-        debugPrint('Network connection error detected');
-        debugPrint('===================================');
-      }
-      return "Network error: Please check your internet connection and try again.";
+      throw const GeminiNetworkException(
+        'Network error: Please check your internet connection and try again.',
+      );
+    } on TimeoutException catch (_) {
+      throw const GeminiNetworkException(
+        'Request timed out: Please check your internet connection and try again.',
+      );
+    } on http.ClientException catch (e) {
+      throw GeminiNetworkException(
+        'Network error: ${sanitizeErrorText(e.message, secretKey: apiKey)}',
+      );
     } catch (e) {
-      if (debugMode) {
-        debugPrint('========== EXCEPTION ==========');
-        debugPrint('Error: $e');
-        debugPrint('Attempt: ${_retryCount + 1} of $_maxRetries');
-        debugPrint('===============================');
-      }
-
-      if (_retryCount < _maxRetries) {
-        _retryCount++;
-        debugPrint('Error occurred, retrying ($_retryCount/$_maxRetries)');
-        await Future.delayed(const Duration(seconds: 1));
-        return _attemptSendMessage(message);
-      }
-      return "Error: $e";
+      throw GeminiResponseException(
+        sanitizeErrorText(e.toString(), secretKey: apiKey),
+      );
     }
+  }
+
+  String _parseGeneratedText(String responseBody) {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(responseBody);
+    } catch (_) {
+      throw const GeminiResponseException(
+        'Invalid JSON received from Gemini API.',
+      );
+    }
+
+    if (decoded is! Map<String, dynamic>) {
+      throw const GeminiResponseException(
+        'Unexpected response format from Gemini API.',
+      );
+    }
+
+    final promptFeedback = decoded['promptFeedback'];
+    if (promptFeedback is Map) {
+      final blockReason = promptFeedback['blockReason']?.toString();
+      if (blockReason != null && blockReason.isNotEmpty) {
+        throw GeminiBlockedException(
+          'Your message was blocked by safety filters ($blockReason).',
+          reason: blockReason,
+        );
+      }
+    }
+
+    final candidates = decoded['candidates'];
+    if (candidates is! List || candidates.isEmpty) {
+      throw const GeminiResponseException(
+        'No response candidates were returned by Gemini.',
+      );
+    }
+
+    final firstCandidate = candidates.first;
+    if (firstCandidate is! Map) {
+      throw const GeminiResponseException(
+        'Invalid candidate structure in Gemini response.',
+      );
+    }
+
+    final finishReason = firstCandidate['finishReason']?.toString();
+    final content = firstCandidate['content'];
+    final parts = content is Map ? content['parts'] : null;
+
+    final StringBuffer textBuffer = StringBuffer();
+    if (parts is List) {
+      for (final part in parts) {
+        if (part is Map && part['text'] is String) {
+          textBuffer.write(part['text'] as String);
+        }
+      }
+    }
+
+    final generatedText = textBuffer.toString();
+    if (generatedText.isEmpty) {
+      if (finishReason == 'SAFETY' ||
+          finishReason == 'RECITATION' ||
+          finishReason == 'PROHIBITED_CONTENT' ||
+          finishReason == 'BLOCKLIST' ||
+          finishReason == 'SPII') {
+        throw GeminiBlockedException(
+          'Response was blocked by Gemini ($finishReason).',
+          reason: finishReason,
+        );
+      }
+      throw GeminiResponseException(
+        'Empty response received from Gemini (finishReason: ${finishReason ?? 'unknown'}).',
+      );
+    }
+
+    return generatedText;
   }
 
   // For debugging - get conversation history count
   int get historyCount => _history.length;
 }
 
-// Factory function to create a GeminiChatService instance
-GeminiChatService createGeminiChatService() {
-  final settingsState = app_main.settingsBloc.state;
+// Factory function to create a GeminiChatService instance without importing main.dart.
+GeminiChatService createGeminiChatService({
+  String apiKey = '',
+  String model = kDefaultGeminiModel,
+}) {
   return GeminiChatService(
-    settingsState.geminiApiKey,
-    model: settingsState.geminiModel,
+    apiKey,
+    model: model.isNotEmpty ? model : kDefaultGeminiModel,
   );
 }

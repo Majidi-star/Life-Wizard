@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
-import '../utils/theme_utils.dart';
 import '../features/progress_dashboard/reward_repository.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  late final Future<Map<String, dynamic>> _rewardsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _rewardsFuture = RewardRepository().getRewards();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +38,9 @@ class AppDrawer extends StatelessWidget {
                 ),
               ),
               FutureBuilder<Map<String, dynamic>>(
-                future: RewardRepository().getRewards(),
+                future: _rewardsFuture,
                 builder: (context, snapshot) {
                   final points = snapshot.data?['points'] ?? 0;
-                  final badges = snapshot.data?['badges'] ?? 'beginner';
                   final hoursWorked = snapshot.data?['hours_worked'] ?? 0.0;
                   return Column(
                     children: [

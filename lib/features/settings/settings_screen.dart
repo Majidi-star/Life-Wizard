@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../widgets/app_drawer.dart';
-import '../../main.dart' as app_main;
 import 'settings_bloc.dart';
 import 'settings_state.dart';
 import 'settings_widgets.dart';
@@ -27,8 +26,6 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             children: [
               SettingsWidgets.buildThemeSection(context, state),
-              // Divider(color: Theme.of(context).colorScheme.surfaceTint),
-              // SettingsWidgets.buildLanguageSection(context, state),
               Divider(color: Theme.of(context).colorScheme.surfaceTint),
               SettingsWidgets.buildNotificationsSection(context, state),
               // Divider(color: Theme.of(context).colorScheme.surfaceTint),

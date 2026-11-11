@@ -1,7 +1,6 @@
 // Habits BLoC file
 
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../database_initializer.dart';
 import 'habits_event.dart';
@@ -13,7 +12,6 @@ import '../progress_dashboard/points_service.dart';
 class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
   final HabitsRepository _habitsRepository;
   final PointsService _pointsService = PointsService();
-  BuildContext? _context;
   Timer? _refreshTimer;
 
   HabitsBloc({HabitsRepository? habitsRepository})
@@ -27,16 +25,10 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
     on<UpdateHabit>(_onUpdateHabit);
     on<DeleteHabit>(_onDeleteHabit);
     on<DebugHabitsState>(_onDebugHabitsState);
-    on<SetContext>(_onSetContext);
     on<ToggleHabitCompletion>(_onToggleHabitCompletion);
 
     // Initialize database connection
     _initDatabase();
-  }
-
-  // Set the BuildContext for showing notifications
-  void _onSetContext(SetContext event, Emitter<HabitsState> emit) {
-    _context = event.context;
   }
 
   Future<void> _initDatabase() async {
@@ -201,9 +193,13 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
           points = await _pointsService.removePointsForUncompletion();
         }
 
-        // Show notification if context is available
-        if (_context != null) {
-          _pointsService.showPointsNotification(_context!, points);
+        if (points != 0) {
+          emit(
+            state.copyWith(
+              lastPointsDelta: points,
+              pointsNotificationCounter: state.pointsNotificationCounter + 1,
+            ),
+          );
         }
       }
 
@@ -229,8 +225,8 @@ class HabitsBloc extends Bloc<HabitsEvent, HabitsState> {
         consecutiveProgress: 0,
         totalProgress: 0,
         createdAt: DateTime.now(),
-        start: DateTime.now().toIso8601String(),
-        end: DateTime.now().toIso8601String(),
+        start: '',
+        end: '',
       );
 
       await _habitsRepository.insertHabit(habit);

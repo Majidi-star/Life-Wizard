@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Goals repository - Handles all database operations related to user goals
 
 import 'package:sqflite/sqflite.dart';
@@ -185,20 +186,20 @@ class GoalsRepository {
 
   /// Prints all objects and their nested properties recursively
   void printGoalsModelStructure(GoalsModel model) {
-    print('\n=== Goals Model Structure ===');
+    if (kDebugMode) debugPrint('\n=== Goals Model Structure ===');
     for (var goalCard in model.goals) {
-      print('\n--- Goal Card ---');
-      print('Goal Name: ${goalCard.goalName}');
-      print('Goal Description: ${goalCard.goalDescription}');
-      print('Starting Score: ${goalCard.startingScore}');
-      print('Current Score: ${goalCard.currentScore}');
-      print('Future Score: ${goalCard.futureScore}');
-      print('Created At: ${goalCard.createdAt}');
-      print('Goal Progress: ${goalCard.goalProgress}');
-      print('Priority: ${goalCard.priority}');
-      print('Plan Info: ${goalCard.planInfo}');
+      if (kDebugMode) debugPrint('\n--- Goal Card ---');
+      if (kDebugMode) debugPrint('Goal Name: ${goalCard.goalName}');
+      if (kDebugMode) debugPrint('Goal Description: ${goalCard.goalDescription}');
+      if (kDebugMode) debugPrint('Starting Score: ${goalCard.startingScore}');
+      if (kDebugMode) debugPrint('Current Score: ${goalCard.currentScore}');
+      if (kDebugMode) debugPrint('Future Score: ${goalCard.futureScore}');
+      if (kDebugMode) debugPrint('Created At: ${goalCard.createdAt}');
+      if (kDebugMode) debugPrint('Goal Progress: ${goalCard.goalProgress}');
+      if (kDebugMode) debugPrint('Priority: ${goalCard.priority}');
+      if (kDebugMode) debugPrint('Plan Info: ${goalCard.planInfo}');
     }
-    print('\n=== End of Goals Model Structure ===\n');
+    if (kDebugMode) debugPrint('\n=== End of Goals Model Structure ===\n');
   }
 }
 
@@ -415,7 +416,7 @@ Future<void> testGoalsRepository() async {
   // Test insert both goals
   final id1 = await repository.insertGoal(testGoal1);
   final id2 = await repository.insertGoal(testGoal2);
-  print('Created goals with IDs: $id1, $id2');
+  if (kDebugMode) debugPrint('Created goals with IDs: $id1, $id2');
 
   // Test get all and transform to model
   final allGoals = await repository.getAllGoals();
@@ -429,7 +430,7 @@ Future<void> testGoalsRepository() async {
   final retrievedGoal1 = await repository.getGoalById(id1);
   if (retrievedGoal1 != null) {
     final singleGoalModel = repository.transformToGoalsModel([retrievedGoal1]);
-    print('\nRetrieved First Goal Model:');
+    if (kDebugMode) debugPrint('\nRetrieved First Goal Model:');
     repository.printGoalsModelStructure(singleGoalModel);
   }
 
@@ -437,19 +438,19 @@ Future<void> testGoalsRepository() async {
   final retrievedGoal2 = await repository.getGoalById(id2);
   if (retrievedGoal2 != null) {
     final singleGoalModel = repository.transformToGoalsModel([retrievedGoal2]);
-    print('\nRetrieved Second Goal Model:');
+    if (kDebugMode) debugPrint('\nRetrieved Second Goal Model:');
     repository.printGoalsModelStructure(singleGoalModel);
   }
 
   // Test update by field for first goal
   await repository.updateGoalByField(id1, 'progressPercentage', 50);
   await repository.updateGoalByField(id1, 'currentScore', 50);
-  print('\nUpdated first goal progress and score');
+  if (kDebugMode) debugPrint('\nUpdated first goal progress and score');
 
   // Test update by field for second goal
   await repository.updateGoalByField(id2, 'progressPercentage', 60);
   await repository.updateGoalByField(id2, 'currentScore', 60);
-  print('\nUpdated second goal progress and score');
+  if (kDebugMode) debugPrint('\nUpdated second goal progress and score');
 
   // Test get by ID after updates
   final updatedGoal1 = await repository.getGoalById(id1);
@@ -459,12 +460,12 @@ Future<void> testGoalsRepository() async {
       updatedGoal1,
       updatedGoal2,
     ]);
-    print('\nUpdated Goals Model:');
+    if (kDebugMode) debugPrint('\nUpdated Goals Model:');
     repository.printGoalsModelStructure(updatedGoalsModel);
   }
 
   // Test delete both goals
   await repository.deleteGoal(id1);
   await repository.deleteGoal(id2);
-  print('\nDeleted test goals');
+  if (kDebugMode) debugPrint('\nDeleted test goals');
 }

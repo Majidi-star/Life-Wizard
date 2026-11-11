@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Pro Clock BLoC file
 
 import 'dart:async';
@@ -109,17 +110,17 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
               // Activity is happening now - show remaining time
               final remainingMinutes = taskEndTime.difference(now).inMinutes;
               durationInMinutes = remainingMinutes > 0 ? remainingMinutes : 1;
-              print('Current activity: ${state.currentTask!.currentTask}');
-              print('Time remaining: $durationInMinutes minutes');
+              if (kDebugMode) debugPrint('Current activity: ${state.currentTask!.currentTask}');
+              if (kDebugMode) debugPrint('Time remaining: $durationInMinutes minutes');
             } else {
               // Activity is past or future - show full duration
               durationInMinutes = state.currentTask!.durationInMinutes;
-              print('Non-current activity: ${state.currentTask!.currentTask}');
-              print('Full duration: $durationInMinutes minutes');
+              if (kDebugMode) debugPrint('Non-current activity: ${state.currentTask!.currentTask}');
+              if (kDebugMode) debugPrint('Full duration: $durationInMinutes minutes');
             }
           } catch (e) {
             durationInMinutes = state.currentTask!.durationInMinutes;
-            print('Error parsing activity times: $e');
+            if (kDebugMode) debugPrint('Error parsing activity times: $e');
           }
         } else {
           durationInMinutes = state.currentTask!.durationInMinutes;
@@ -342,7 +343,7 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
       _pomodoroIsWorkPhase = newPhaseIsWork;
 
       // Log phase transition
-      print(
+      if (kDebugMode) debugPrint(
         'EXPLICIT PHASE TRANSITION TO: ${newPhaseIsWork ? "WORK" : "REST"}',
       );
 
@@ -361,10 +362,10 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
       );
 
       // Print detailed debug information to help diagnose issues
-      print('NEW STATE EMITTED:');
-      print('- isWorkPhase: $newPhaseIsWork');
-      print('- pomodoroCount: $newPomodoroCount');
-      print('- timerStatus: ${TimerStatus.idle}');
+      if (kDebugMode) debugPrint('NEW STATE EMITTED:');
+      if (kDebugMode) debugPrint('- isWorkPhase: $newPhaseIsWork');
+      if (kDebugMode) debugPrint('- pomodoroCount: $newPomodoroCount');
+      if (kDebugMode) debugPrint('- timerStatus: ${TimerStatus.idle}');
 
       // Initialize timer after a very short delay
       Future.delayed(const Duration(milliseconds: 10), () {
@@ -400,8 +401,8 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
     final modeTimerStatus =
         isScheduleMode ? _scheduleTimerStatus : _pomodoroTimerStatus;
 
-    print('Changing to ${isScheduleMode ? "SCHEDULE" : "POMODORO"} mode');
-    print(
+    if (kDebugMode) debugPrint('Changing to ${isScheduleMode ? "SCHEDULE" : "POMODORO"} mode');
+    if (kDebugMode) debugPrint(
       'Current work phase: ${isScheduleMode ? "true" : _pomodoroIsWorkPhase.toString()}',
     );
 
@@ -439,11 +440,11 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
 
   // Debug helper method to verify phase state
   void _debugVerifyPhaseState() {
-    print('>>> DEBUG STATE INFO:');
-    print('>>> _pomodoroIsWorkPhase: $_pomodoroIsWorkPhase');
-    print('>>> state.isWorkPhase: ${state.isWorkPhase}');
-    print('>>> state.timerMode: ${state.timerMode}');
-    print('>>> state.timerStatus: ${state.timerStatus}');
+    if (kDebugMode) debugPrint('>>> DEBUG STATE INFO:');
+    if (kDebugMode) debugPrint('>>> _pomodoroIsWorkPhase: $_pomodoroIsWorkPhase');
+    if (kDebugMode) debugPrint('>>> state.isWorkPhase: ${state.isWorkPhase}');
+    if (kDebugMode) debugPrint('>>> state.timerMode: ${state.timerMode}');
+    if (kDebugMode) debugPrint('>>> state.timerStatus: ${state.timerStatus}');
   }
 
   void _onUpdateTimerSettings(
@@ -459,9 +460,9 @@ class ProClockBloc extends Bloc<ProClockEvent, ProClockState> {
     );
 
     // Print debug info to verify settings are updated
-    print('TIMER SETTINGS UPDATED:');
-    print('- Work minutes: ${event.workMinutes}');
-    print('- Rest minutes: ${event.restMinutes}');
+    if (kDebugMode) debugPrint('TIMER SETTINGS UPDATED:');
+    if (kDebugMode) debugPrint('- Work minutes: ${event.workMinutes}');
+    if (kDebugMode) debugPrint('- Rest minutes: ${event.restMinutes}');
 
     // Always reset the timer when settings change
     if (state.timerMode == TimerMode.pomodoro) {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Pro Clock repository
 
 import 'dart:async';
@@ -12,29 +13,27 @@ class ProClockRepository {
 
   // Fetch tasks for a specific date, filtering for current timebox
   Future<List<ProClockModel>> getTasksForDate(DateTime date) async {
-    print("date: $date");
+    if (kDebugMode) debugPrint("date: $date");
     try {
       final db = await _database;
 
-      final dateString =
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final dateString = DatabaseInitializer.formatDateOnly(date);
 
-      // Get all timeboxes for the selected date - using the correct column names
-      print("dateString: $dateString");
+      // Get all timeboxes for the selected date using consistent YYYY-MM-DD equality
       final scheduleData = await db.query(
         'schedule',
-        where: 'date LIKE ?',
-        whereArgs: ['${dateString}%'],
+        where: 'date = ?',
+        whereArgs: [dateString],
         orderBy:
             'startTimeHour ASC, startTimeMinute ASC', // Order by hour and minute
       );
 
       if (scheduleData.isEmpty) {
-        print('No schedule data found for date: $dateString');
+        if (kDebugMode) debugPrint('No schedule data found for date: $dateString');
         return [];
       }
 
-      print('Found ${scheduleData.length} timeboxes for date: $dateString');
+      if (kDebugMode) debugPrint('Found ${scheduleData.length} timeboxes for date: $dateString');
 
       // Convert all timeboxes to models for navigation
       final allTasks =
@@ -60,7 +59,7 @@ class ProClockRepository {
                 final todosList = json.decode(todoStr) as List<dynamic>;
                 todos = todosList.map((item) => item.toString()).toList();
               } catch (e) {
-                print('Error parsing todos JSON: $e');
+                if (kDebugMode) debugPrint('Error parsing todos JSON: $e');
               }
             }
 
@@ -92,16 +91,16 @@ class ProClockRepository {
           // Put the current task at the beginning of the list
           allTasks.remove(currentTask);
           allTasks.insert(0, currentTask);
-          print('Found current timebox: ${currentTask.currentTask}');
+          if (kDebugMode) debugPrint('Found current timebox: ${currentTask.currentTask}');
         } else {
-          print('No current timebox found for the current time');
+          if (kDebugMode) debugPrint('No current timebox found for the current time');
         }
       }
 
       return allTasks;
     } catch (e) {
       // Log the error and return empty list
-      print('Error fetching tasks for date: $e');
+      if (kDebugMode) debugPrint('Error fetching tasks for date: $e');
       return [];
     }
   }
@@ -146,7 +145,7 @@ class ProClockRepository {
       final minutes = int.parse(parts[1]);
       return hours * 60 + minutes;
     } catch (e) {
-      print('Error parsing time: $timeStr - $e');
+      if (kDebugMode) debugPrint('Error parsing time: $timeStr - $e');
       return 0;
     }
   }
@@ -159,8 +158,7 @@ class ProClockRepository {
   ) async {
     try {
       final db = await _database;
-      final dateString =
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final dateString = DatabaseInitializer.formatDateOnly(date);
 
       final result = await db.update(
         'schedule',
@@ -169,10 +167,10 @@ class ProClockRepository {
         whereArgs: [dateString, taskName],
       );
 
-      print('Updated $result rows for task: $taskName on $dateString');
+      if (kDebugMode) debugPrint('Updated $result rows for task: $taskName on $dateString');
       return result > 0;
     } catch (e) {
-      print('Error updating task status: $e');
+      if (kDebugMode) debugPrint('Error updating task status: $e');
       return false;
     }
   }
@@ -184,7 +182,7 @@ class ProClockRepository {
       final tasks = await getTasksForDate(now);
       return findCurrentTimebox(tasks);
     } catch (e) {
-      print('Error getting current task: $e');
+      if (kDebugMode) debugPrint('Error getting current task: $e');
       return null;
     }
   }
@@ -195,22 +193,11 @@ class ProClockRepository {
     await NotificationUtils.cancelNotificationsForDate(date);
 
     final tasks = await getTasksForDate(date);
-    print("tasks: $tasks"); // Make sure 'tasks' here already contains the 'id'
-    final db = await _database; // Get the database instance
-    // The dateString is not strictly needed anymore if 'tasks' already have their IDs.
-    // Keeping it for debugging or if getTasksForDate still relies on it.
-    final dateString = date.toIso8601String().split('T')[0];
 
-    for (int i = 0; i < tasks.length; i++) {
-      final task = tasks[i];
-      // Ensure your 'Task' model/class has an 'id' property.
-      // We'll use this id directly for the notification.
-      // If task.id is null or not the correct DB ID, this will fail.
-      if (task.id == null) {
-        print(
-          'Warning: Task ${task.currentTask} does not have an ID. Skipping notification.',
-        );
-        continue; // Skip this task if it doesn't have an ID
+    for (final task in tasks) {
+      final taskId = task.id;
+      if (taskId <= 0) {
+        continue;
       }
 
       // Parse start time
@@ -227,17 +214,9 @@ class ProClockRepository {
             minute,
           );
 
-          print("scheduledTime: $scheduledTime");
-
-          // Directly use task.id for the notification.
-          // No need to query the database again to find the ID.
-          final taskId =
-              task.id as int; // Cast to int, assuming task.id is dynamic/Object
-
           if (scheduledTime.isAfter(DateTime.now())) {
-            print("taskId: $taskId");
             await NotificationUtils.scheduleNotification(
-              id: taskId, // Use the ID from the 'task' object
+              id: taskId,
               title: 'Task Reminder',
               body:
                   'It\'s time! "${task.currentTask}" has just started. Check your schedule!',
@@ -245,7 +224,7 @@ class ProClockRepository {
             );
           }
         } catch (e) {
-          print('Error scheduling notification for task ID ${task.id}: $e');
+          if (kDebugMode) debugPrint('Error scheduling notification for task ID ${task.id}: $e');
         }
       }
     }

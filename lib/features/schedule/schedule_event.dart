@@ -1,7 +1,6 @@
 // Schedule Event file
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
 
 abstract class ScheduleEvent extends Equatable {
   const ScheduleEvent();
@@ -76,16 +75,16 @@ class ToggleHabitCompletion extends ScheduleEvent {
 }
 
 class ToggleTimeBoxCompletion extends ScheduleEvent {
-  final int timeBoxIndex;
+  final int id;
   final bool isCompleted;
 
   const ToggleTimeBoxCompletion({
-    required this.timeBoxIndex,
+    required this.id,
     required this.isCompleted,
   });
 
   @override
-  List<Object> get props => [timeBoxIndex, isCompleted];
+  List<Object> get props => [id, isCompleted];
 }
 
 // New events for timebox CRUD operations
@@ -174,15 +173,6 @@ class DeleteTimeBox extends ScheduleEvent {
 
   @override
   List<Object> get props => [id];
-}
-
-class SetContext extends ScheduleEvent {
-  final BuildContext context;
-
-  const SetContext({required this.context});
-
-  @override
-  List<Object?> get props => [context];
 }
 
 class RescheduleNotifications extends ScheduleEvent {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Habits repository
 
 import 'package:sqflite/sqflite.dart';
@@ -201,24 +202,24 @@ class HabitsRepository {
 
   /// Prints all objects and their nested properties recursively
   void printHabitsModelStructure(HabitsModel model) {
-    print('\n=== HABITS STATE DEBUG ===');
+    if (kDebugMode) debugPrint('\n=== HABITS STATE DEBUG ===');
     if (model.habits.isNotEmpty) {
       for (int i = 0; i < model.habits.length; i++) {
         final habit = model.habits[i];
-        print('\nHabit #${i + 1}:');
-        print('  Name: ${habit.habitName}');
-        print('  Description: ${habit.habitDescription}');
-        print('  Consecutive Progress: ${habit.habitConsecutiveProgress}');
-        print('  Total Progress: ${habit.habitTotalProgress}');
-        print('  Created At: ${habit.createdAt}');
-        print('  Start: ${habit.habitStart}');
-        print('  End: ${habit.habitEnd}');
-        print('  Status: ${habit.habitStatus}');
+        if (kDebugMode) debugPrint('\nHabit #${i + 1}:');
+        if (kDebugMode) debugPrint('  Name: ${habit.habitName}');
+        if (kDebugMode) debugPrint('  Description: ${habit.habitDescription}');
+        if (kDebugMode) debugPrint('  Consecutive Progress: ${habit.habitConsecutiveProgress}');
+        if (kDebugMode) debugPrint('  Total Progress: ${habit.habitTotalProgress}');
+        if (kDebugMode) debugPrint('  Created At: ${habit.createdAt}');
+        if (kDebugMode) debugPrint('  Start: ${habit.habitStart}');
+        if (kDebugMode) debugPrint('  End: ${habit.habitEnd}');
+        if (kDebugMode) debugPrint('  Status: ${habit.habitStatus}');
       }
     } else {
-      print('No habits data available');
+      if (kDebugMode) debugPrint('No habits data available');
     }
-    print('=== END HABITS STATE DEBUG ===\n');
+    if (kDebugMode) debugPrint('=== END HABITS STATE DEBUG ===\n');
   }
 }
 
@@ -252,7 +253,7 @@ Future<void> testHabitsRepository() async {
   // Test insert both habits
   final id1 = await repository.insertHabit(testHabit1);
   final id2 = await repository.insertHabit(testHabit2);
-  print('Created habits with IDs: $id1, $id2');
+  if (kDebugMode) debugPrint('Created habits with IDs: $id1, $id2');
 
   // Test get all and transform to model
   final allHabits = await repository.getAllHabits();
@@ -268,7 +269,7 @@ Future<void> testHabitsRepository() async {
     final singleHabitModel = repository.transformToHabitsModel([
       retrievedHabit1,
     ]);
-    print('\nRetrieved First Habit Model:');
+    if (kDebugMode) debugPrint('\nRetrieved First Habit Model:');
     repository.printHabitsModelStructure(singleHabitModel);
   }
 
@@ -278,7 +279,7 @@ Future<void> testHabitsRepository() async {
     final singleHabitModel = repository.transformToHabitsModel([
       retrievedHabit2,
     ]);
-    print('\nRetrieved Second Habit Model:');
+    if (kDebugMode) debugPrint('\nRetrieved Second Habit Model:');
     repository.printHabitsModelStructure(singleHabitModel);
   }
 
@@ -288,7 +289,7 @@ Future<void> testHabitsRepository() async {
     'consecutiveProgress': 25,
     'totalProgress': 30,
   });
-  print('\nUpdated first habit fields');
+  if (kDebugMode) debugPrint('\nUpdated first habit fields');
 
   // Test update by field for second habit
   await repository.updateHabitFields(id2, {
@@ -296,7 +297,7 @@ Future<void> testHabitsRepository() async {
     'consecutiveProgress': 35,
     'totalProgress': 60,
   });
-  print('\nUpdated second habit fields');
+  if (kDebugMode) debugPrint('\nUpdated second habit fields');
 
   // Test get by ID after updates
   final updatedHabit1 = await repository.getHabitById(id1);
@@ -306,12 +307,12 @@ Future<void> testHabitsRepository() async {
       updatedHabit1,
       updatedHabit2,
     ]);
-    print('\nUpdated Habits Model:');
+    if (kDebugMode) debugPrint('\nUpdated Habits Model:');
     repository.printHabitsModelStructure(updatedHabitsModel);
   }
 
   // Test delete both habits
   await repository.deleteHabit(id1);
   await repository.deleteHabit(id2);
-  print('\nDeleted test habits');
+  if (kDebugMode) debugPrint('\nDeleted test habits');
 }

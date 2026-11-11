@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:math';
@@ -5,6 +6,7 @@ import 'dart:async';
 import '../../widgets/app_drawer.dart';
 import '../../utils/theme_utils.dart';
 import '../../main.dart' as app_main;
+import '../progress_dashboard/points_service.dart';
 import '../settings/settings_state.dart';
 import 'todo_bloc.dart';
 import 'todo_event.dart';
@@ -136,7 +138,7 @@ class TodoItemCard extends StatelessWidget {
                 ),
                 onChanged: (bool? value) {
                   if (value != null) {
-                    print(
+                    if (kDebugMode) debugPrint(
                       'Toggling todo ID $todoId (${todo.todoName}) to $value',
                     );
 
@@ -438,12 +440,20 @@ class _TodoScreenState extends State<TodoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Set context in the bloc for showing points notifications
-    context.read<TodoBloc>().add(SetContext(context: context));
-
     final settingsState = app_main.settingsBloc.state;
 
-    return Scaffold(
+    return BlocListener<TodoBloc, TodoState>(
+      listenWhen:
+          (previous, current) =>
+              previous.pointsNotificationCounter !=
+                  current.pointsNotificationCounter &&
+              current.lastPointsDelta != null &&
+              current.lastPointsDelta != 0,
+      listener: (context, state) {
+        if (!mounted) return;
+        PointsService().showPointsNotification(context, state.lastPointsDelta!);
+      },
+      child: Scaffold(
       backgroundColor: settingsState.primaryColor,
       appBar: AppBar(
         title: const Text('Todo'),
@@ -516,6 +526,7 @@ class _TodoScreenState extends State<TodoScreen> {
           );
         },
       ),
+    ),
     );
   }
 

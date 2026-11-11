@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -14,7 +15,7 @@ class AlarmUtils {
       await _audioPlayer.play(AssetSource('lib/assets/alarm.mp3'));
     } catch (e) {
       // ignore: avoid_print
-      print('Error playing alarm: $e');
+      if (kDebugMode) debugPrint('Error playing alarm: $e');
     } finally {
       _isPlaying = false;
     }
@@ -30,7 +31,7 @@ class AlarmUtils {
       await _flutterTts.speak(message);
     } catch (e) {
       // ignore: avoid_print
-      print('Error with TTS: $e');
+      if (kDebugMode) debugPrint('Error with TTS: $e');
     }
   }
 

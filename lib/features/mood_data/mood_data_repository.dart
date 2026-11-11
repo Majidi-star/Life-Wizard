@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Mood Data repository
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
@@ -111,19 +112,19 @@ class MoodRepository {
 
   /// Prints all objects and their nested properties recursively
   void printMoodDataModelStructure(MoodDataModel model) {
-    print('\n=== Mood Data Model Structure ===');
+    if (kDebugMode) debugPrint('\n=== Mood Data Model Structure ===');
 
-    print('\nQuestions:');
+    if (kDebugMode) debugPrint('\nQuestions:');
     for (var i = 0; i < model.moodDataQs.length; i++) {
-      print('${i + 1}. ${model.moodDataQs[i]}');
+      if (kDebugMode) debugPrint('${i + 1}. ${model.moodDataQs[i]}');
     }
 
-    print('\nAnswers:');
+    if (kDebugMode) debugPrint('\nAnswers:');
     for (var i = 0; i < model.moodDataAns.length; i++) {
-      print('${i + 1}. ${model.moodDataAns[i]}');
+      if (kDebugMode) debugPrint('${i + 1}. ${model.moodDataAns[i]}');
     }
 
-    print('\n=== End of Mood Data Model Structure ===\n');
+    if (kDebugMode) debugPrint('\n=== End of Mood Data Model Structure ===\n');
   }
 
   /// Saves mood data responses to the database
@@ -180,7 +181,7 @@ Future<void> testMoodDataRepository() async {
   // Test insert both entries
   final id1 = await repository.insertMoodData(testMoodData1);
   final id2 = await repository.insertMoodData(testMoodData2);
-  print('Created mood data entries with IDs: $id1, $id2');
+  if (kDebugMode) debugPrint('Created mood data entries with IDs: $id1, $id2');
 
   // Test get all and transform to model
   final allMoodData = await repository.getAllMoodData();
@@ -196,7 +197,7 @@ Future<void> testMoodDataRepository() async {
     final singleMoodDataModel = repository.transformToMoodDataModel([
       retrievedMoodData1,
     ]);
-    print('\nRetrieved First Mood Data Model:');
+    if (kDebugMode) debugPrint('\nRetrieved First Mood Data Model:');
     repository.printMoodDataModelStructure(singleMoodDataModel);
   }
 
@@ -206,7 +207,7 @@ Future<void> testMoodDataRepository() async {
     final singleMoodDataModel = repository.transformToMoodDataModel([
       retrievedMoodData2,
     ]);
-    print('\nRetrieved Second Mood Data Model:');
+    if (kDebugMode) debugPrint('\nRetrieved Second Mood Data Model:');
     repository.printMoodDataModelStructure(singleMoodDataModel);
   }
 
@@ -217,7 +218,7 @@ Future<void> testMoodDataRepository() async {
     'answers':
         'I am feeling happy and energetic|I enjoyed reading and exercising|I had some trouble focusing at work|I want to complete my project',
   });
-  print('\nUpdated first mood data fields');
+  if (kDebugMode) debugPrint('\nUpdated first mood data fields');
 
   // Test update by field for second entry
   await repository.updateMoodDataFields(id2, {
@@ -226,7 +227,7 @@ Future<void> testMoodDataRepository() async {
     'answers':
         '8|Spending time with friends|I wish I had more time for hobbies|I am excited about the weekend',
   });
-  print('\nUpdated second mood data fields');
+  if (kDebugMode) debugPrint('\nUpdated second mood data fields');
 
   // Test get by ID after updates
   final updatedMoodData1 = await repository.getMoodDataById(id1);
@@ -236,12 +237,12 @@ Future<void> testMoodDataRepository() async {
       updatedMoodData1,
       updatedMoodData2,
     ]);
-    print('\nUpdated Mood Data Model:');
+    if (kDebugMode) debugPrint('\nUpdated Mood Data Model:');
     repository.printMoodDataModelStructure(updatedMoodDataModel);
   }
 
   // Test delete both entries
   await repository.deleteMoodData(id1);
   await repository.deleteMoodData(id2);
-  print('\nDeleted test mood data entries');
+  if (kDebugMode) debugPrint('\nDeleted test mood data entries');
 }

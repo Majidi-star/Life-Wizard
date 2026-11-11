@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 // Todo BLoC file
 
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../database_initializer.dart';
 import 'todo_event.dart';
@@ -12,7 +12,6 @@ import '../progress_dashboard/points_service.dart';
 class TodoBloc extends Bloc<TodoEvent, TodoState> {
   late final TodoRepository _repository;
   final PointsService _pointsService = PointsService();
-  BuildContext? _context;
 
   TodoBloc() : super(const TodoState()) {
     _initRepository();
@@ -21,12 +20,6 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
     on<UpdateTodo>(_onUpdateTodo);
     on<DeleteTodo>(_onDeleteTodo);
     on<ToggleTodoStatus>(_onToggleTodoStatus);
-    on<SetContext>(_onSetContext);
-  }
-
-  // Set the BuildContext for showing notifications
-  void _onSetContext(SetContext event, Emitter<TodoState> emit) {
-    _context = event.context;
   }
 
   Future<void> _initRepository() async {
@@ -216,20 +209,20 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
   ) async {
     try {
       // Log the event for debugging
-      print(
+      if (kDebugMode) debugPrint(
         'TodoBloc: Toggling todo status for ID: ${event.id} to: ${event.completed}',
       );
 
       // Find the todo by ID - log if not found
       final todoIndex = state.todos.indexWhere((todo) => todo.id == event.id);
       if (todoIndex == -1) {
-        print('TodoBloc: ERROR - Could not find todo with ID: ${event.id}');
+        if (kDebugMode) debugPrint('TodoBloc: ERROR - Could not find todo with ID: ${event.id}');
         emit(state.copyWith(error: 'Could not find todo with ID: ${event.id}'));
         return;
       }
 
       final todo = state.todos[todoIndex];
-      print('TodoBloc: Found todo: "${todo.todoName}" at index $todoIndex');
+      if (kDebugMode) debugPrint('TodoBloc: Found todo: "${todo.todoName}" at index $todoIndex');
 
       // Create an updated todo with the new status
       final updatedTodo = Todo(
@@ -269,17 +262,18 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
         points = await _pointsService.removePointsForUncompletion();
       }
 
-      // Show notification if context is available
-      if (_context != null) {
-        _pointsService.showPointsNotification(_context!, points);
-      }
-
-      print(
-        'TodoBloc: Successfully updated todo status. New list has ${updatedTodos.length} todos',
+      // Emit updated todos and points delta for the UI BlocListener to show snackbar.
+      emit(
+        state.copyWith(
+          todos: updatedTodos,
+          error: null,
+          lastPointsDelta: points,
+          pointsNotificationCounter:
+              points != 0
+                  ? state.pointsNotificationCounter + 1
+                  : state.pointsNotificationCounter,
+        ),
       );
-
-      // Update the state with the new todos list
-      emit(state.copyWith(todos: updatedTodos, error: null));
     } catch (e) {
       emit(state.copyWith(error: 'Failed to toggle todo status: $e'));
     }

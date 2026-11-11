@@ -43,34 +43,6 @@ class SettingsWidgets {
     );
   }
 
-  static Widget buildLanguageCard(
-    String selectedLanguage,
-    List<String> languages,
-    Function(String?) onChanged,
-  ) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'Select Language',
-            border: OutlineInputBorder(),
-          ),
-          value: selectedLanguage,
-          onChanged: onChanged,
-          items:
-              languages.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-        ),
-      ),
-    );
-  }
-
   static Widget buildToggleCard(
     String title,
     bool value,
@@ -267,68 +239,6 @@ class SettingsWidgets {
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  static Widget buildLanguageSection(
-    BuildContext context,
-    SettingsState state,
-  ) {
-    final List<Map<String, String>> languages = [
-      {'code': 'en', 'name': 'English'},
-      {'code': 'es', 'name': 'Spanish'},
-      {'code': 'fr', 'name': 'French'},
-      {'code': 'de', 'name': 'German'},
-      {'code': 'zh', 'name': 'Chinese'},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Language',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Card(
-          color: Theme.of(context).colorScheme.primary,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(
-              color: Theme.of(context).colorScheme.surfaceTint,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: DropdownButtonFormField<String>(
-              value: state.language,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-              ),
-              items:
-                  languages
-                      .map(
-                        (language) => DropdownMenuItem(
-                          value: language['code'],
-                          child: Text(language['name']!),
-                        ),
-                      )
-                      .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  context.read<SettingsBloc>().add(UpdateLanguage(value));
-                }
-              },
             ),
           ),
         ),
@@ -645,14 +555,14 @@ class SettingsWidgets {
     // Basic default models if the API fetch fails
     List<Map<String, String>> defaultModels = [
       {
-        'id': 'gemini-pro',
-        'name': 'Gemini Pro',
-        'description': 'Best for text generation and conversations',
+        'id': 'gemini-2.5-flash',
+        'name': 'Gemini 2.5 Flash',
+        'description': 'Fast and versatile model for everyday tasks',
       },
       {
-        'id': 'gemini-pro-vision',
-        'name': 'Gemini Pro Vision',
-        'description': 'Supports both text and image understanding',
+        'id': 'gemini-2.5-pro',
+        'name': 'Gemini 2.5 Pro',
+        'description': 'High-capability reasoning and complex tasks',
       },
     ];
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // Mood Data BLoC file
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -118,7 +119,7 @@ class MoodDataBloc extends Bloc<MoodDataEvent, MoodDataState> {
         emit(state.copyWith(responses: responses));
       }
     } catch (e) {
-      print('Error loading mood data from database: $e');
+      if (kDebugMode) debugPrint('Error loading mood data from database: $e');
     }
   }
 
@@ -158,7 +159,7 @@ class MoodDataBloc extends Bloc<MoodDataEvent, MoodDataState> {
         await _repository.updateMoodData(moodData);
       }
     } catch (e) {
-      print('Error saving mood data to database: $e');
+      if (kDebugMode) debugPrint('Error saving mood data to database: $e');
     }
   }
 

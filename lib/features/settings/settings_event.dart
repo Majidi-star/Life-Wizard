@@ -24,15 +24,6 @@ class UpdateTheme extends SettingsEvent {
   List<Object> get props => [theme];
 }
 
-class UpdateLanguage extends SettingsEvent {
-  final String language;
-
-  const UpdateLanguage(this.language);
-
-  @override
-  List<Object> get props => [language];
-}
-
 class UpdateNotifications extends SettingsEvent {
   final bool notifications;
 

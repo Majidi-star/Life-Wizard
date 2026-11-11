@@ -1,7 +1,6 @@
 // Todo Event file
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
 
 abstract class TodoEvent extends Equatable {
   const TodoEvent();
@@ -65,13 +64,4 @@ class ToggleTodoStatus extends TodoEvent {
 
   @override
   List<Object?> get props => [id, completed];
-}
-
-class SetContext extends TodoEvent {
-  final BuildContext context;
-
-  const SetContext({required this.context});
-
-  @override
-  List<Object?> get props => [context];
 }

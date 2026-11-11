@@ -2,16 +2,123 @@
 
 import 'package:flutter/foundation.dart';
 import '../../database_initializer.dart';
+import '../../main.dart' as app_main;
+import '../../utils/notification_utils.dart';
+import '../pro_clock/pro_clock_repository.dart';
 import 'dart:convert';
 import '../progress_dashboard/points_service.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import '../../features/schedule/schedule_repository.dart';
 
 /// AI Functions that can be called by the AI assistant
 class AIFunctions {
+  /// Optional override for deletion confirmation (useful in tests).
+  static Future<bool> Function({
+    required String itemType,
+    required String itemName,
+  })? confirmDeleteHandler;
+
+  static String _escapeLikePattern(String input) {
+    return input
+        .replaceAll('\\', '\\\\')
+        .replaceAll('%', '\\%')
+        .replaceAll('_', '\\_');
+  }
+
+  /// Resolves rows by exact case-insensitive match first, falling back to
+  /// escaped `LIKE`. Returns an error/candidates message if 0 or >1 rows match.
+  static Future<_NameMatchResult> _findUniqueByName(
+    Database db, {
+    required String table,
+    required String nameColumn,
+    required String queryName,
+    required String itemLabel,
+    String? extraWhere,
+    List<Object?> extraArgs = const [],
+    String? orderBy,
+  }) async {
+    final trimmed = queryName.trim();
+    final extraClause = extraWhere != null ? ' AND $extraWhere' : '';
+
+    final exactMatches = await db.query(
+      table,
+      where: 'LOWER($nameColumn) = LOWER(?)$extraClause',
+      whereArgs: [trimmed, ...extraArgs],
+      orderBy: orderBy,
+    );
+    if (exactMatches.length == 1) {
+      return _NameMatchResult(row: exactMatches.first);
+    }
+    if (exactMatches.length > 1) {
+      final names = exactMatches
+          .map((r) => '"${r[nameColumn]}" (id: ${r['id']})')
+          .join(', ');
+      return _NameMatchResult(
+        message:
+            'Multiple matches found for $itemLabel "$trimmed": $names. Please clarify which one.',
+      );
+    }
+
+    final escaped = _escapeLikePattern(trimmed);
+    final likeMatches = await db.query(
+      table,
+      where: "$nameColumn LIKE ? ESCAPE '\\'$extraClause",
+      whereArgs: ['%$escaped%', ...extraArgs],
+      orderBy: orderBy,
+    );
+    if (likeMatches.isEmpty) {
+      return _NameMatchResult(
+        message: 'No $itemLabel found matching "$trimmed".',
+      );
+    }
+    if (likeMatches.length > 1) {
+      final names = likeMatches
+          .map((r) => '"${r[nameColumn]}"')
+          .join(', ');
+      return _NameMatchResult(
+        message:
+            'Multiple matches found for $itemLabel "$trimmed": $names. Please specify the exact name.',
+      );
+    }
+    return _NameMatchResult(row: likeMatches.first);
+  }
+
+  static Future<bool> _confirmDeletion({
+    required String itemType,
+    required String itemName,
+  }) async {
+    if (confirmDeleteHandler != null) {
+      return await confirmDeleteHandler!(
+        itemType: itemType,
+        itemName: itemName,
+      );
+    }
+    final ctx = app_main.navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) {
+      return false;
+    }
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete $itemType "$itemName"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   /// Gets all todo items from the database with optional filtering
   ///
   /// [filter] can be:
@@ -127,20 +234,20 @@ class AIFunctions {
       // Get points service for updating points
       final pointsService = PointsService();
 
-      // First, find the todo by name (search both active and completed todos)
-      final List<Map<String, dynamic>> todos = await db.query(
-        'todo',
-        where: 'todoName LIKE ?',
-        whereArgs: ['%$todoName%'],
+      // First, find the todo by exact match or unambiguous LIKE match
+      final match = await _findUniqueByName(
+        db,
+        table: 'todo',
+        nameColumn: 'todoName',
+        queryName: todoName,
+        itemLabel: 'todo',
         orderBy: 'priority DESC',
       );
-
-      if (todos.isEmpty) {
-        return 'No todo found with name similar to "$todoName".';
+      if (match.message != null) {
+        return match.message!;
       }
 
-      // If multiple todos match, use the first one
-      final todo = todos.first;
+      final todo = match.row!;
       final int todoId = todo['id'];
       final int currentStatus = todo['todoStatus'] as int;
 
@@ -269,21 +376,31 @@ class AIFunctions {
       debugPrint("Starting delete_todo with name: $todoName");
       final db = await DatabaseInitializer.database;
 
-      // Find the todo by name (search active todos only)
-      final List<Map<String, dynamic>> todos = await db.query(
-        'todo',
-        where: 'todoName LIKE ? AND todoStatus = ?',
-        whereArgs: ['%$todoName%', 0], // 0 means active
+      // Find the todo by exact match or unambiguous LIKE match (active todos only)
+      final match = await _findUniqueByName(
+        db,
+        table: 'todo',
+        nameColumn: 'todoName',
+        queryName: todoName,
+        itemLabel: 'active todo',
+        extraWhere: 'todoStatus = ?',
+        extraArgs: [0],
       );
-
-      if (todos.isEmpty) {
-        return 'No active todo found with name similar to "$todoName".';
+      if (match.message != null) {
+        return match.message!;
       }
 
-      // If multiple todos match, use the first one
-      final todo = todos.first;
+      final todo = match.row!;
       final int todoId = todo['id'];
       final String exactTodoName = todo['todoName'];
+
+      final confirmed = await _confirmDeletion(
+        itemType: 'todo',
+        itemName: exactTodoName,
+      );
+      if (!confirmed) {
+        return 'Deletion cancelled: "$exactTodoName" was not deleted.';
+      }
 
       debugPrint("Found todo with ID: $todoId, deleting it...");
 
@@ -400,11 +517,6 @@ class AIFunctions {
       default:
         return 'Priority $priority';
     }
-  }
-
-  /// Helper function to get the minimum of two integers
-  static int min(int a, int b) {
-    return a < b ? a : b;
   }
 
   /// Gets all habits from the database
@@ -552,26 +664,19 @@ class AIFunctions {
       final db = await DatabaseInitializer.database;
       debugPrint("update_habit: Database instance obtained");
 
-      // Find the habit by name
-      final List<Map<String, dynamic>> habits = await db.query(
-        'habits',
-        where: 'name LIKE ?',
-        whereArgs: ['%$habitName%'],
+      // Find the habit by exact match or unambiguous LIKE match
+      final match = await _findUniqueByName(
+        db,
+        table: 'habits',
+        nameColumn: 'name',
+        queryName: habitName,
+        itemLabel: 'habit',
       );
-
-      debugPrint(
-        "update_habit: Query executed, found ${habits.length} matching habits",
-      );
-
-      if (habits.isEmpty) {
-        debugPrint(
-          "update_habit: No habit found with name similar to '$habitName'",
-        );
-        return 'No habit found with name similar to "$habitName".';
+      if (match.message != null) {
+        return match.message!;
       }
 
-      // If multiple habits match, use the first one
-      final habit = habits.first;
+      final habit = match.row!;
       final int habitId = habit['id'];
 
       debugPrint(
@@ -670,28 +775,29 @@ class AIFunctions {
       final db = await DatabaseInitializer.database;
       debugPrint("delete_habit: Database instance obtained");
 
-      // Find the habit by name
-      final List<Map<String, dynamic>> habits = await db.query(
-        'habits',
-        where: 'name LIKE ?',
-        whereArgs: ['%$habitName%'],
+      // Find the habit by exact match or unambiguous LIKE match
+      final match = await _findUniqueByName(
+        db,
+        table: 'habits',
+        nameColumn: 'name',
+        queryName: habitName,
+        itemLabel: 'habit',
       );
-
-      debugPrint(
-        "delete_habit: Query executed, found ${habits.length} matching habits",
-      );
-
-      if (habits.isEmpty) {
-        debugPrint(
-          "delete_habit: No habit found with name similar to '$habitName'",
-        );
-        return 'No habit found with name similar to "$habitName".';
+      if (match.message != null) {
+        return match.message!;
       }
 
-      // If multiple habits match, use the first one
-      final habit = habits.first;
+      final habit = match.row!;
       final int habitId = habit['id'];
       final String exactHabitName = habit['name'];
+
+      final confirmed = await _confirmDeletion(
+        itemType: 'habit',
+        itemName: exactHabitName,
+      );
+      if (!confirmed) {
+        return 'Deletion cancelled: "$exactHabitName" was not deleted.';
+      }
 
       debugPrint(
         "delete_habit: Found habit with ID: $habitId, name: $exactHabitName",
@@ -789,17 +895,18 @@ class AIFunctions {
   /// [date] should be in YYYY-MM-DD format
   static Future<String> get_schedule_for_date({required String date}) async {
     try {
-      debugPrint("Starting get_schedule_for_date with date: $date");
+      final normalizedDate = DatabaseInitializer.normalizeDateString(date);
+      debugPrint("Starting get_schedule_for_date with date: $normalizedDate");
       final db = await DatabaseInitializer.database;
       final List<Map<String, dynamic>> results = await db.query(
         'schedule',
         where: 'date = ?',
-        whereArgs: [date],
+        whereArgs: [normalizedDate],
         orderBy: 'startTimeHour ASC, startTimeMinute ASC',
       );
 
       if (results.isEmpty) {
-        return 'No schedule timeboxes found for $date.';
+        return 'No schedule timeboxes found for $normalizedDate.';
       }
 
       final StringBuffer formattedResults = StringBuffer();
@@ -976,19 +1083,19 @@ class AIFunctions {
 
       final db = await DatabaseInitializer.database;
 
-      // Find the goal by name
-      final List<Map<String, dynamic>> goals = await db.query(
-        'goals',
-        where: 'name LIKE ?',
-        whereArgs: ['%$goalName%'],
+      // Find the goal by exact match or unambiguous LIKE match
+      final match = await _findUniqueByName(
+        db,
+        table: 'goals',
+        nameColumn: 'name',
+        queryName: goalName,
+        itemLabel: 'goal',
       );
-
-      if (goals.isEmpty) {
-        return 'No goal found with name similar to "$goalName".';
+      if (match.message != null) {
+        return match.message!;
       }
 
-      // If multiple goals match, use the first one
-      final goal = goals.first;
+      final goal = match.row!;
       final int goalId = goal['id'];
 
       debugPrint("Found goal with ID: $goalId, name: ${goal['name']}");
@@ -1112,28 +1219,29 @@ class AIFunctions {
       final db = await DatabaseInitializer.database;
       debugPrint("delete_goal: Database instance obtained");
 
-      // Find the goal by name
-      final List<Map<String, dynamic>> goals = await db.query(
-        'goals',
-        where: 'name LIKE ?',
-        whereArgs: ['%$goalName%'],
+      // Find the goal by exact match or unambiguous LIKE match
+      final match = await _findUniqueByName(
+        db,
+        table: 'goals',
+        nameColumn: 'name',
+        queryName: goalName,
+        itemLabel: 'goal',
       );
-
-      debugPrint(
-        "delete_goal: Query executed, found ${goals.length} matching goals",
-      );
-
-      if (goals.isEmpty) {
-        debugPrint(
-          "delete_goal: No goal found with name similar to '$goalName'",
-        );
-        return 'No goal found with name similar to "$goalName".';
+      if (match.message != null) {
+        return match.message!;
       }
 
-      // If multiple goals match, use the first one
-      final goal = goals.first;
+      final goal = match.row!;
       final int goalId = goal['id'];
       final String exactGoalName = goal['name'];
+
+      final confirmed = await _confirmDeletion(
+        itemType: 'goal',
+        itemName: exactGoalName,
+      );
+      if (!confirmed) {
+        return 'Deletion cancelled: "$exactGoalName" was not deleted.';
+      }
 
       debugPrint(
         "delete_goal: Found goal with ID: $goalId, name: $exactGoalName",
@@ -1236,8 +1344,13 @@ class AIFunctions {
           safeTimebox['timeBoxStatus'] = 'planned';
         }
 
+        final normalizedDate = DatabaseInitializer.normalizeDateString(
+          safeTimebox['date'].toString(),
+        );
+        safeTimebox['date'] = normalizedDate;
+
         final int id = await DatabaseInitializer.addScheduleTimebox(
-          date: safeTimebox['date'],
+          date: normalizedDate,
           challenge:
               safeTimebox['challenge'] is bool
                   ? (safeTimebox['challenge'] ? 1 : 0)
@@ -1255,13 +1368,17 @@ class AIFunctions {
           habits: safeTimebox['habits'],
         );
         if (id > 0) {
+          final parsedDate = DateTime.tryParse(normalizedDate);
+          if (parsedDate != null) {
+            await ProClockRepository().scheduleNotificationsForDate(parsedDate);
+          }
           results.add(
-            'Success: ${safeTimebox['date']} - ${safeTimebox['activity']}',
+            'Success: $normalizedDate - ${safeTimebox['activity']}',
           );
           debugPrint('Successfully added timebox with ID: $id');
         } else {
           results.add(
-            'Failed: ${safeTimebox['date']} - ${safeTimebox['activity']}',
+            'Failed: $normalizedDate - ${safeTimebox['activity']}',
           );
           debugPrint('Failed to add timebox (ID: $id)');
         }
@@ -1288,7 +1405,9 @@ class AIFunctions {
 
     for (final timebox in timeboxes) {
       try {
-        final String date = timebox['date'];
+        final String date = DatabaseInitializer.normalizeDateString(
+          timebox['date'].toString(),
+        );
         final int startTimeHour = timebox['startTimeHour'];
         final int startTimeMinute = timebox['startTimeMinute'];
         // Find the timebox
@@ -1381,6 +1500,10 @@ class AIFunctions {
           whereArgs: [id],
         );
         if (updatedRows > 0) {
+          final parsedDate = DateTime.tryParse(date);
+          if (parsedDate != null) {
+            await ProClockRepository().scheduleNotificationsForDate(parsedDate);
+          }
           results.add('Updated: $date at $startTimeHour:$startTimeMinute');
         } else {
           results.add('No changes: $date at $startTimeHour:$startTimeMinute');
@@ -1402,12 +1525,15 @@ class AIFunctions {
   }) async {
     final db = await DatabaseInitializer.database;
     final List<String> results = [];
+    final List<Map<String, dynamic>> toDelete = [];
+
     for (final timebox in timeboxes) {
       try {
-        final String date = timebox['date'];
+        final String date = DatabaseInitializer.normalizeDateString(
+          timebox['date'].toString(),
+        );
         final int startTimeHour = timebox['startTimeHour'];
         final int startTimeMinute = timebox['startTimeMinute'];
-        // Find the timebox
         final List<Map<String, dynamic>> found = await db.query(
           'schedule',
           where: 'date = ? AND startTimeHour = ? AND startTimeMinute = ?',
@@ -1417,21 +1543,48 @@ class AIFunctions {
           results.add('Not found: $date at $startTimeHour:$startTimeMinute');
           continue;
         }
-        final int id = found.first['id'];
-        final int deletedRows = await db.delete(
-          'schedule',
-          where: 'id = ?',
-          whereArgs: [id],
-        );
-        if (deletedRows > 0) {
-          results.add('Deleted: $date at $startTimeHour:$startTimeMinute');
-        } else {
-          results.add('Failed: $date at $startTimeHour:$startTimeMinute');
-        }
+        toDelete.add(found.first);
       } catch (e) {
         results.add(
           'Error: ${timebox['date']} at ${timebox['startTimeHour']}:${timebox['startTimeMinute']}: $e',
         );
+      }
+    }
+
+    if (toDelete.isEmpty) {
+      return results.join('\n');
+    }
+
+    final summary = toDelete
+        .map(
+          (row) =>
+              '${row['activity']} (${row['date']} ${row['startTimeHour'].toString().padLeft(2, '0')}:${row['startTimeMinute'].toString().padLeft(2, '0')})',
+        )
+        .join(', ');
+    final confirmed = await _confirmDeletion(
+      itemType: 'schedule timebox(es)',
+      itemName: summary,
+    );
+    if (!confirmed) {
+      return 'Deletion cancelled: schedule timebox(es) ($summary) were not deleted.';
+    }
+
+    for (final row in toDelete) {
+      final int id = row['id'] as int;
+      final String date = row['date'].toString();
+      final int startTimeHour = row['startTimeHour'] as int;
+      final int startTimeMinute = row['startTimeMinute'] as int;
+      // Cancel scheduled notification BEFORE deleting the row.
+      await NotificationUtils.cancelNotificationById(id);
+      final int deletedRows = await db.delete(
+        'schedule',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (deletedRows > 0) {
+        results.add('Deleted: $date at $startTimeHour:$startTimeMinute');
+      } else {
+        results.add('Failed: $date at $startTimeHour:$startTimeMinute');
       }
     }
     return results.join('\n');
@@ -1473,26 +1626,29 @@ class AIFunctions {
       final pointsService = PointsService();
       bool habitStatusChanged = false;
 
-      // First, check if the habit exists in the habits table
-      final List<Map<String, dynamic>> habits = await db.query(
-        'habits',
-        where: 'name LIKE ?',
-        whereArgs: ['%$habitName%'],
+      // First, resolve the habit by exact match or unambiguous LIKE match
+      final match = await _findUniqueByName(
+        db,
+        table: 'habits',
+        nameColumn: 'name',
+        queryName: habitName,
+        itemLabel: 'habit',
       );
-
-      if (habits.isEmpty) {
-        return 'No habit found with name similar to "$habitName".';
+      if (match.message != null) {
+        return match.message!;
       }
+      final List<Map<String, dynamic>> habits = [match.row!];
 
+      final targetDateStr = DatabaseInitializer.formatDateOnly(targetDate);
       // Get schedules for the target date
       final List<Map<String, dynamic>> schedules = await db.query(
         'schedule',
         where: 'date = ?',
-        whereArgs: [targetDate.toIso8601String().split('T')[0]],
+        whereArgs: [targetDateStr],
       );
 
       if (schedules.isEmpty) {
-        return 'No schedule found for ${targetDate.toIso8601String().split('T')[0]}.';
+        return 'No schedule found for $targetDateStr.';
       }
 
       // Process each schedule (timebox)
@@ -1824,4 +1980,11 @@ class AIFunctions {
     final difference = date2.difference(date1).inDays;
     return difference == 1;
   }
+}
+
+class _NameMatchResult {
+  final Map<String, dynamic>? row;
+  final String? message;
+
+  const _NameMatchResult({this.row, this.message});
 }

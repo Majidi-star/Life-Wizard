@@ -1,35 +1,42 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:lifewizard/main.dart';
+import 'package:life_wizard/features/ai_chat/gemini_chat_service.dart';
+import 'package:life_wizard/features/ai_prompting/message_formatter.dart';
+import 'package:life_wizard/widgets/loading_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Create mock or fake preferences
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
+  testWidgets('LoadingScreen renders without errors', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: LoadingScreen()),
+    );
 
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp(preferences: prefs));
+    expect(find.byType(LoadingScreen), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Advance past the quote timer and fade animation so no pending timers remain.
+    await tester.pump(const Duration(seconds: 14));
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('MessageFormatter formats user request and system instruction', () {
+    final userTurn = MessageFormatter.formatUserRequest('Plan my day');
+    expect(userTurn, '<user_request>Plan my day</user_request>');
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final sys = MessageFormatter.buildSystemInstruction(
+      aiGuidelines: 'Be concise',
+      moodData: 'Energy: 8/10',
+    );
+    expect(sys.contains('Be concise'), isTrue);
+    expect(sys.contains('Energy: 8/10'), isTrue);
+    expect(sys.contains('{MOOD_DATA_PLACEHOLDER}'), isFalse);
+  });
+
+  test('GeminiChatService sanitizeErrorText masks API keys', () {
+    final sanitized = GeminiChatService.sanitizeErrorText(
+      'Failed calling https://example.com?key=SECRET123&alt=json with SECRET123',
+      secretKey: 'SECRET123',
+    );
+    expect(sanitized.contains('SECRET123'), isFalse);
   });
 }

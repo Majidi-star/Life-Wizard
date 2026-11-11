@@ -1,151 +1,138 @@
-import '../../main.dart';
-import 'sys_prompt.dart';
 import 'package:intl/intl.dart';
+import '../mood_data/mood_data_state.dart';
+import 'sys_prompt.dart';
 
-/// Formats messages sent to the AI by adding system prompt and wrapping user message in tags
+/// Formats messages and system instructions sent to the AI.
 class MessageFormatter {
-  /// Prepares a message for sending to the AI
-  ///
-  /// Takes the user's message and:
-  /// 1. Wraps the user's message in <user_request> tags
-  /// 2. Adds the system prompt from SystemPrompt class in <system_prompt> tags
-  ///
-  /// @param userMessage The original message from the user
-  /// @return A properly formatted message ready to send to the AI
-  static String formatMessage(String userMessage) {
-    final formattedMessage = StringBuffer();
+  /// Returns formatted mood data string from [moodState].
+  static String getFormattedMoodData(MoodDataState? moodState) {
+    if (moodState == null || moodState.responses.isEmpty) {
+      return 'The user has not provided any mood data yet.';
+    }
 
-    // Add the user's message wrapped in <user_request> tags
-    formattedMessage.write('<user_request>');
-    formattedMessage.write(userMessage);
-    formattedMessage.write('</user_request>');
+    final StringBuffer moodInfo = StringBuffer();
+    moodInfo.writeln('User Mood Data:');
 
-    // Add a separator
-    formattedMessage.write('\n\n');
+    for (final entry in moodState.responses.entries) {
+      final questionId = entry.key;
+      final question = moodState.questions.firstWhere(
+        (q) => q.id == questionId,
+        orElse: () => const MoodQuestion(id: '', question: '', options: []),
+      );
 
-    // Get current date and time
-    final now = DateTime.now();
-    final dateFormatter = DateFormat('EEEE, MMMM d, yyyy');
-    final timeFormatter = DateFormat('HH:mm:ss');
-    final currentDate = dateFormatter.format(now);
-    final currentTime = timeFormatter.format(now);
-
-    // Get AI Guidelines from settings
-    String aiGuidelines = '';
-    try {
-      aiGuidelines = settingsBloc.state.aiGuideLines;
-      if (aiGuidelines == 'default') {
-        aiGuidelines = '';
+      if (question.id.isNotEmpty) {
+        moodInfo.writeln('- ${question.question}: ${entry.value}');
       }
-    } catch (e) {
-      print('Error getting AI guidelines: $e');
     }
 
-    // Add the system prompt wrapped in <system_prompt> tags
-    formattedMessage.write('<system_prompt>');
-
-    // Include current date and time
-    formattedMessage.write('<current_datetime>\n');
-    formattedMessage.write('Current Date: $currentDate\n');
-    formattedMessage.write('Current Time: $currentTime\n');
-    formattedMessage.write('</current_datetime>\n\n');
-
-    // Include user's AI guidelines if available
-    if (aiGuidelines.isNotEmpty) {
-      formattedMessage.write('<user_guidelines>\n');
-      formattedMessage.write(aiGuidelines);
-      formattedMessage.write('\n</user_guidelines>\n\n');
-    }
-
-    formattedMessage.write(SystemPrompt.prompt);
-    formattedMessage.write('</system_prompt>');
-
-    return formattedMessage.toString();
+    final text = moodInfo.toString().trim();
+    return text.isNotEmpty
+        ? text
+        : 'The user has not provided any mood data yet.';
   }
 
-  /// Formats a message with conversation history for the AI
-  ///
-  /// @param userMessage The current user message
-  /// @param history List of previous messages in the conversation
-  /// @return A properly formatted message with history context
+  /// Builds the `systemInstruction` text with datetime, guidelines, and mood data.
+  static String buildSystemInstruction({
+    String aiGuidelines = '',
+    MoodDataState? moodDataState,
+    String? moodData,
+  }) {
+    final now = DateTime.now();
+    final currentDate = DateFormat('EEEE, MMMM d, yyyy').format(now);
+    final currentTime = DateFormat('HH:mm:ss').format(now);
+
+    final guidelines = aiGuidelines == 'default' ? '' : aiGuidelines;
+
+    final resolvedMoodData = moodData ?? getFormattedMoodData(moodDataState);
+    final resolvedPrompt = SystemPrompt.prompt.replaceAll(
+      '{MOOD_DATA_PLACEHOLDER}',
+      resolvedMoodData,
+    );
+
+    final buffer = StringBuffer();
+    buffer.write('<current_datetime>\n');
+    buffer.write('Current Date: $currentDate\n');
+    buffer.write('Current Time: $currentTime\n');
+    buffer.write('</current_datetime>\n\n');
+
+    if (guidelines.isNotEmpty) {
+      buffer.write('<user_guidelines>\n');
+      buffer.write(guidelines);
+      buffer.write('\n</user_guidelines>\n\n');
+    }
+
+    buffer.write(resolvedPrompt);
+    return buffer.toString();
+  }
+
+  /// Wraps a user message in `<user_request>` tags.
+  static String formatUserRequest(String userMessage) {
+    return '<user_request>$userMessage</user_request>';
+  }
+
+  /// Builds Gemini REST `contents` with alternating `user` and `model` turns.
+  /// Consecutive messages from the same role are merged into one Content entry.
+  static List<Map<String, dynamic>> buildContents(
+    List<Map<String, dynamic>> history,
+    String currentUserTurnText,
+  ) {
+    final List<Map<String, dynamic>> contents = [];
+
+    void appendTurn(String role, String text) {
+      if (text.isEmpty) return;
+      if (contents.isNotEmpty && contents.last['role'] == role) {
+        final parts = contents.last['parts'] as List<Map<String, dynamic>>;
+        parts.add({'text': text});
+      } else {
+        contents.add({
+          'role': role,
+          'parts': <Map<String, dynamic>>[
+            {'text': text},
+          ],
+        });
+      }
+    }
+
+    for (final entry in history) {
+      final role = entry['isUser'] == true ? 'user' : 'model';
+      final content = entry['message'] as String? ?? '';
+      appendTurn(role, content);
+    }
+
+    appendTurn('user', currentUserTurnText);
+    return contents;
+  }
+
+  /// Prepares a single formatted message (used by debug/example screens).
+  static String formatMessage(String userMessage) {
+    final systemPrompt = buildSystemInstruction();
+    return '${formatUserRequest(userMessage)}\n\n<system_prompt>$systemPrompt</system_prompt>';
+  }
+
+  /// Formats a message with conversation history (used by debug/example screens).
   static String formatMessageWithHistory(
     String userMessage,
     List<Map<String, dynamic>> history,
   ) {
     final formattedMessage = StringBuffer();
-
-    // Add the current user message wrapped in tags
-    formattedMessage.write('<user_request>');
-    formattedMessage.write(userMessage);
-    formattedMessage.write('</user_request>');
-
-    // Add a separator
+    formattedMessage.write(formatUserRequest(userMessage));
     formattedMessage.write('\n\n');
 
-    // Add conversation history context
     if (history.isNotEmpty) {
       formattedMessage.write('<conversation_history>\n');
-
       for (final message in history) {
         final isUser = message['isUser'] == true;
         final content = message['message'] as String? ?? '';
-
-        if (isUser) {
-          formattedMessage.write('User: $content\n');
-        } else {
-          formattedMessage.write('Assistant: $content\n');
-        }
+        formattedMessage.write(isUser ? 'User: $content\n' : 'Assistant: $content\n');
       }
-
       formattedMessage.write('</conversation_history>\n\n');
     }
 
-    // Get current date and time
-    final now = DateTime.now();
-    final dateFormatter = DateFormat('EEEE, MMMM d, yyyy');
-    final timeFormatter = DateFormat('HH:mm:ss');
-    final currentDate = dateFormatter.format(now);
-    final currentTime = timeFormatter.format(now);
-
-    // Get AI Guidelines from settings
-    String aiGuidelines = '';
-    try {
-      aiGuidelines = settingsBloc.state.aiGuideLines;
-      if (aiGuidelines == 'default') {
-        aiGuidelines = '';
-      }
-    } catch (e) {
-      print('Error getting AI guidelines: $e');
-    }
-
-    // Add the system prompt wrapped in <system_prompt> tags
-    formattedMessage.write('<system_prompt>');
-
-    // Include current date and time
-    formattedMessage.write('<current_datetime>\n');
-    formattedMessage.write('Current Date: $currentDate\n');
-    formattedMessage.write('Current Time: $currentTime\n');
-    formattedMessage.write('</current_datetime>\n\n');
-
-    // Include user's AI guidelines if available
-    if (aiGuidelines.isNotEmpty) {
-      formattedMessage.write('<user_guidelines>\n');
-      formattedMessage.write(aiGuidelines);
-      formattedMessage.write('\n</user_guidelines>\n\n');
-    }
-
-    formattedMessage.write(SystemPrompt.prompt);
-    formattedMessage.write('</system_prompt>');
-
+    formattedMessage.write('<system_prompt>${buildSystemInstruction()}</system_prompt>');
     return formattedMessage.toString();
   }
 
-  /// Extracts just the user request part from a fully formatted message
-  ///
-  /// This is useful when you need to get back just the original user message
-  ///
-  /// @param formattedMessage The formatted message containing system prompt and tagged user request
-  /// @return Just the user's original message, or null if no user request tag is found
+  /// Extracts just the user request part from a fully formatted message.
   static String? extractUserRequest(String formattedMessage) {
     final RegExp userRequestPattern = RegExp(
       r'<user_request>([\s\S]*?)<\/user_request>',

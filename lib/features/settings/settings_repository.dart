@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
 import 'settings_model.dart';
@@ -34,7 +36,8 @@ class Settings {
       'moodTracking': moodTracking ? 1 : 0,
       'feedbackFrequency': feedbackFrequency,
       'AIGuideLines': aiGuidelines,
-      'geminiApiKey': geminiApiKey,
+      // Never persist the API key in plain-text SQLite; stored in FlutterSecureStorage instead.
+      'geminiApiKey': '',
       'geminiModel': geminiModel,
     };
   }
@@ -56,9 +59,28 @@ class Settings {
 
 class SettingsRepository {
   final Database _db;
+  final FlutterSecureStorage _secureStorage;
   static const String _tableName = 'settings';
+  static const String _apiKeyStorageKey = 'gemini_api_key';
 
-  SettingsRepository(this._db);
+  SettingsRepository(this._db, {FlutterSecureStorage? secureStorage})
+    : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+
+  Future<String> getApiKey() async {
+    return (await _secureStorage.read(key: _apiKeyStorageKey)) ?? '';
+  }
+
+  Future<void> saveApiKey(String apiKey) async {
+    if (apiKey.isEmpty) {
+      await _secureStorage.delete(key: _apiKeyStorageKey);
+    } else {
+      await _secureStorage.write(key: _apiKeyStorageKey, value: apiKey);
+    }
+  }
+
+  Future<void> deleteApiKey() async {
+    await _secureStorage.delete(key: _apiKeyStorageKey);
+  }
 
   Future<int> createRow(Settings settings) async {
     return await _db.insert(_tableName, settings.toMap());
@@ -103,7 +125,18 @@ class SettingsRepository {
   }
 
   /// Transforms database Settings into SettingsModel structure
-  SettingsModel transformToSettingsModel(Settings settings) {
+  SettingsModel transformToSettingsModel(
+    Settings settings, {
+    String? secureApiKey,
+  }) {
+    final model = settings.geminiModel;
+    final resolvedModel =
+        (model == null ||
+                model.isEmpty ||
+                model == 'gemini-pro' ||
+                model == 'gemini-pro-vision')
+            ? 'gemini-2.5-flash'
+            : model;
     return SettingsModel(
       isDarkMode: settings.isDarkMode,
       language: settings.language,
@@ -111,25 +144,25 @@ class SettingsRepository {
       moodTrackingOn: settings.moodTracking,
       feedbackFrequency: settings.feedbackFrequency,
       AIGuidelines: settings.aiGuidelines ?? '',
-      geminiApiKey: settings.geminiApiKey ?? '',
-      geminiModel: settings.geminiModel ?? 'gemini-pro',
+      geminiApiKey: secureApiKey ?? settings.geminiApiKey ?? '',
+      geminiModel: resolvedModel,
     );
   }
 
   /// Prints all objects and their nested properties recursively
   void printSettingsModelStructure(SettingsModel model) {
-    print('\n=== Settings Model Structure ===');
-    print('Dark Mode: ${model.isDarkMode}');
-    print('Language: ${model.language}');
-    print('Notifications: ${model.notificationsOn}');
-    print('Mood Tracking: ${model.moodTrackingOn}');
-    print('Feedback Frequency: ${model.feedbackFrequency}');
-    print('AI Guidelines: ${model.AIGuidelines}');
-    print(
+    if (kDebugMode) debugPrint('\n=== Settings Model Structure ===');
+    if (kDebugMode) debugPrint('Dark Mode: ${model.isDarkMode}');
+    if (kDebugMode) debugPrint('Language: ${model.language}');
+    if (kDebugMode) debugPrint('Notifications: ${model.notificationsOn}');
+    if (kDebugMode) debugPrint('Mood Tracking: ${model.moodTrackingOn}');
+    if (kDebugMode) debugPrint('Feedback Frequency: ${model.feedbackFrequency}');
+    if (kDebugMode) debugPrint('AI Guidelines: ${model.AIGuidelines}');
+    if (kDebugMode) debugPrint(
       'Gemini API Key: ${model.geminiApiKey.isEmpty ? "(Not set)" : "********"}',
     );
-    print('Gemini Model: ${model.geminiModel}');
-    print('=== End of Settings Model Structure ===\n');
+    if (kDebugMode) debugPrint('Gemini Model: ${model.geminiModel}');
+    if (kDebugMode) debugPrint('=== End of Settings Model Structure ===\n');
   }
 }
 
@@ -165,11 +198,11 @@ Future<void> testSettingsRepository() async {
   // Test insert both entries
   final id1 = await repository.createRow(testSettings1);
   final id2 = await repository.createRow(testSettings2);
-  print('Created settings entries with IDs: $id1, $id2');
+  if (kDebugMode) debugPrint('Created settings entries with IDs: $id1, $id2');
 
   // Test get all and transform to model
   final allSettings = await repository.getAll();
-  print('\nAll Settings Models:');
+  if (kDebugMode) debugPrint('\nAll Settings Models:');
   for (var settings in allSettings) {
     final settingsModel = repository.transformToSettingsModel(settings);
     repository.printSettingsModelStructure(settingsModel);
@@ -181,7 +214,7 @@ Future<void> testSettingsRepository() async {
     final settingsModel1 = repository.transformToSettingsModel(
       retrievedSettings1,
     );
-    print('\nRetrieved First Settings Model:');
+    if (kDebugMode) debugPrint('\nRetrieved First Settings Model:');
     repository.printSettingsModelStructure(settingsModel1);
   }
 
@@ -191,7 +224,7 @@ Future<void> testSettingsRepository() async {
     final settingsModel2 = repository.transformToSettingsModel(
       retrievedSettings2,
     );
-    print('\nRetrieved Second Settings Model:');
+    if (kDebugMode) debugPrint('\nRetrieved Second Settings Model:');
     repository.printSettingsModelStructure(settingsModel2);
   }
 
@@ -199,13 +232,13 @@ Future<void> testSettingsRepository() async {
   await repository.updateByField(id1, 'language', 'fr');
   await repository.updateByField(id1, 'isDarkMode', 0);
   await repository.updateByField(id1, 'notifications', 0);
-  print('\nUpdated first settings fields');
+  if (kDebugMode) debugPrint('\nUpdated first settings fields');
 
   // Test update by field for second entry
   await repository.updateByField(id2, 'language', 'de');
   await repository.updateByField(id2, 'isDarkMode', 1);
   await repository.updateByField(id2, 'notifications', 1);
-  print('\nUpdated second settings fields');
+  if (kDebugMode) debugPrint('\nUpdated second settings fields');
 
   // Test get by ID after updates
   final updatedSettings1 = await repository.get(id1);
@@ -213,15 +246,15 @@ Future<void> testSettingsRepository() async {
   if (updatedSettings1 != null && updatedSettings2 != null) {
     final updatedModel1 = repository.transformToSettingsModel(updatedSettings1);
     final updatedModel2 = repository.transformToSettingsModel(updatedSettings2);
-    print('\nUpdated Settings Models:');
-    print('\nFirst Settings Model:');
+    if (kDebugMode) debugPrint('\nUpdated Settings Models:');
+    if (kDebugMode) debugPrint('\nFirst Settings Model:');
     repository.printSettingsModelStructure(updatedModel1);
-    print('\nSecond Settings Model:');
+    if (kDebugMode) debugPrint('\nSecond Settings Model:');
     repository.printSettingsModelStructure(updatedModel2);
   }
 
   // Test delete both entries
   await repository.deleteRow(id1);
   await repository.deleteRow(id2);
-  print('\nDeleted test settings entries');
+  if (kDebugMode) debugPrint('\nDeleted test settings entries');
 }

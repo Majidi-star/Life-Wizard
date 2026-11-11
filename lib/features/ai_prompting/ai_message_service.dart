@@ -1,17 +1,22 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import '../ai_chat/gemini_chat_service.dart';
-import '../ai_chat/ai_chat_widgets.dart'; // Import ChatMessage and FunctionCallResult classes
-// Import settingsBloc for AI guidelines
+import '../ai_chat/ai_chat_widgets.dart';
+import '../mood_data/mood_data_state.dart';
 import 'message_formatter.dart';
 import 'respones_handler.dart';
 import 'function_executor.dart';
-import 'dart:async'; // Add import for async delay
-import 'dart:convert'; // Add import for jsonDecode
 
 /// Service to handle AI message formatting, sending, and response processing
 class AiMessageService {
+  static const int _maxFunctionCallDepth = 3;
+
   final GeminiChatService _chatService;
+  final String Function()? _getAiGuidelines;
+  final MoodDataState Function()? _getMoodDataState;
 
   /// Conversation history stored as a list of message objects
   final List<Map<String, dynamic>> _conversationHistory = [];
@@ -19,357 +24,216 @@ class AiMessageService {
   /// Maximum number of messages to keep in history (to avoid context size issues)
   final int _maxHistoryLength;
 
-  /// Debug mode - if true, will print formatted messages to console
+  /// Debug mode - defaults to kDebugMode
   final bool debugMode;
 
   /// Stores the last message exchange for debugging purposes
   Map<String, String> _lastExchange = {'sent': '', 'received': ''};
 
-  /// Creates a new AI message service
-  ///
-  /// @param chatService The underlying chat service to use
-  /// @param maxHistoryLength Maximum number of messages to keep in history
-  /// @param debugMode Whether to print debug information
   AiMessageService({
     required GeminiChatService chatService,
+    String Function()? getAiGuidelines,
+    MoodDataState Function()? getMoodDataState,
     int maxHistoryLength = 30,
-    this.debugMode = true,
+    this.debugMode = kDebugMode,
   }) : _chatService = chatService,
+       _getAiGuidelines = getAiGuidelines,
+       _getMoodDataState = getMoodDataState,
        _maxHistoryLength = maxHistoryLength;
 
-  /// Sends a message to the AI with proper formatting
-  ///
-  /// @param userMessage The original user message
-  /// @return A map containing the raw response and extracted tagged content
+  /// Sends a message to the AI with proper formatting and executes any function calls.
   Future<Map<String, dynamic>> sendMessage(String userMessage) async {
     try {
-      // Add user message to temporary history (will be added permanently on success)
-      final userMessageObj = {'isUser': true, 'message': userMessage};
+      final systemInstruction = MessageFormatter.buildSystemInstruction(
+        aiGuidelines: _getAiGuidelines?.call() ?? '',
+        moodDataState: _getMoodDataState?.call(),
+      );
+      final formattedUserTurn = MessageFormatter.formatUserRequest(userMessage);
 
-      // Format the message with system prompt, history and user_request tags
-      final formattedMessage = MessageFormatter.formatMessageWithHistory(
-        userMessage,
-        _conversationHistory,
+      _lastExchange['sent'] = formattedUserTurn;
+      if (debugMode) {
+        _debugPrintFormattedMessage(formattedUserTurn);
+      }
+
+      String response = await _sendWithRetry(
+        formattedUserTurn,
+        systemInstruction: systemInstruction,
+        historySnapshot: _conversationHistory,
       );
 
-      // Store the sent message for debugging
-      _lastExchange['sent'] = formattedMessage;
-
-      // Print the formatted message if in debug mode
+      _lastExchange['received'] = response;
       if (debugMode) {
-        _debugPrintFormattedMessage(formattedMessage);
+        _debugPrintResponse(response);
       }
 
-      // Initialize variables for retry logic
-      String? response;
-      Exception? lastException;
-      int maxAttempts = 3;
+      List<Map<String, String>> taggedContent =
+          ResponseHandler.processResponse(response);
+      final List<FunctionCallResult> allFunctionCallResults = [];
+      String? lastFunctionResultSummary;
 
-      // Try sending the message up to maxAttempts times
-      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          // Send the formatted message to the AI
-          response = await _chatService.sendMessage(formattedMessage);
-
-          // If we got a response, break out of the retry loop
-          if (response != null) {
-            break;
-          }
-
-          // If we got a null response but no exception, retry after delay
-          if (attempt < maxAttempts) {
-            await Future.delayed(
-              Duration(seconds: 2 * attempt),
-            ); // Increasing backoff
-            if (debugMode) {
-              debugPrint(
-                'Retrying AI message - Attempt ${attempt + 1}/$maxAttempts',
-              );
-            }
-          }
-        } catch (e) {
-          // Store the last exception
-          lastException = e is Exception ? e : Exception(e.toString());
-
-          // If not the last attempt, wait and retry
-          if (attempt < maxAttempts) {
-            await Future.delayed(
-              Duration(seconds: 2 * attempt),
-            ); // Increasing backoff
-            if (debugMode) {
-              debugPrint('Error sending AI message: $e');
-              debugPrint(
-                'Retrying AI message - Attempt ${attempt + 1}/$maxAttempts',
-              );
-            }
-          }
-        }
-      }
-
-      // If all attempts failed with exception, throw the last one
-      if (response == null && lastException != null) {
-        throw lastException;
-      }
-
-      // Store the received response for debugging
-      _lastExchange['received'] = response ?? 'No response received';
-
-      // Print the response if in debug mode
-      if (debugMode) {
-        _debugPrintResponse(response ?? 'No response received');
-      }
-
-      // Process the response to extract tagged content
-      final List<Map<String, String>> taggedContent =
-          response != null ? ResponseHandler.processResponse(response) : [];
-      // Debug statement to show we're about to handle function calls
-      debugPrint(
-        "About to handle function calls. Tagged content count: ${taggedContent.length}",
-      );
-
-      // Check for function calls and execute them if found
-      String? functionResult;
-      List<FunctionCallResult> functionCallResults = [];
-
-      if (taggedContent.isNotEmpty) {
-        debugPrint("Checking for function calls in tagged content");
-        if (ResponseHandler.hasFunctionCall(taggedContent)) {
-          debugPrint("Function call found, executing...");
-
-          // Extract function name before execution
-          String? functionName = _extractFunctionName(taggedContent);
-
-          try {
-            functionResult = await _handleFunctionCalls(taggedContent);
-            debugPrint(
-              "Function execution complete. Result: ${functionResult != null ? 'not null' : 'null'}",
-            );
-
-            // Add successful function call to results
-            if (functionName != null) {
-              functionCallResults.add(
-                FunctionCallResult(name: functionName, success: true),
-              );
-            }
-          } catch (e) {
-            debugPrint("Function execution failed: $e");
-
-            // Add failed function call to results
-            if (functionName != null) {
-              functionCallResults.add(
-                FunctionCallResult(name: functionName, success: false),
-              );
-            }
-          }
-        } else {
-          debugPrint("No function calls found in tagged content");
-        }
-      }
-
-      // Create response message object
-      final responseMessageObj = {
+      // Record user turn and initial model response only after the request succeeded.
+      _addToHistory({'isUser': true, 'message': formattedUserTurn});
+      _addToHistory({
         'isUser': false,
         'message': response,
         'taggedContent': taggedContent,
-        'functionCallResults': functionCallResults,
-      };
+      });
 
-      // Add messages to conversation history
-      _addToHistory(userMessageObj);
-      if (response != null) {
-        _addToHistory(responseMessageObj);
-      }
+      int depth = 0;
+      while (depth < _maxFunctionCallDepth &&
+          ResponseHandler.hasFunctionCall(taggedContent)) {
+        depth++;
+        final batch = await _handleFunctionCalls(taggedContent);
+        allFunctionCallResults.addAll(batch.results);
 
-      // If function was called and returned result, send result back to AI
-      if (functionResult != null) {
-        debugPrint("Function returned result, sending back to AI");
-        // Add function result to history as system message
+        if (batch.outputs.isEmpty) {
+          break;
+        }
+
+        final combinedResults = batch.outputs.join('\n\n---\n\n');
+        lastFunctionResultSummary = combinedResults;
+
+        final functionResultTurn =
+            'Here is the result of the function(s) you called:\n\n$combinedResults';
+
+        final followUpResponse = await _sendWithRetry(
+          functionResultTurn,
+          systemInstruction: systemInstruction,
+          historySnapshot: _conversationHistory,
+        );
+
+        _lastExchange['received'] = followUpResponse;
+        if (debugMode) {
+          _debugPrintResponse(followUpResponse);
+        }
+
+        taggedContent = ResponseHandler.processResponse(followUpResponse);
+        _addToHistory({'isUser': true, 'message': functionResultTurn});
         _addToHistory({
           'isUser': false,
-          'isSystem': true,
-          'message': 'Function result: $functionResult',
+          'message': followUpResponse,
+          'taggedContent': taggedContent,
         });
-
-        // Format a new message to send back to AI with function result
-        final functionResultMessage =
-            'Here is the result of the function you called:\n\n$functionResult';
-        debugPrint(
-          "Sending function result back to AI: ${functionResultMessage.substring(0, min(50, functionResultMessage.length))}...",
-        );
-
-        final formattedFunctionResult =
-            MessageFormatter.formatMessageWithHistory(
-              functionResultMessage,
-              _conversationHistory,
-            );
-
-        // Send function result to AI
-        final functionResponse = await _chatService.sendMessage(
-          formattedFunctionResult,
-        );
-
-        if (functionResponse != null) {
-          // Process and add this response to history too
-          final functionResponseTaggedContent = ResponseHandler.processResponse(
-            functionResponse,
-          );
-
-          // Check for additional function calls in the response
-          List<FunctionCallResult> additionalFunctionCallResults = [];
-          if (ResponseHandler.hasFunctionCall(functionResponseTaggedContent)) {
-            String? additionalFunctionName = _extractFunctionName(
-              functionResponseTaggedContent,
-            );
-
-            try {
-              await _handleFunctionCalls(functionResponseTaggedContent);
-              if (additionalFunctionName != null) {
-                additionalFunctionCallResults.add(
-                  FunctionCallResult(
-                    name: additionalFunctionName,
-                    success: true,
-                  ),
-                );
-              }
-            } catch (e) {
-              if (additionalFunctionName != null) {
-                additionalFunctionCallResults.add(
-                  FunctionCallResult(
-                    name: additionalFunctionName,
-                    success: false,
-                  ),
-                );
-              }
-            }
-          }
-
-          final functionResponseObj = {
-            'isUser': false,
-            'message': functionResponse,
-            'taggedContent': functionResponseTaggedContent,
-            'functionCallResults': additionalFunctionCallResults,
-          };
-
-          _addToHistory(functionResponseObj);
-
-          // Remove function call tags from display response
-          final cleanDisplayResponse = ResponseHandler.removeTagsForDisplay(
-            functionResponse,
-          );
-
-          // Return the function response as the final result
-          return {
-            'success': true,
-            'rawResponse': cleanDisplayResponse,
-            'taggedContent': functionResponseTaggedContent,
-            'sentMessage': formattedMessage,
-            'functionResult': functionResult,
-            'functionCallResults': [
-              ...functionCallResults,
-              ...additionalFunctionCallResults,
-            ],
-          };
-        }
+        response = followUpResponse;
       }
 
-      // Remove function call tags from display response
-      final cleanDisplayResponse =
-          response != null
-              ? ResponseHandler.removeTagsForDisplay(response)
-              : null;
+      final cleanDisplayResponse = ResponseHandler.removeTagsForDisplay(
+        response,
+      );
 
-      // Return both the raw response and the extracted tagged content
       return {
-        'success': response != null,
+        'success': true,
         'rawResponse': cleanDisplayResponse,
         'taggedContent': taggedContent,
-        'sentMessage': formattedMessage,
-        'functionResult': functionResult,
-        'functionCallResults': functionCallResults,
+        'sentMessage': formattedUserTurn,
+        'functionResult': lastFunctionResultSummary,
+        'functionCallResults': allFunctionCallResults,
       };
     } catch (e) {
-      debugPrint('Error in sendMessage after all retry attempts: $e');
-      return {'success': false, 'error': e.toString()};
+      final sanitized = GeminiChatService.sanitizeErrorText(
+        e.toString(),
+        secretKey: _chatService.apiKey,
+      );
+      if (debugMode) {
+        debugPrint('Error in AiMessageService.sendMessage: $sanitized');
+      }
+      return {'success': false, 'error': sanitized};
     }
   }
 
-  /// Handles function calls found in the AI response
-  /// Returns the function result if a function was called, null otherwise
-  Future<String?> _handleFunctionCalls(
-    List<Map<String, String>> taggedContent,
-  ) async {
-    debugPrint(
-      "Handling function calls for ${taggedContent.length} tagged content items",
+  /// Sends a single turn with retries ONLY for transient network or 5xx errors.
+  Future<String> _sendWithRetry(
+    String userTurnText, {
+    required String systemInstruction,
+    required List<Map<String, dynamic>> historySnapshot,
+  }) async {
+    const int maxAttempts = 3;
+    final contents = MessageFormatter.buildContents(
+      historySnapshot,
+      userTurnText,
     );
 
-    // Look for function call tags
-    for (final tag in taggedContent) {
-      debugPrint("Checking tag: ${tag['tag_name']}");
-
-      // Check if this is a function call tag
-      if (tag['tag_name'] == 'function_call') {
-        final functionContent = tag['content'];
-        debugPrint("Found function_call tag with content: $functionContent");
-
-        if (functionContent != null && functionContent.isNotEmpty) {
-          debugPrint(
-            "Function content is not null or empty, executing function",
-          );
-
-          // Get function name for reporting
-          String functionName = "Unknown Function";
-          try {
-            final Map<String, dynamic>? functionCall = jsonDecode(
-              functionContent.trim(),
-            );
-            if (functionCall != null && functionCall['name'] != null) {
-              functionName = functionCall['name'].toString();
-              debugPrint("Function name extracted: $functionName");
-            }
-          } catch (e) {
-            // If JSON parsing fails, try regex as fallback
-            final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
-            final match = nameRegex.firstMatch(functionContent);
-            if (match != null && match.groupCount >= 1) {
-              functionName = match.group(1) ?? "Unknown Function";
-              debugPrint("Function name extracted using regex: $functionName");
-            }
-          }
-
-          // Execute the function call and get result
-          try {
-            final String trimmedContent = functionContent.trim();
-            debugPrint("Trimmed function content: $trimmedContent");
-            final result = await FunctionExecutor.executeFunction(
-              trimmedContent,
-            );
-
-            if (debugMode) {
-              debugPrint(
-                "Function execution completed with result: ${result.substring(0, min(50, result.length))}...",
-              );
-            }
-
-            // Return the function result to be sent back to AI
-            return result;
-          } catch (e, stackTrace) {
-            debugPrint("Error executing function: $e\n$stackTrace");
-            return "Error executing function: $e";
-          }
-        } else {
-          debugPrint("Function content is null or empty, skipping execution");
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await _chatService.sendMessage(
+          userTurnText,
+          systemInstruction: systemInstruction,
+          contents: contents,
+        );
+      } on GeminiTransportException catch (e) {
+        if (!e.isRetryable || attempt >= maxAttempts) {
+          rethrow;
         }
+        if (debugMode) {
+          debugPrint(
+            'Transient error (${e.message}), retrying attempt ${attempt + 1}/$maxAttempts',
+          );
+        }
+        await Future.delayed(Duration(seconds: 2 * attempt));
       }
     }
 
-    debugPrint("No function_call tags found in tagged content");
-    // No function calls found
-    return null;
+    throw const GeminiResponseException('Failed after maximum retry attempts.');
   }
 
-  /// Helper function to get the minimum of two integers
-  int min(int a, int b) {
-    return a < b ? a : b;
+  /// Executes all function_call tags found in [taggedContent] and returns
+  /// both the formatted outputs for the model and UI [FunctionCallResult] items.
+  Future<_FunctionCallBatch> _handleFunctionCalls(
+    List<Map<String, String>> taggedContent,
+  ) async {
+    final List<String> outputs = [];
+    final List<FunctionCallResult> results = [];
+
+    for (final tag in taggedContent) {
+      if (tag['tag_name'] != 'function_call') {
+        continue;
+      }
+      final functionContent = tag['content']?.trim();
+      if (functionContent == null || functionContent.isEmpty) {
+        continue;
+      }
+
+      final functionName = _extractNameFromContent(functionContent);
+      try {
+        final result = await FunctionExecutor.executeFunction(functionContent);
+        if (debugMode) {
+          debugPrint(
+            'Function $functionName completed: ${result.substring(0, math.min(50, result.length))}',
+          );
+        }
+        outputs.add('[$functionName]: $result');
+        results.add(
+          FunctionCallResult(
+            name: functionName,
+            success: !result.startsWith('Error'),
+          ),
+        );
+      } catch (e, stackTrace) {
+        if (debugMode) {
+          debugPrint('Error executing function $functionName: $e\n$stackTrace');
+        }
+        outputs.add('[$functionName]: Error executing function: $e');
+        results.add(FunctionCallResult(name: functionName, success: false));
+      }
+    }
+
+    return _FunctionCallBatch(outputs: outputs, results: results);
+  }
+
+  String _extractNameFromContent(String functionContent) {
+    try {
+      final decoded = jsonDecode(functionContent);
+      if (decoded is Map && decoded['name'] != null) {
+        return decoded['name'].toString();
+      }
+    } catch (_) {
+      final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
+      final match = nameRegex.firstMatch(functionContent);
+      if (match != null && match.groupCount >= 1) {
+        return match.group(1) ?? 'Unknown Function';
+      }
+    }
+    return 'Unknown Function';
   }
 
   /// Debug prints the formatted message to the console
@@ -378,8 +242,6 @@ class AiMessageService {
       '=== SENT TO AI ===\n$message\n=================',
       name: 'AiMessageService',
     );
-
-    // Also use regular debug print for Flutter devtools console
     debugPrint('=== SENT TO AI ===');
     debugPrint(message);
     debugPrint('=================');
@@ -391,8 +253,6 @@ class AiMessageService {
       '=== RECEIVED FROM AI ===\n$response\n======================',
       name: 'AiMessageService',
     );
-
-    // Also use regular debug print for Flutter devtools console
     debugPrint('=== RECEIVED FROM AI ===');
     debugPrint(response);
     debugPrint('======================');
@@ -425,54 +285,11 @@ class AiMessageService {
   /// Gets the last message exchange (sent and received)
   Map<String, String> get lastExchange =>
       Map<String, String>.from(_lastExchange);
+}
 
-  /// Extracts the function name from function call tags
-  String? _extractFunctionName(List<Map<String, String>> taggedContent) {
-    // First check for proper function_call tags
-    for (final tag in taggedContent) {
-      if (tag['tag_name'] == 'function_call') {
-        final functionContent = tag['content'];
-        if (functionContent != null && functionContent.isNotEmpty) {
-          try {
-            final trimmedContent = functionContent.trim();
-            final Map<String, dynamic> functionCall = jsonDecode(
-              trimmedContent,
-            );
-            return functionCall['name'] as String?;
-          } catch (e) {
-            debugPrint("Error extracting function name from JSON: $e");
+class _FunctionCallBatch {
+  final List<String> outputs;
+  final List<FunctionCallResult> results;
 
-            // Try a more lenient approach with regex
-            final nameRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
-            final match = nameRegex.firstMatch(functionContent);
-            if (match != null && match.groupCount >= 1) {
-              return match.group(1);
-            }
-          }
-        }
-      }
-    }
-
-    // If no function_call tags found, check for raw content mentioning functions
-    final String fullContent = taggedContent
-        .map((tag) => tag['content'] ?? '')
-        .join(' ');
-
-    // Check for habit-related functions
-    final habitFunctionPattern = RegExp(
-      r'(get_all_habits|add_habit|update_habit|delete_habit)',
-      caseSensitive: false,
-    );
-
-    final match = habitFunctionPattern.firstMatch(fullContent);
-    if (match != null && match.groupCount >= 0) {
-      final functionName = match.group(0);
-      if (functionName != null && functionName.isNotEmpty) {
-        debugPrint("Found habit function mention: $functionName");
-        return functionName;
-      }
-    }
-
-    return null;
-  }
+  const _FunctionCallBatch({required this.outputs, required this.results});
 }

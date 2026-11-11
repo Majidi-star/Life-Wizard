@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/settings/settings_bloc.dart';
@@ -681,7 +682,7 @@ class PomodoroInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ProClockBloc, ProClockState>(
       builder: (context, state) {
-        print('Building PomodoroInfo with isWorkPhase: ${state.isWorkPhase}');
+        if (kDebugMode) debugPrint('Building PomodoroInfo with isWorkPhase: ${state.isWorkPhase}');
 
         // Always render both cards, but only show the one that matches the phase
         // This ensures there's always a card visible during transitions

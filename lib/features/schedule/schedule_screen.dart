@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../widgets/app_drawer.dart';
@@ -12,6 +13,7 @@ import '../habits/habits_bloc.dart';
 import '../habits/habits_event.dart' as habits_events;
 import '../habits/habits_state.dart';
 import '../habits/habits_repository.dart';
+import '../progress_dashboard/points_service.dart';
 import 'dart:convert';
 import '../../utils/notification_utils.dart';
 
@@ -39,36 +41,36 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     app_main.habitsBloc.add(const habits_events.LoadHabits());
 
     // Debug prints for habits state
-    print('\n===== SCHEDULE SCREEN - HABITS DEBUG =====');
-    print('Habits Status: ${app_main.habitsBloc.state.status}');
-    print(
+    if (kDebugMode) debugPrint('\n===== SCHEDULE SCREEN - HABITS DEBUG =====');
+    if (kDebugMode) debugPrint('Habits Status: ${app_main.habitsBloc.state.status}');
+    if (kDebugMode) debugPrint(
       'Habits Model exists: ${app_main.habitsBloc.state.habitsModel != null}',
     );
-    print(
+    if (kDebugMode) debugPrint(
       'Habits count: ${app_main.habitsBloc.state.habitsModel?.habits.length ?? 0}',
     );
 
     if (app_main.habitsBloc.state.habitsModel != null &&
         app_main.habitsBloc.state.habitsModel!.habits.isNotEmpty) {
-      print('Available Habits:');
+      if (kDebugMode) debugPrint('Available Habits:');
       for (var habit in app_main.habitsBloc.state.habitsModel!.habits) {
-        print(
+        if (kDebugMode) debugPrint(
           '- ${habit.habitName} (Progress: ${habit.habitConsecutiveProgress})',
         );
       }
     } else {
-      print('No habits data available at screen initialization');
+      if (kDebugMode) debugPrint('No habits data available at screen initialization');
     }
-    print('======================================\n');
+    if (kDebugMode) debugPrint('======================================\n');
 
     // Add a delayed print to see if habits are loaded after initialization
     Future.delayed(const Duration(seconds: 2), () {
-      print('\n===== SCHEDULE SCREEN - DELAYED HABITS CHECK =====');
-      print('Habits Status after delay: ${app_main.habitsBloc.state.status}');
-      print(
+      if (kDebugMode) debugPrint('\n===== SCHEDULE SCREEN - DELAYED HABITS CHECK =====');
+      if (kDebugMode) debugPrint('Habits Status after delay: ${app_main.habitsBloc.state.status}');
+      if (kDebugMode) debugPrint(
         'Habits count after delay: ${app_main.habitsBloc.state.habitsModel?.habits.length ?? 0}',
       );
-      print('======================================\n');
+      if (kDebugMode) debugPrint('======================================\n');
     });
   }
 
@@ -88,7 +90,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     Set<String> checkedHabits = {};
 
     if (model != null && model.timeBoxes.isNotEmpty) {
-      print(
+      if (kDebugMode) debugPrint(
         'Updating completed habits from model with ${model.timeBoxes.length} timeboxes',
       );
 
@@ -104,14 +106,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               }
             }
           } catch (e) {
-            print('Error parsing habits JSON in timebox: $e');
+            if (kDebugMode) debugPrint('Error parsing habits JSON in timebox: $e');
           }
         }
       }
 
-      print('Found ${checkedHabits.length} completed habits: $checkedHabits');
+      if (kDebugMode) debugPrint('Found ${checkedHabits.length} completed habits: $checkedHabits');
     } else {
-      print('No timeboxes available to extract completed habits');
+      if (kDebugMode) debugPrint('No timeboxes available to extract completed habits');
     }
 
     // Update the ValueNotifier with the completed habits
@@ -120,14 +122,31 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Set context in the bloc for showing points notifications
-    context.read<ScheduleBloc>().add(
-      schedule_events.SetContext(context: context),
-    );
-
     final settingsState = app_main.settingsBloc.state;
 
-    return Scaffold(
+    return BlocListener<ScheduleBloc, ScheduleState>(
+      listenWhen:
+          (previous, current) =>
+              (previous.pointsNotificationCounter !=
+                      current.pointsNotificationCounter &&
+                  current.lastPointsDelta != null &&
+                  current.lastPointsDelta != 0) ||
+              (previous.error != current.error && current.error != null),
+      listener: (context, state) {
+        if (!mounted) return;
+        if (state.lastPointsDelta != null && state.lastPointsDelta != 0) {
+          PointsService().showPointsNotification(
+            context,
+            state.lastPointsDelta!,
+          );
+        }
+        if (state.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.error!)),
+          );
+        }
+      },
+      child: Scaffold(
       backgroundColor: settingsState.primaryColor,
       appBar: AppBar(
         title: const Text('Schedule'),
@@ -141,7 +160,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 tooltip: 'Refresh Schedule',
                 onPressed: () {
                   // Force reload the schedule
-                  print('Manual refresh requested');
+                  if (kDebugMode) debugPrint('Manual refresh requested');
                   context.read<ScheduleBloc>().add(
                     schedule_events.LoadSchedule(
                       year: state.selectedYear,
@@ -191,8 +210,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               bloc: app_main.habitsBloc,
               builder: (context, habitsState) {
                 // Log the habits state for debugging
-                print('Habits Status: ${habitsState.status}');
-                print(
+                if (kDebugMode) debugPrint('Habits Status: ${habitsState.status}');
+                if (kDebugMode) debugPrint(
                   'Habits count: ${habitsState.habitsModel?.habits.length ?? 0}',
                 );
 
@@ -231,14 +250,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       try {
                         if (timeBox.habits.isNotEmpty) {
                           timeboxHabits = json.decode(timeBox.habits);
-                          print(
+                          if (kDebugMode) debugPrint(
                             'Parsed habits for timeBox $index: $timeboxHabits',
                           );
                         } else {
-                          print('No habits string for timeBox $index');
+                          if (kDebugMode) debugPrint('No habits string for timeBox $index');
                         }
                       } catch (e) {
-                        print('Error parsing habits JSON: $e');
+                        if (kDebugMode) debugPrint('Error parsing habits JSON: $e');
                       }
 
                       return Card(
@@ -311,13 +330,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                                       // First update the local state for immediate feedback
                                                       setDialogState(() {});
 
-                                                      // Update timebox completion status
+                                                      // Update timebox completion status by ID
                                                       context
                                                           .read<ScheduleBloc>()
                                                           .add(
                                                             schedule_events.ToggleTimeBoxCompletion(
-                                                              timeBoxIndex:
-                                                                  index,
+                                                              id: timeBox.id,
                                                               isCompleted:
                                                                   value,
                                                             ),
@@ -512,15 +530,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                         ),
                                         onChanged: (value) {
                                           if (value != null) {
-                                            print(
-                                              'Checkbox clicked! Old value: ${timeBox.timeBoxStatus}, New value: $value',
-                                            );
-
-                                            // Update timebox completion status without scrolling reset
-                                            // CRITICAL: Dispatch the event synchronously for immediate UI feedback
+                                            // Update timebox completion status by ID
                                             context.read<ScheduleBloc>().add(
                                               schedule_events.ToggleTimeBoxCompletion(
-                                                timeBoxIndex: index,
+                                                id: timeBox.id,
                                                 isCompleted: value,
                                               ),
                                             );
@@ -706,6 +719,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -717,7 +731,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     required void Function(bool?) onToggle,
     required int index,
   }) {
-    print('Building habit list item: $habitName');
+    if (kDebugMode) debugPrint('Building habit list item: $habitName');
 
     // Default consecutive progress if habit not found
     int consecutiveProgress = 0;
@@ -733,14 +747,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       if (matchingHabitList.isNotEmpty) {
         final matchingHabit = matchingHabitList.first;
         consecutiveProgress = matchingHabit.habitConsecutiveProgress;
-        print('Found habit: $habitName with progress: $consecutiveProgress');
+        if (kDebugMode) debugPrint('Found habit: $habitName with progress: $consecutiveProgress');
       } else {
-        print('Habit not found: $habitName');
+        if (kDebugMode) debugPrint('Habit not found: $habitName');
         // Use a default value for testing visibility
         consecutiveProgress = 5;
       }
     } else {
-      print('Habits not loaded yet, using default values');
+      if (kDebugMode) debugPrint('Habits not loaded yet, using default values');
       // Use a default value for testing visibility
       consecutiveProgress = 3;
     }
@@ -900,7 +914,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         // Use the index as a proxy for the ID
         timeBoxId = matchingTimebox.id;
         if (timeBoxId >= 0) {
-          print(
+          if (kDebugMode) debugPrint(
             'In dialog - using timeBox index: $timeBoxId for habit $habitName',
           );
         } else {
@@ -908,7 +922,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         }
       }
     } catch (e) {
-      print('Error finding timeBox ID for habit $habitName: $e');
+      if (kDebugMode) debugPrint('Error finding timeBox ID for habit $habitName: $e');
       timeBoxId = null;
     }
 
@@ -1325,6 +1339,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         return;
                       }
 
+                      if ((endHour * 60 + endMinute) <=
+                          (startHour * 60 + startMinute)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('End time must be after start time'),
+                          ),
+                        );
+                        return;
+                      }
+
                       // Parse todos from comma-separated string
                       final List<String> todos =
                           todoText.isNotEmpty
@@ -1700,6 +1724,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         return;
                       }
 
+                      if ((endHour * 60 + endMinute) <=
+                          (startHour * 60 + startMinute)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('End time must be after start time'),
+                          ),
+                        );
+                        return;
+                      }
+
                       // Parse todos from comma-separated string
                       final List<String> todos =
                           todoText.isNotEmpty
@@ -1780,21 +1814,23 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
               TextButton(
                 onPressed: () async {
-                  context.read<ScheduleBloc>().add(
+                  final scheduleBloc = context.read<ScheduleBloc>();
+                  final currentDate = DateTime(
+                    scheduleBloc.state.selectedYear,
+                    scheduleBloc.state.selectedMonth,
+                    scheduleBloc.state.selectedDay,
+                  );
+                  scheduleBloc.add(
                     schedule_events.DeleteTimeBox(id: timeBoxId),
                   );
                   // Close both dialogs
                   Navigator.of(context).pop();
                   Navigator.of(context).pop();
-                  final currentDate = DateTime(
-                    context.read<ScheduleBloc>().state.selectedYear,
-                    context.read<ScheduleBloc>().state.selectedMonth,
-                    context.read<ScheduleBloc>().state.selectedDay,
-                  );
                   await NotificationUtils.cancelNotificationsForDate(
                     currentDate,
                   );
-                  context.read<ScheduleBloc>().add(
+                  if (!mounted) return;
+                  scheduleBloc.add(
                     schedule_events.RescheduleNotifications(date: currentDate),
                   );
                 },

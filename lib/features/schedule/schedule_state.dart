@@ -10,6 +10,8 @@ class ScheduleState extends Equatable {
   final ScheduleModel? scheduleModel;
   final bool isLoading;
   final String? error;
+  final int? lastPointsDelta;
+  final int pointsNotificationCounter;
 
   const ScheduleState({
     required this.selectedYear,
@@ -18,6 +20,8 @@ class ScheduleState extends Equatable {
     this.scheduleModel,
     this.isLoading = false,
     this.error,
+    this.lastPointsDelta,
+    this.pointsNotificationCounter = 0,
   });
 
   factory ScheduleState.initial() {
@@ -36,6 +40,8 @@ class ScheduleState extends Equatable {
     ScheduleModel? scheduleModel,
     bool? isLoading,
     String? error,
+    int? lastPointsDelta,
+    int? pointsNotificationCounter,
   }) {
     return ScheduleState(
       selectedYear: selectedYear ?? this.selectedYear,
@@ -44,6 +50,9 @@ class ScheduleState extends Equatable {
       scheduleModel: scheduleModel ?? this.scheduleModel,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
+      lastPointsDelta: lastPointsDelta ?? this.lastPointsDelta,
+      pointsNotificationCounter:
+          pointsNotificationCounter ?? this.pointsNotificationCounter,
     );
   }
 
@@ -97,5 +106,7 @@ class ScheduleState extends Equatable {
     scheduleModel,
     isLoading,
     error,
+    lastPointsDelta,
+    pointsNotificationCounter,
   ];
 }

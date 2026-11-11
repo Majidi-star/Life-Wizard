@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+graphify-out/
+temp.json
+flutter_01.png
+

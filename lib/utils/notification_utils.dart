@@ -1,10 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../database_initializer.dart';
 
 class NotificationUtils {
@@ -15,10 +17,29 @@ class NotificationUtils {
   // Constants for shared preferences keys
   static const String _notificationsKey = 'scheduled_notifications';
 
+  static bool get _isMobilePlatform =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
   static Future<void> initialize([BuildContext? context]) async {
     if (_initialized) return;
+    if (kIsWeb) return;
+
     // Timezone setup
     tz.initializeTimeZones();
+    try {
+      final tzInfo = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Could not set local timezone, using default: $e');
+      }
+    }
+
+    if (!_isMobilePlatform) {
+      _initialized = true;
+      return;
+    }
+
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings =
@@ -46,19 +67,22 @@ class NotificationUtils {
   }
 
   static Future<void> cancelAllNotifications() async {
-    await _notificationsPlugin.cancelAll();
-    // Also clear the stored notification data
+    if (!kIsWeb && _isMobilePlatform) {
+      await _notificationsPlugin.cancelAll();
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_notificationsKey);
   }
 
   // Callback for when user taps on a notification
   static void _onNotificationTapped(NotificationResponse response) {
-    // Handle notification tap
-    debugPrint('Notification tapped: ${response.payload}');
+    if (kDebugMode) {
+      debugPrint('Notification tapped: ${response.payload}');
+    }
   }
 
   static Future<void> requestPermissions() async {
+    if (kIsWeb) return;
     if (Platform.isIOS) {
       await _notificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -66,17 +90,13 @@ class NotificationUtils {
           >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
     } else if (Platform.isAndroid) {
-      // Android 13+ (API 33) requires runtime notification permission
       final androidPlugin =
           _notificationsPlugin
               .resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin
               >();
 
-      // Request notification permission
       await androidPlugin?.requestNotificationsPermission();
-
-      // Request exact alarms permission
       await androidPlugin?.requestExactAlarmsPermission();
     }
   }
@@ -87,15 +107,11 @@ class NotificationUtils {
     required String body,
     required DateTime scheduledTime,
   }) async {
+    if (kIsWeb || !_isMobilePlatform) return;
     if (!await areNotificationsEnabled()) {
-      return; // Don't schedule if notifications are disabled
+      return;
     }
-    print('[DEBUG] Scheduling notification:');
-    print('  ID: $id');
-    print('  Title: $title');
-    print('  Body: $body');
-    print('  ScheduledTime: $scheduledTime');
-    print('  Now: ${DateTime.now()}');
+
     await _notificationsPlugin.zonedSchedule(
       id,
       title,
@@ -114,16 +130,30 @@ class NotificationUtils {
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
-    print('[DEBUG] Notification scheduled (ID: $id)');
 
-    // Save notification data for persistence
     await _saveNotificationData(id, title, body, scheduledTime);
   }
 
   // Checking if the notifications are enabled
   static Future<bool> areNotificationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('notifications') ?? true; // true as default
+    return prefs.getBool('notifications') ?? true;
+  }
+
+  static Future<List<Map<String, dynamic>>> _readSavedNotifications(
+    SharedPreferences prefs,
+  ) async {
+    final String? notificationsJson = prefs.getString(_notificationsKey);
+    if (notificationsJson == null || notificationsJson.isEmpty) {
+      return [];
+    }
+    try {
+      return List<Map<String, dynamic>>.from(
+        jsonDecode(notificationsJson) as List,
+      );
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Saves notification data to SharedPreferences for persistence
@@ -134,202 +164,170 @@ class NotificationUtils {
     DateTime scheduledTime,
   ) async {
     final prefs = await SharedPreferences.getInstance();
+    final notifications = await _readSavedNotifications(prefs);
+    final dateString = DatabaseInitializer.formatDateOnly(scheduledTime);
 
-    // Get existing notifications
-    final String? notificationsJson = prefs.getString(_notificationsKey);
-    List<Map<String, dynamic>> notifications = [];
-
-    if (notificationsJson != null) {
-      notifications = List<Map<String, dynamic>>.from(
-        jsonDecode(notificationsJson) as List,
-      );
-    }
-
-    // Remove existing notification with same ID if exists
     notifications.removeWhere((notification) => notification['id'] == id);
-
-    // Add new notification data
     notifications.add({
       'id': id,
       'title': title,
       'body': body,
+      'date': dateString,
       'scheduledTime': scheduledTime.millisecondsSinceEpoch,
     });
 
-    // Filter out past notifications
     final now = DateTime.now().millisecondsSinceEpoch;
-    notifications =
-        notifications.where((notification) {
-          return notification['scheduledTime'] > now;
-        }).toList();
+    final activeNotifications =
+        notifications
+            .where((n) => (n['scheduledTime'] as int? ?? 0) > now)
+            .toList();
 
-    // Save back to shared preferences
-    await prefs.setString(_notificationsKey, jsonEncode(notifications));
+    await prefs.setString(_notificationsKey, jsonEncode(activeNotifications));
   }
 
   /// Restores all saved notifications
   static Future<void> restoreNotifications() async {
+    if (kIsWeb || !_isMobilePlatform) return;
     if (!await areNotificationsEnabled()) {
-      return; // Don't schedule if notifications are disabled
+      return;
     }
     final prefs = await SharedPreferences.getInstance();
-    final String? notificationsJson = prefs.getString(_notificationsKey);
+    final notifications = await _readSavedNotifications(prefs);
+    if (notifications.isEmpty) return;
 
-    if (notificationsJson != null) {
-      final List<Map<String, dynamic>> notifications =
-          List<Map<String, dynamic>>.from(
-            jsonDecode(notificationsJson) as List,
-          );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final futureNotifications =
+        notifications
+            .where((n) => (n['scheduledTime'] as int? ?? 0) > now)
+            .toList();
 
-      final now = DateTime.now().millisecondsSinceEpoch;
-
-      // Filter out past notifications
-      final futureNotifications =
-          notifications.where((notification) {
-            return notification['scheduledTime'] > now;
-          }).toList();
-      print('[DEBUG] Restoring notifications:');
-      // Reschedule each notification
-      for (final notification in futureNotifications) {
-        final scheduledTime = DateTime.fromMillisecondsSinceEpoch(
-          notification['scheduledTime'] as int,
-        );
-        print(
-          '  [DEBUG] Restoring notification ID: ${notification['id']} at $scheduledTime',
-        );
-        // Only schedule if it's in the future
-        if (scheduledTime.isAfter(DateTime.now())) {
-          await _notificationsPlugin.zonedSchedule(
-            notification['id'] as int,
-            notification['title'] as String,
-            notification['body'] as String,
-            tz.TZDateTime.from(scheduledTime, tz.local),
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'schedule_channel',
-                'Schedule Notifications',
-                channelDescription: 'Notifies about scheduled activities',
-                importance: Importance.max,
-                priority: Priority.high,
-                playSound: true,
-              ),
-              iOS: DarwinNotificationDetails(
-                presentSound: true,
-                sound: 'default',
-              ),
+    for (final notification in futureNotifications) {
+      final scheduledTime = DateTime.fromMillisecondsSinceEpoch(
+        notification['scheduledTime'] as int,
+      );
+      if (scheduledTime.isAfter(DateTime.now())) {
+        await _notificationsPlugin.zonedSchedule(
+          notification['id'] as int,
+          notification['title'] as String,
+          notification['body'] as String,
+          tz.TZDateTime.from(scheduledTime, tz.local),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'schedule_channel',
+              'Schedule Notifications',
+              channelDescription: 'Notifies about scheduled activities',
+              importance: Importance.max,
+              priority: Priority.high,
+              playSound: true,
             ),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          );
-        }
-      }
-
-      // Update the storage with only future notifications
-      if (futureNotifications.length != notifications.length) {
-        await prefs.setString(
-          _notificationsKey,
-          jsonEncode(futureNotifications),
+            iOS: DarwinNotificationDetails(
+              presentSound: true,
+              sound: 'default',
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       }
+    }
+
+    if (futureNotifications.length != notifications.length) {
+      await prefs.setString(
+        _notificationsKey,
+        jsonEncode(futureNotifications),
+      );
     }
   }
 
-  /// Cancels all notifications for a specific date
-  /// Uses the date's day as part of the notification ID to identify which ones to cancel
-  static Future<void> cancelNotificationsForDate(DateTime date) async {
-    // Get the database instance
-    final db = await DatabaseInitializer.database;
-    final dateString = date.toIso8601String().split('T')[0];
+  /// Cancels a single notification by its schedule ID and removes it from saved storage.
+  static Future<void> cancelNotificationById(int id) async {
+    if (!kIsWeb && _isMobilePlatform) {
+      await _notificationsPlugin.cancel(id);
+    }
+    await _removeNotificationsWithIdList([id]);
+  }
 
-    // Query all task IDs for this date
+  /// Cancels all notifications for a specific date using both the saved list in
+  /// SharedPreferences and current database schedule IDs.
+  static Future<void> cancelNotificationsForDate(DateTime date) async {
+    if (kIsWeb) return;
+    final dateString = DatabaseInitializer.formatDateOnly(date);
+    final prefs = await SharedPreferences.getInstance();
+    final savedNotifications = await _readSavedNotifications(prefs);
+
+    final Set<int> idsToCancel = {};
+    for (final notification in savedNotifications) {
+      final id = notification['id'];
+      if (id is! int) continue;
+      final savedDate = notification['date'] as String?;
+      final scheduledMs = notification['scheduledTime'] as int?;
+      final matchesSavedDate = savedDate == dateString;
+      final matchesTimestampDate =
+          scheduledMs != null &&
+          DatabaseInitializer.formatDateOnly(
+                DateTime.fromMillisecondsSinceEpoch(scheduledMs),
+              ) ==
+              dateString;
+      if (matchesSavedDate || matchesTimestampDate) {
+        idsToCancel.add(id);
+      }
+    }
+
+    // Also include any DB schedule IDs for this date.
+    final db = await DatabaseInitializer.database;
     final taskData = await db.query(
       'schedule',
       columns: ['id'],
       where: 'date = ?',
       whereArgs: [dateString],
     );
-    print('[DEBUG] Cancelling notifications for date: $dateString');
-    // Cancel each notification by its task ID
     for (final task in taskData) {
-      final taskId = task['id'] as int;
-      print('  [DEBUG] Cancelling notification with ID: $taskId');
-      await _notificationsPlugin.cancel(taskId);
+      final id = task['id'];
+      if (id is int) {
+        idsToCancel.add(id);
+      }
     }
 
-    // Also remove from saved notifications
-    // Remove all notifications whose IDs match any of the task IDs for this date
-    await _removeNotificationsWithIdList(
-      taskData.map((t) => t['id'] as int).toList(),
+    if (_isMobilePlatform) {
+      for (final taskId in idsToCancel) {
+        await _notificationsPlugin.cancel(taskId);
+      }
+    }
+
+    if (idsToCancel.isNotEmpty) {
+      await _removeNotificationsWithIdList(idsToCancel.toList());
+    }
+  }
+
+  static Future<void> _removeNotificationsWithIdList(List<int> idList) async {
+    final prefs = await SharedPreferences.getInstance();
+    final notifications = await _readSavedNotifications(prefs);
+    if (notifications.isEmpty) return;
+
+    final idSet = idList.toSet();
+    final filteredNotifications =
+        notifications
+            .where((n) => !idSet.contains(n['id'] as int? ?? -1))
+            .toList();
+
+    await prefs.setString(
+      _notificationsKey,
+      jsonEncode(filteredNotifications),
     );
   }
 
-  // Add this helper method to your NotificationUtils class:
-  static Future<void> _removeNotificationsWithIdList(List<int> idList) async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? notificationsJson = prefs.getString(_notificationsKey);
-
-    if (notificationsJson != null) {
-      final List<Map<String, dynamic>> notifications =
-          List<Map<String, dynamic>>.from(
-            jsonDecode(notificationsJson) as List,
-          );
-
-      // Filter out notifications with the given IDs
-      final filteredNotifications =
-          notifications.where((notification) {
-            final id = notification['id'] as int;
-            return !idList.contains(id);
-          }).toList();
-
-      // Save back to shared preferences
-      await prefs.setString(
-        _notificationsKey,
-        jsonEncode(filteredNotifications),
-      );
-    }
-  }
-
-  /// Removes notifications with specific ID prefix from SharedPreferences
-  static Future<void> _removeNotificationsWithIdPrefix(int idPrefix) async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? notificationsJson = prefs.getString(_notificationsKey);
-
-    if (notificationsJson != null) {
-      final List<Map<String, dynamic>> notifications =
-          List<Map<String, dynamic>>.from(
-            jsonDecode(notificationsJson) as List,
-          );
-
-      // Filter out notifications with the given prefix
-      final filteredNotifications =
-          notifications.where((notification) {
-            final id = notification['id'] as int;
-            return id < idPrefix || id >= idPrefix + 1000;
-          }).toList();
-
-      // Save back to shared preferences
-      await prefs.setString(
-        _notificationsKey,
-        jsonEncode(filteredNotifications),
-      );
-    }
-  }
-
-  /// Updates notifications for a schedule change
-  /// This should be called whenever the schedule for a date is modified
+  /// Updates notifications for a schedule change using schedule.id as the single ID scheme.
   static Future<void> updateNotificationsForScheduleChange(
     DateTime date,
     List<Map<String, dynamic>> tasks,
   ) async {
-    // First cancel all existing notifications for this date
     await cancelNotificationsForDate(date);
 
-    // Then schedule new notifications for each task
-    for (int i = 0; i < tasks.length; i++) {
-      final task = tasks[i];
-      final startTimeStr = task['startTime'] as String;
+    for (final task in tasks) {
+      final taskId = task['id'] as int?;
+      if (taskId == null) continue;
+      final startTimeStr = task['startTime'] as String? ?? '';
       final taskName = task['activity'] as String? ?? 'Task';
 
-      // Parse start time
       final startParts = startTimeStr.split(':');
       if (startParts.length == 2) {
         try {
@@ -343,10 +341,9 @@ class NotificationUtils {
             minute,
           );
 
-          // Only schedule if the time is in the future
           if (scheduledTime.isAfter(DateTime.now())) {
             await scheduleNotification(
-              id: date.day * 1000 + i, // unique id per task per day
+              id: taskId,
               title: 'Task Reminder',
               body:
                   'It\'s time! "$taskName" has just started. Check your schedule!',
@@ -354,43 +351,35 @@ class NotificationUtils {
             );
           }
         } catch (e) {
-          // Handle parsing errors
-          print('Error scheduling notification: $e');
+          if (kDebugMode) {
+            debugPrint('Error scheduling notification: $e');
+          }
         }
       }
     }
   }
 
   static Future<void> cancelAll() async {
-    await _notificationsPlugin.cancelAll();
-
-    // Also clear saved notifications
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_notificationsKey);
+    await cancelAllNotifications();
   }
 
   static Future<void> cleanupOldNotifications() async {
+    if (kIsWeb) return;
     final prefs = await SharedPreferences.getInstance();
-    final String? notificationsJson = prefs.getString(_notificationsKey);
+    final notifications = await _readSavedNotifications(prefs);
+    if (notifications.isEmpty) return;
 
-    if (notificationsJson != null) {
-      final List<Map<String, dynamic>> notifications =
-          List<Map<String, dynamic>>.from(
-            jsonDecode(notificationsJson) as List,
-          );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final validNotifications =
+        notifications
+            .where((n) => (n['scheduledTime'] as int? ?? 0) > now)
+            .toList();
 
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final validNotifications =
-          notifications.where((notification) {
-            return notification['scheduledTime'] > now;
-          }).toList();
-
-      if (validNotifications.length != notifications.length) {
-        await prefs.setString(
-          _notificationsKey,
-          jsonEncode(validNotifications),
-        );
-      }
+    if (validNotifications.length != notifications.length) {
+      await prefs.setString(
+        _notificationsKey,
+        jsonEncode(validNotifications),
+      );
     }
   }
 }

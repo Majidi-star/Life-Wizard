@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
@@ -226,11 +227,6 @@ class ResponseHandler {
     }
     debugPrint("No function_call tag found");
     return false;
-  }
-
-  /// Helper function to get the minimum of two integers
-  static int min(int a, int b) {
-    return a < b ? a : b;
   }
 
   /// Gets the first function call from tagged content

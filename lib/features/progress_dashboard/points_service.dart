@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../progress_dashboard/reward_repository.dart';
 
@@ -50,7 +51,7 @@ class PointsService {
     final hours = calculateHoursWorked(startTime, endTime);
     if (hours > 0) {
       await _rewardRepository.addHoursWorked(hours);
-      print('Added $hours hours to total hours worked');
+      if (kDebugMode) debugPrint('Added $hours hours to total hours worked');
     }
     return hours;
   }
@@ -61,7 +62,7 @@ class PointsService {
     final hours = calculateHoursWorked(startTime, endTime);
     if (hours > 0) {
       await _rewardRepository.addHoursWorked(-hours);
-      print('Removed $hours hours from total hours worked');
+      if (kDebugMode) debugPrint('Removed $hours hours from total hours worked');
     }
     return -hours;
   }

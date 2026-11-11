@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 // Schedule repository
 
 import 'package:sqflite/sqflite.dart';
 import '../../database_initializer.dart';
+import '../../utils/notification_utils.dart';
 import 'schedule_model.dart';
 import 'dart:convert';
 
@@ -41,13 +43,13 @@ class Schedule {
   Map<String, dynamic> toMap() {
     // Convert boolean to correct string status value for the database
     final timeBoxStatusText = timeBoxStatus ? 'completed' : 'planned';
-    print(
+    if (kDebugMode) debugPrint(
       'Schedule.toMap - Converting timeBoxStatus $timeBoxStatus to DB value: $timeBoxStatusText (as TEXT)',
     );
 
     return {
       'id': id,
-      'date': date.toIso8601String(),
+      'date': DatabaseInitializer.formatDateOnly(date),
       'challenge': challenge ? 1 : 0,
       'startTimeHour': startTimeHour,
       'startTimeMinute': startTimeMinute,
@@ -66,7 +68,7 @@ class Schedule {
 
   factory Schedule.fromMap(Map<String, dynamic> map) {
     // Add debug print to show the raw timeBoxStatus from database
-    print(
+    if (kDebugMode) debugPrint(
       'Schedule.fromMap - Raw timeBoxStatus from DB: ${map['timeBoxStatus']} (type: ${map['timeBoxStatus'].runtimeType})',
     );
 
@@ -80,7 +82,7 @@ class Schedule {
         rawStatus == true ||
         rawStatus == 'true';
 
-    print('Schedule.fromMap - Converted timeBoxStatus: $timeBoxStatus');
+    if (kDebugMode) debugPrint('Schedule.fromMap - Converted timeBoxStatus: $timeBoxStatus');
 
     // Handle heatmapProductivity conversion
     final rawHeatmap = map['heatmapProductivity'];
@@ -89,7 +91,7 @@ class Schedule {
             ? rawHeatmap
             : (double.tryParse(rawHeatmap.toString()) ?? 0.0);
 
-    print(
+    if (kDebugMode) debugPrint(
       'Schedule.fromMap - Converted heatmapProductivity: $heatmapProductivity (from ${rawHeatmap.runtimeType})',
     );
 
@@ -136,14 +138,14 @@ class ScheduleRepository {
           // Check and fix heatmapProductivity if needed
           if (map['heatmapProductivity'] != null &&
               map['heatmapProductivity'] is! double) {
-            print(
+            if (kDebugMode) debugPrint(
               'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
             final rawValue = map['heatmapProductivity'];
             map = Map<String, dynamic>.from(map); // Create a mutable copy
             map['heatmapProductivity'] =
                 double.tryParse(rawValue.toString()) ?? 0.0;
-            print(
+            if (kDebugMode) debugPrint(
               'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
           }
@@ -152,14 +154,14 @@ class ScheduleRepository {
           final schedule = Schedule.fromMap(map);
           schedules.add(schedule);
         } catch (e) {
-          print('ERROR processing schedule: $e');
-          print('Problematic schedule data: $map');
+          if (kDebugMode) debugPrint('ERROR processing schedule: $e');
+          if (kDebugMode) debugPrint('Problematic schedule data: $map');
         }
       }
 
       return schedules;
     } catch (e) {
-      print('ERROR in getAllSchedules: $e');
+      if (kDebugMode) debugPrint('ERROR in getAllSchedules: $e');
       return null;
     }
   }
@@ -180,21 +182,21 @@ class ScheduleRepository {
       var map = maps.first;
       if (map['heatmapProductivity'] != null &&
           map['heatmapProductivity'] is! double) {
-        print(
+        if (kDebugMode) debugPrint(
           'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
         );
         final rawValue = map['heatmapProductivity'];
         map = Map<String, dynamic>.from(map); // Create a mutable copy
         map['heatmapProductivity'] =
             double.tryParse(rawValue.toString()) ?? 0.0;
-        print(
+        if (kDebugMode) debugPrint(
           'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
         );
       }
 
       return Schedule.fromMap(map);
     } catch (e) {
-      print('ERROR in getScheduleById: $e');
+      if (kDebugMode) debugPrint('ERROR in getScheduleById: $e');
       return null;
     }
   }
@@ -202,34 +204,18 @@ class ScheduleRepository {
   /// Gets schedules for a specific date
   /// Returns null if no schedules exist for the date
   Future<List<Schedule>?> getSchedulesByDate(DateTime date) async {
-    print("date 2 : $date");
-    // Format: YYYY-MM-DD - strip time component
-    final dateStr = date.toIso8601String().split('T')[0];
-    print("dateStr: $dateStr");
-
-    print('\n===== FETCHING SCHEDULES BY DATE =====');
-    print('Date parameter: $date');
-    print('Date string used for query: $dateStr');
+    final dateStr = DatabaseInitializer.formatDateOnly(date);
 
     try {
-      // Debug: Show all schedules in the database first
-      final allSchedules = await _db.query(_tableName);
-      print('Total schedules in database: ${allSchedules.length}');
-      for (var schedule in allSchedules) {
-        print(
-          'Schedule ID: ${schedule['id']}, Date: ${schedule['date']}, Activity: ${schedule['activity']}',
-        );
-      }
-
-      // Query for the specific date
+      // Query for the specific date using consistent YYYY-MM-DD equality
       final List<Map<String, dynamic>> maps = await _db.query(
         _tableName,
-        where: 'date LIKE ?', // Use LIKE for more flexible matching
-        whereArgs: ['$dateStr%'], // Add wildcard to match any time component
+        where: 'date = ?',
+        whereArgs: [dateStr],
         orderBy: 'startTimeHour ASC, startTimeMinute ASC',
       );
 
-      print('Found ${maps.length} schedules for date $dateStr');
+      if (kDebugMode) debugPrint('Found ${maps.length} schedules for date $dateStr');
 
       if (maps.isEmpty) return null;
 
@@ -237,21 +223,21 @@ class ScheduleRepository {
       final List<Schedule> schedules = [];
       for (var map in maps) {
         try {
-          print(
+          if (kDebugMode) debugPrint(
             'Processing schedule ID: ${map['id']}, Activity: ${map['activity']}',
           );
 
           // Check and fix heatmapProductivity if needed
           if (map['heatmapProductivity'] != null &&
               map['heatmapProductivity'] is! double) {
-            print(
+            if (kDebugMode) debugPrint(
               'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
             final rawValue = map['heatmapProductivity'];
             map = Map<String, dynamic>.from(map); // Create a mutable copy
             map['heatmapProductivity'] =
                 double.tryParse(rawValue.toString()) ?? 0.0;
-            print(
+            if (kDebugMode) debugPrint(
               'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
           }
@@ -260,15 +246,15 @@ class ScheduleRepository {
           final schedule = Schedule.fromMap(map);
           schedules.add(schedule);
         } catch (e) {
-          print('ERROR processing schedule: $e');
-          print('Problematic schedule data: $map');
+          if (kDebugMode) debugPrint('ERROR processing schedule: $e');
+          if (kDebugMode) debugPrint('Problematic schedule data: $map');
         }
       }
 
-      print('Successfully processed ${schedules.length} schedules');
+      if (kDebugMode) debugPrint('Successfully processed ${schedules.length} schedules');
       return schedules;
     } catch (e) {
-      print('ERROR in getSchedulesByDate: $e');
+      if (kDebugMode) debugPrint('ERROR in getSchedulesByDate: $e');
       return null;
     }
   }
@@ -293,14 +279,14 @@ class ScheduleRepository {
           // Check and fix heatmapProductivity if needed
           if (map['heatmapProductivity'] != null &&
               map['heatmapProductivity'] is! double) {
-            print(
+            if (kDebugMode) debugPrint(
               'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
             final rawValue = map['heatmapProductivity'];
             map = Map<String, dynamic>.from(map); // Create a mutable copy
             map['heatmapProductivity'] =
                 double.tryParse(rawValue.toString()) ?? 0.0;
-            print(
+            if (kDebugMode) debugPrint(
               'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
           }
@@ -309,14 +295,14 @@ class ScheduleRepository {
           final schedule = Schedule.fromMap(map);
           schedules.add(schedule);
         } catch (e) {
-          print('ERROR processing schedule: $e');
-          print('Problematic schedule data: $map');
+          if (kDebugMode) debugPrint('ERROR processing schedule: $e');
+          if (kDebugMode) debugPrint('Problematic schedule data: $map');
         }
       }
 
       return schedules;
     } catch (e) {
-      print('ERROR in getSchedulesByTimeBoxStatus: $e');
+      if (kDebugMode) debugPrint('ERROR in getSchedulesByTimeBoxStatus: $e');
       return null;
     }
   }
@@ -341,14 +327,14 @@ class ScheduleRepository {
           // Check and fix heatmapProductivity if needed
           if (map['heatmapProductivity'] != null &&
               map['heatmapProductivity'] is! double) {
-            print(
+            if (kDebugMode) debugPrint(
               'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
             final rawValue = map['heatmapProductivity'];
             map = Map<String, dynamic>.from(map); // Create a mutable copy
             map['heatmapProductivity'] =
                 double.tryParse(rawValue.toString()) ?? 0.0;
-            print(
+            if (kDebugMode) debugPrint(
               'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
           }
@@ -357,62 +343,62 @@ class ScheduleRepository {
           final schedule = Schedule.fromMap(map);
           schedules.add(schedule);
         } catch (e) {
-          print('ERROR processing schedule: $e');
-          print('Problematic schedule data: $map');
+          if (kDebugMode) debugPrint('ERROR processing schedule: $e');
+          if (kDebugMode) debugPrint('Problematic schedule data: $map');
         }
       }
 
       return schedules;
     } catch (e) {
-      print('ERROR in getSchedulesByPriority: $e');
+      if (kDebugMode) debugPrint('ERROR in getSchedulesByPriority: $e');
       return null;
     }
   }
 
   /// Inserts a new schedule
   Future<int> insertSchedule(Schedule schedule) async {
-    print('\n===== INSERTING NEW SCHEDULE =====');
+    if (kDebugMode) debugPrint('\n===== INSERTING NEW SCHEDULE =====');
     final scheduleMap = schedule.toMap();
-    print('Schedule data to insert:');
+    if (kDebugMode) debugPrint('Schedule data to insert:');
     scheduleMap.forEach((key, value) {
-      print('  $key: $value (${value.runtimeType})');
+      if (kDebugMode) debugPrint('  $key: $value (${value.runtimeType})');
     });
 
     // Double check that heatmapProductivity is a double
     if (scheduleMap['heatmapProductivity'] != null &&
         scheduleMap['heatmapProductivity'] is! double) {
-      print('WARNING: Converting heatmapProductivity to double');
+      if (kDebugMode) debugPrint('WARNING: Converting heatmapProductivity to double');
       final rawValue = scheduleMap['heatmapProductivity'];
       scheduleMap['heatmapProductivity'] =
           double.tryParse(rawValue.toString()) ?? 0.0;
-      print(
+      if (kDebugMode) debugPrint(
         'Converted: ${scheduleMap['heatmapProductivity']} (${scheduleMap['heatmapProductivity'].runtimeType})',
       );
     }
 
     try {
       final id = await _db.insert(_tableName, scheduleMap);
-      print('Inserted with ID: $id');
+      if (kDebugMode) debugPrint('Inserted with ID: $id');
 
       // Verify the inserted record
       if (id > 0) {
         final inserted = await getScheduleById(id);
         if (inserted != null) {
-          print('Successfully retrieved inserted record:');
-          print('  Activity: ${inserted.activity}');
-          print(
+          if (kDebugMode) debugPrint('Successfully retrieved inserted record:');
+          if (kDebugMode) debugPrint('  Activity: ${inserted.activity}');
+          if (kDebugMode) debugPrint(
             '  TimeBoxStatus: ${inserted.timeBoxStatus} (DB value: ${inserted.timeBoxStatus ? "completed" : "planned"})',
           );
         } else {
-          print('WARNING: Could not retrieve the inserted record!');
+          if (kDebugMode) debugPrint('WARNING: Could not retrieve the inserted record!');
         }
       }
 
-      print('===== INSERTION COMPLETE =====\n');
+      if (kDebugMode) debugPrint('===== INSERTION COMPLETE =====\n');
       return id;
     } catch (e) {
-      print('ERROR inserting schedule: $e');
-      print('===== INSERTION FAILED =====\n');
+      if (kDebugMode) debugPrint('ERROR inserting schedule: $e');
+      if (kDebugMode) debugPrint('===== INSERTION FAILED =====\n');
       rethrow;
     }
   }
@@ -428,8 +414,9 @@ class ScheduleRepository {
     );
   }
 
-  /// Deletes a schedule
+  /// Deletes a schedule after cancelling its scheduled notification.
   Future<int> deleteSchedule(int id) async {
+    await NotificationUtils.cancelNotificationById(id);
     return await _db.delete(_tableName, where: 'id = ?', whereArgs: [id]);
   }
 
@@ -453,14 +440,14 @@ class ScheduleRepository {
           // Check and fix heatmapProductivity if needed
           if (map['heatmapProductivity'] != null &&
               map['heatmapProductivity'] is! double) {
-            print(
+            if (kDebugMode) debugPrint(
               'WARNING: heatmapProductivity is not a double: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
             final rawValue = map['heatmapProductivity'];
             map = Map<String, dynamic>.from(map); // Create a mutable copy
             map['heatmapProductivity'] =
                 double.tryParse(rawValue.toString()) ?? 0.0;
-            print(
+            if (kDebugMode) debugPrint(
               'Converted to: ${map['heatmapProductivity']} (${map['heatmapProductivity'].runtimeType})',
             );
           }
@@ -469,26 +456,26 @@ class ScheduleRepository {
           final schedule = Schedule.fromMap(map);
           schedules.add(schedule);
         } catch (e) {
-          print('ERROR processing schedule: $e');
-          print('Problematic schedule data: $map');
+          if (kDebugMode) debugPrint('ERROR processing schedule: $e');
+          if (kDebugMode) debugPrint('Problematic schedule data: $map');
         }
       }
 
       return schedules;
     } catch (e) {
-      print('ERROR in searchSchedules: $e');
+      if (kDebugMode) debugPrint('ERROR in searchSchedules: $e');
       return null;
     }
   }
 
   /// Updates specific fields of a schedule
   Future<int> updateScheduleFields(int id, Map<String, dynamic> fields) async {
-    print('Update fields for schedule $id: $fields');
+    if (kDebugMode) debugPrint('Update fields for schedule $id: $fields');
     try {
       // Print current values before update
       final before = await getScheduleById(id);
       if (before != null) {
-        print('Before update: $id - TimeBoxStatus: ${before.timeBoxStatus}');
+        if (kDebugMode) debugPrint('Before update: $id - TimeBoxStatus: ${before.timeBoxStatus}');
       }
 
       final result = await _db.update(
@@ -501,19 +488,21 @@ class ScheduleRepository {
       // Print values after update
       final after = await getScheduleById(id);
       if (after != null) {
-        print('After update: $id - TimeBoxStatus: ${after.timeBoxStatus}');
+        if (kDebugMode) debugPrint('After update: $id - TimeBoxStatus: ${after.timeBoxStatus}');
       }
 
       return result;
     } catch (e) {
-      print('Error in updateScheduleFields: $e');
+      if (kDebugMode) debugPrint('Error in updateScheduleFields: $e');
       return 0;
     }
   }
 
   /// Updates schedule date
   Future<int> updateScheduleDate(int id, DateTime date) async {
-    return await updateScheduleFields(id, {'date': date.toIso8601String()});
+    return await updateScheduleFields(id, {
+      'date': DatabaseInitializer.formatDateOnly(date),
+    });
   }
 
   /// Updates schedule time
@@ -549,18 +538,18 @@ class ScheduleRepository {
 
   /// Updates schedule timebox status
   Future<int> updateScheduleTimeBoxStatus(int id, bool status) async {
-    print('\n===== DATABASE UPDATE: TimeBox Status =====');
+    if (kDebugMode) debugPrint('\n===== DATABASE UPDATE: TimeBox Status =====');
 
     // Convert boolean to string value expected by the database
     final textStatus = status ? 'completed' : 'planned';
-    print(
+    if (kDebugMode) debugPrint(
       'Repository: Updating timeBoxStatus for ID $id to $status (DB value: "$textStatus")',
     );
 
     // First, verify current status in DB
     final schedule = await getScheduleById(id);
     if (schedule != null) {
-      print(
+      if (kDebugMode) debugPrint(
         'Current status in DB before update: ${schedule.timeBoxStatus} (raw value: "${schedule.timeBoxStatus ? "completed" : "planned"}")',
       );
     }
@@ -573,30 +562,30 @@ class ScheduleRepository {
         [textStatus, id],
       );
 
-      print('Direct SQL update result: $result rows affected');
+      if (kDebugMode) debugPrint('Direct SQL update result: $result rows affected');
 
       // Verify the update worked
       final updatedSchedule = await getScheduleById(id);
       if (updatedSchedule != null) {
-        print(
+        if (kDebugMode) debugPrint(
           'Status in DB after update: ${updatedSchedule.timeBoxStatus} (raw value: "${updatedSchedule.timeBoxStatus ? "completed" : "planned"}")',
         );
 
         // Check if the update succeeded
         if (updatedSchedule.timeBoxStatus != status) {
-          print(
+          if (kDebugMode) debugPrint(
             'WARNING: Database update appears to have failed! Values don\'t match.',
           );
         } else {
-          print('Database update SUCCESSFUL! Values match.');
+          if (kDebugMode) debugPrint('Database update SUCCESSFUL! Values match.');
         }
       }
 
-      print('===========================================\n');
+      if (kDebugMode) debugPrint('===========================================\n');
       return result;
     } catch (e) {
-      print('ERROR updating database: $e');
-      print('===========================================\n');
+      if (kDebugMode) debugPrint('ERROR updating database: $e');
+      if (kDebugMode) debugPrint('===========================================\n');
       return 0;
     }
   }
@@ -623,13 +612,13 @@ class ScheduleRepository {
 
   /// Transforms database Schedule into ScheduleModel structure
   ScheduleModel transformToScheduleModel(List<Schedule> schedules) {
-    print('\n===== TRANSFORMING SCHEDULES TO MODEL =====');
-    print('Number of schedules to transform: ${schedules.length}');
+    if (kDebugMode) debugPrint('\n===== TRANSFORMING SCHEDULES TO MODEL =====');
+    if (kDebugMode) debugPrint('Number of schedules to transform: ${schedules.length}');
 
     final List<TimeBox> timeBoxes = [];
 
     for (var schedule in schedules) {
-      print(
+      if (kDebugMode) debugPrint(
         'Processing schedule ID: ${schedule.id}, Activity: ${schedule.activity}',
       );
 
@@ -645,7 +634,7 @@ class ScheduleRepository {
         } catch (e) {
           // If JSON parsing fails, fall back to comma-separated
           todoList = schedule.todo?.split(',') ?? [];
-          print(
+          if (kDebugMode) debugPrint(
             'Failed to parse todos as JSON: ${e.toString()}. Using fallback.',
           );
         }
@@ -667,7 +656,7 @@ class ScheduleRepository {
         habits: schedule.habits ?? '',
       );
 
-      print(
+      if (kDebugMode) debugPrint(
         'Created TimeBox: ${timeBox.activity}, Status: ${timeBox.timeBoxStatus}',
       );
       timeBoxes.add(timeBox);
@@ -687,43 +676,43 @@ class ScheduleRepository {
               (timeBox.endTimeHour == currentHour &&
                   timeBox.endTimeMinute >= currentMinute))) {
         currentTimeBox = timeBox;
-        print('Found current timebox: ${timeBox.activity}');
+        if (kDebugMode) debugPrint('Found current timebox: ${timeBox.activity}');
         break;
       }
     }
 
-    print('Total timeboxes in model: ${timeBoxes.length}');
-    print('===== TRANSFORMATION COMPLETE =====\n');
+    if (kDebugMode) debugPrint('Total timeboxes in model: ${timeBoxes.length}');
+    if (kDebugMode) debugPrint('===== TRANSFORMATION COMPLETE =====\n');
 
     return ScheduleModel(timeBoxes: timeBoxes, currentTimeBox: currentTimeBox);
   }
 
   /// Prints all objects and their nested properties recursively
   void printScheduleModelStructure(ScheduleModel model) {
-    print('\n=== Schedule Model Structure ===');
+    if (kDebugMode) debugPrint('\n=== Schedule Model Structure ===');
 
-    print('\nTime Boxes:');
+    if (kDebugMode) debugPrint('\nTime Boxes:');
     for (var i = 0; i < model.timeBoxes.length; i++) {
       final timeBox = model.timeBoxes[i];
-      print('\nTime Box ${i + 1}:');
-      print(
+      if (kDebugMode) debugPrint('\nTime Box ${i + 1}:');
+      if (kDebugMode) debugPrint(
         '  Start Time: ${timeBox.startTimeHour}:${timeBox.startTimeMinute}',
       );
-      print('  End Time: ${timeBox.endTimeHour}:${timeBox.endTimeMinute}');
-      print('  Activity: ${timeBox.activity}');
-      print('  Notes: ${timeBox.notes}');
-      print('  Todos: ${timeBox.todos.join(", ")}');
-      print('  Status: ${timeBox.timeBoxStatus}');
-      print('  Priority: ${timeBox.priority}');
-      print('  Heatmap Productivity: ${timeBox.heatmapProductivity}');
-      print('  Is Challenge: ${timeBox.isChallenge}');
+      if (kDebugMode) debugPrint('  End Time: ${timeBox.endTimeHour}:${timeBox.endTimeMinute}');
+      if (kDebugMode) debugPrint('  Activity: ${timeBox.activity}');
+      if (kDebugMode) debugPrint('  Notes: ${timeBox.notes}');
+      if (kDebugMode) debugPrint('  Todos: ${timeBox.todos.join(", ")}');
+      if (kDebugMode) debugPrint('  Status: ${timeBox.timeBoxStatus}');
+      if (kDebugMode) debugPrint('  Priority: ${timeBox.priority}');
+      if (kDebugMode) debugPrint('  Heatmap Productivity: ${timeBox.heatmapProductivity}');
+      if (kDebugMode) debugPrint('  Is Challenge: ${timeBox.isChallenge}');
     }
 
-    print(
+    if (kDebugMode) debugPrint(
       '\nCurrent Time Box: ${model.currentTimeBox == null ? "None" : "Set"}',
     );
 
-    print('\n=== End of Schedule Model Structure ===\n');
+    if (kDebugMode) debugPrint('\n=== End of Schedule Model Structure ===\n');
   }
 }
 
@@ -769,7 +758,7 @@ Future<void> testScheduleRepository() async {
   // Test insert both entries
   final id1 = await repository.insertSchedule(testSchedule1);
   final id2 = await repository.insertSchedule(testSchedule2);
-  print('Created schedule entries with IDs: $id1, $id2');
+  if (kDebugMode) debugPrint('Created schedule entries with IDs: $id1, $id2');
 
   // Test get all and transform to model
   final allSchedules = await repository.getAllSchedules();
@@ -785,7 +774,7 @@ Future<void> testScheduleRepository() async {
     final singleScheduleModel = repository.transformToScheduleModel([
       retrievedSchedule1,
     ]);
-    print('\nRetrieved First Schedule Model:');
+    if (kDebugMode) debugPrint('\nRetrieved First Schedule Model:');
     repository.printScheduleModelStructure(singleScheduleModel);
   }
 
@@ -795,7 +784,7 @@ Future<void> testScheduleRepository() async {
     final singleScheduleModel = repository.transformToScheduleModel([
       retrievedSchedule2,
     ]);
-    print('\nRetrieved Second Schedule Model:');
+    if (kDebugMode) debugPrint('\nRetrieved Second Schedule Model:');
     repository.printScheduleModelStructure(singleScheduleModel);
   }
 
@@ -806,7 +795,7 @@ Future<void> testScheduleRepository() async {
     'todo': 'Prepare presentation,Review agenda,Take notes,Follow up',
     'heatmapProductivity': 9.0,
   });
-  print('\nUpdated first schedule fields');
+  if (kDebugMode) debugPrint('\nUpdated first schedule fields');
 
   // Test update by field for second entry
   await repository.updateScheduleFields(id2, {
@@ -815,7 +804,7 @@ Future<void> testScheduleRepository() async {
     'todo': 'Code review,Write tests,Update documentation,Deploy changes',
     'heatmapProductivity': 8.0,
   });
-  print('\nUpdated second schedule fields');
+  if (kDebugMode) debugPrint('\nUpdated second schedule fields');
 
   // Test get by ID after updates
   final updatedSchedule1 = await repository.getScheduleById(id1);
@@ -825,12 +814,12 @@ Future<void> testScheduleRepository() async {
       updatedSchedule1,
       updatedSchedule2,
     ]);
-    print('\nUpdated Schedule Model:');
+    if (kDebugMode) debugPrint('\nUpdated Schedule Model:');
     repository.printScheduleModelStructure(updatedScheduleModel);
   }
 
   // Test delete both entries
   await repository.deleteSchedule(id1);
   await repository.deleteSchedule(id2);
-  print('\nDeleted test schedule entries');
+  if (kDebugMode) debugPrint('\nDeleted test schedule entries');
 }
