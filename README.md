@@ -1,5 +1,17 @@
 <div align="center">
 
+[![Official Project & Case Study](https://img.shields.io/badge/%F0%9F%8C%90_Live_Project-binakod.ir-6366f1?style=for-the-badge&logo=google-chrome&logoColor=white)](https://binakod.ir/r/life-wizard)
+
+**[🇬🇧 English Version](https://binakod.ir/en/portfolio/life-wizard-2/)** &nbsp;•&nbsp; **[🇮🇷 نسخه فارسی](https://binakod.ir/portfolio/life-wizard/)**
+
+<sub>*(Automatic language redirection based on visitor preference / هدایت خودکار بر اساس زبان مرورگر)*</sub>
+
+</div>
+
+---
+
+<div align="center">
+
 <img src="lib/assets/icon.png" alt="Life Wizard Logo" width="108" />
 
 # Life Wizard
